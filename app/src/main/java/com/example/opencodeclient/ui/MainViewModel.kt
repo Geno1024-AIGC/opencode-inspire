@@ -135,10 +135,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun toProjectUi(p: Project, all: List<Session>): ProjectUi {
         val sessions = all.filter { it.projectId == p.id }.sortedByDescending { it.time?.created ?: 0L }
+        val name = when {
+            p.id == "global" -> "Global (non-git)"
+            p.worktree.trimEnd('/').isBlank() -> p.worktree
+            else -> p.worktree.trimEnd('/').substringAfterLast('/')
+        }
         return ProjectUi(
             id = p.id,
             worktree = p.worktree,
-            name = p.worktree.trimEnd('/').substringAfterLast('/').ifBlank { p.worktree },
+            name = name,
         ).copy(sessions = sessions)
     }
 
