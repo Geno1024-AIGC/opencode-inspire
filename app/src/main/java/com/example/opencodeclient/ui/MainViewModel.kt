@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.opencodeclient.data.OpenCodeClient
+import com.example.opencodeclient.data.Part
 import com.example.opencodeclient.data.Project
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
@@ -18,6 +19,7 @@ data class ChatMessage(
     val id: String,
     val role: String,
     val text: String,
+    val reasoning: String? = null,
     val parts: List<PartUi> = emptyList(),
 )
 
@@ -266,6 +268,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadMessages()
     }
 
+    private fun buildText(parts: List<Part>): String =
+        parts.filter { it.type != "reasoning" }.joinToString("") { p -> p.text ?: "" }
+
+    private fun buildReasoning(parts: List<Part>): String? =
+        parts.filter { it.type == "reasoning" }.mapNotNull { it.text }.joinToString("\n").ifBlank { null }
+
     fun loadMessages() {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
@@ -273,11 +281,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val pairs = withContext(Dispatchers.IO) { c.sessionMessages(sid, 100) }
                 _messages.value = pairs.map { (msg, parts) ->
-                    val text = parts.joinToString("") { p -> p.text ?: "" }
                     ChatMessage(
                         id = msg.id,
                         role = msg.role ?: "unknown",
-                        text = text,
+                        text = buildText(parts),
+                        reasoning = buildReasoning(parts),
                         parts = parts.map { p ->
                             PartUi(
                                 type = p.type,
@@ -308,11 +316,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             try {
                 val (msg, parts) = withContext(Dispatchers.IO) { c.sendPrompt(sid, text) }
-                val replyText = parts.joinToString("") { p -> p.text ?: "" }
                 _messages.value = _messages.value + ChatMessage(
                     id = msg.id,
                     role = msg.role ?: "assistant",
-                    text = replyText,
+                    text = buildText(parts),
+                    reasoning = buildReasoning(parts),
                     parts = parts.map { p ->
                         PartUi(p.type, p.text, p.tool, p.title, p.state?.status)
                     },
