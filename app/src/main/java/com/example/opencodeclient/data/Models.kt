@@ -32,7 +32,13 @@ data class Session(
     val directory: String = "",
     @SerialName("parentID") val parentId: String? = null,
     val title: String = "",
-    @SerialName("time") val createdAt: String? = null,
+    val time: SessionTime? = null,
+)
+
+@Serializable
+data class SessionTime(
+    val created: Long = 0L,
+    val updated: Long = 0L,
 )
 
 @Serializable
