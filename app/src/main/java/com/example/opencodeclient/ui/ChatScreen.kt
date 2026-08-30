@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -189,6 +190,10 @@ private fun MessageBubble(msg: ChatMessage) {
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
             ) {
+                if (!isUser && msg.reasoning != null) {
+                    ReasoningBlock(msg.reasoning)
+                    if (msg.text.isNotBlank()) Spacer(Modifier.height(8.dp))
+                }
                 val tools = msg.parts.filter { it.type == "tool" }
                 if (!isUser && tools.isNotEmpty()) {
                     tools.forEach { ToolPart(it) }
@@ -221,6 +226,29 @@ private fun ToolPart(part: PartUi) {
         Text(
             part.toolTitle ?: part.tool ?: "tool",
             style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontFamily = FontFamily.Monospace,
+        )
+    }
+}
+
+@Composable
+private fun ReasoningBlock(reasoning: String) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Thinking",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.tertiary,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Text(
+            reasoning.trim(),
+            style = MaterialTheme.typography.bodySmall,
+            fontStyle = FontStyle.Italic,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = FontFamily.Monospace,
         )
