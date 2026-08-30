@@ -167,12 +167,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val s = withContext(Dispatchers.IO) { c.createSession(directory = directory) }
                 selectProjectByWorktree(directory)
+                addSessionToProject(s)
                 activateSession(s)
                 _workspaceState.value = UiState.Idle
                 onDone()
             } catch (e: Exception) {
                 _workspaceState.value = UiState.Error(e.message ?: "Failed to create session")
             }
+        }
+    }
+
+    private fun addSessionToProject(s: Session) {
+        _projects.value = _projects.value.map { p ->
+            if (p.worktree == s.directory) {
+                p.copy(sessions = listOf(s) + p.sessions.filterNot { it.id == s.id })
+            } else p
         }
     }
 
