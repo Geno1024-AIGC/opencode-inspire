@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -13,35 +12,51 @@ sealed class Screen {
     data object Connect : Screen()
     data object Project : Screen()
     data object Chat : Screen()
+
+    val key: String
+        get() = when (this) {
+            Connect -> "connect"
+            Project -> "project"
+            Chat -> "chat"
+        }
+
+    companion object {
+        fun fromKey(key: String): Screen = when (key) {
+            "project" -> Project
+            "chat" -> Chat
+            else -> Connect
+        }
+    }
 }
 
 @Composable
 fun OpenCodeApp(viewModel: MainViewModel) {
-    var screen by rememberSaveable { mutableStateOf<Screen>(Screen.Connect) }
+    var screenKey by rememberSaveable { mutableStateOf(Screen.Connect.key) }
+    val screen = Screen.fromKey(screenKey)
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
 
     LaunchedEffect(serverUrl) {
         if (serverUrl != null && screen is Screen.Connect) {
-            screen = Screen.Project
+            screenKey = Screen.Project.key
         }
     }
 
     when (screen) {
         is Screen.Connect -> ConnectScreen(
             viewModel = viewModel,
-            onConnected = { screen = Screen.Project },
+            onConnected = { screenKey = Screen.Project.key },
         )
         is Screen.Project -> ProjectBrowserScreen(
             viewModel = viewModel,
-            onStartChat = { screen = Screen.Chat },
+            onStartChat = { screenKey = Screen.Chat.key },
             onDisconnect = {
                 viewModel.reset()
-                screen = Screen.Connect
+                screenKey = Screen.Connect.key
             },
         )
         is Screen.Chat -> ChatScreen(
             viewModel = viewModel,
-            onBack = { screen = Screen.Project },
+            onBack = { screenKey = Screen.Project.key },
         )
     }
 }
