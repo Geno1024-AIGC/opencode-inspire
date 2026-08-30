@@ -11,8 +11,10 @@ data class HealthResponse(
 
 @Serializable
 data class Project(
-    val worktree: String? = null,
-    val path: String? = null,
+    val id: String = "",
+    val worktree: String = "",
+    val vcsDir: String? = null,
+    val vcs: String? = null,
 )
 
 @Serializable
@@ -26,7 +28,10 @@ data class FileNode(
 @Serializable
 data class Session(
     val id: String,
-    val title: String? = null,
+    @SerialName("projectID") val projectId: String = "",
+    val directory: String = "",
+    @SerialName("parentID") val parentId: String? = null,
+    val title: String = "",
     @SerialName("time") val createdAt: String? = null,
 )
 

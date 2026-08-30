@@ -17,9 +17,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,10 +48,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun ChatScreen(
     viewModel: MainViewModel,
-    onBack: () -> Unit,
+    onMenu: () -> Unit,
 ) {
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val sending by viewModel.sending.collectAsStateWithLifecycle()
+    val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var input by rememberSaveable { mutableStateOf("") }
 
@@ -65,9 +66,14 @@ fun ChatScreen(
         modifier = Modifier.statusBarsPadding(),
         topBar = {
             TopAppBar(
-                title = { Text("OpenCode", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        activeSession?.title?.ifBlank { "OpenCode" } ?: "OpenCode",
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    IconButton(onClick = onMenu) { Icon(Icons.Filled.Menu, "Menu") }
                 },
                 actions = {
                     if (sending) {
