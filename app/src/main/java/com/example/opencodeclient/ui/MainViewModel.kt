@@ -127,24 +127,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val c = client ?: return
         val rawProjects = withContext(Dispatchers.IO) { c.projects() }
         val allSessions = withContext(Dispatchers.IO) { c.sessions() }
-        _projects.value = rawProjects.map { p -> toProjectUi(p, allSessions) }
+        _projects.value = groupProjects(rawProjects, allSessions)
         if (_selectedProjectId.value == null && _projects.value.isNotEmpty()) {
             _selectedProjectId.value = _projects.value.first().id
         }
     }
 
-    private fun toProjectUi(p: Project, all: List<Session>): ProjectUi {
-        val sessions = all.filter { it.projectId == p.id }.sortedByDescending { it.time?.created ?: 0L }
-        val name = when {
-            p.id == "global" -> "Global (non-git)"
-            p.worktree.trimEnd('/').isBlank() -> p.worktree
-            else -> p.worktree.trimEnd('/').substringAfterLast('/')
+    private fun groupProjects(projects: List<Project>, all: List<Session>): List<ProjectUi> {
+        val nonGlobal = projects.filter { it.id != "global" }
+        val taken = HashSet<String>()
+        val grouped = nonGlobal.map { p ->
+            val normalized = p.worktree.trimEnd('/')
+            val sessions = all.filter { s ->
+                val dir = s.directory.trimEnd('/')
+                dir == normalized || dir.startsWith("$normalized/")
+            }.also { sessions -> sessions.forEach { taken.add(it.id) } }
+                .sortedByDescending { it.time?.created ?: 0L }
+            ProjectUi(
+                id = p.id,
+                worktree = p.worktree,
+                name = normalized.substringAfterLast('/').ifBlank { p.worktree },
+                sessions = sessions,
+            )
         }
-        return ProjectUi(
-            id = p.id,
-            worktree = p.worktree,
-            name = name,
-        ).copy(sessions = sessions)
+        val globalSessions = all.filter { it.id !in taken }.sortedByDescending { it.time?.created ?: 0L }
+        val global = ProjectUi(
+            id = "global",
+            worktree = "/",
+            name = "Global (non-git)",
+            sessions = globalSessions,
+        )
+        return grouped + global
     }
 
     fun refresh() {
