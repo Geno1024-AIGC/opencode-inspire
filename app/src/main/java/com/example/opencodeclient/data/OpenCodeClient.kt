@@ -28,7 +28,10 @@ class OpenCodeClient(
     serverUrl: String,
 ) {
     private val base = serverUrl.trim().trimEnd('/')
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)

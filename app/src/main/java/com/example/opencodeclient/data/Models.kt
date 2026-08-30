@@ -12,14 +12,14 @@ data class HealthResponse(
 @Serializable
 data class Project(
     val worktree: String? = null,
-    val path: String,
+    val path: String? = null,
 )
 
 @Serializable
 data class FileNode(
-    val name: String,
-    val type: String,
-    val path: String,
+    val name: String = "",
+    val type: String = "",
+    val path: String = "",
     val children: List<FileNode>? = null,
 )
 
