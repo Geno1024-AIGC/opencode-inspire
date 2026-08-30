@@ -134,30 +134,52 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun groupProjects(projects: List<Project>, all: List<Session>): List<ProjectUi> {
-        val nonGlobal = projects.filter { it.id != "global" }
-        val taken = HashSet<String>()
-        val grouped = nonGlobal.map { p ->
-            val normalized = p.worktree.trimEnd('/')
-            val sessions = all.filter { s ->
-                val dir = s.directory.trimEnd('/')
-                dir == normalized || dir.startsWith("$normalized/")
-            }.also { sessions -> sessions.forEach { taken.add(it.id) } }
-                .sortedByDescending { it.time?.created ?: 0L }
-            ProjectUi(
-                id = p.id,
-                worktree = p.worktree,
-                name = normalized.substringAfterLast('/').ifBlank { p.worktree },
-                sessions = sessions,
+        // Map a worktree directory to its Project for name/id resolution.
+        val worktrees = projects
+            .filter { it.id != "global" && it.worktree.isNotBlank() }
+            .sortedByDescending { it.worktree.length }
+            .map { it.worktree.trimEnd('/') to it }
+            .toMap()
+
+        fun resolve(dir: String): Project? {
+            if (dir.isEmpty()) return null
+            return worktrees[dir]
+                ?: worktrees.entries.firstOrNull { dir.startsWith(it.key + "/") }?.value
+        }
+
+        // Group sessions by their own directory.
+        val byDir = LinkedHashMap<String, MutableList<Session>>()
+        val orphaned = mutableListOf<Session>()
+        for (s in all) {
+            val dir = s.directory.trimEnd('/')
+            if (dir.isEmpty()) orphaned.add(s)
+            else byDir.getOrPut(dir) { mutableListOf() }.add(s)
+        }
+
+        val result = mutableListOf<ProjectUi>()
+        for ((dir, sessions) in byDir.toList().sortedBy { it.first }) {
+            val proj = resolve(dir)
+            result.add(
+                ProjectUi(
+                    id = proj?.id ?: "dir-$dir",
+                    worktree = dir,
+                    name = dir.substringAfterLast('/').ifBlank { dir },
+                    sessions = sessions.sortedByDescending { it.time?.created ?: 0L },
+                )
             )
         }
-        val globalSessions = all.filter { it.id !in taken }.sortedByDescending { it.time?.created ?: 0L }
-        val global = ProjectUi(
-            id = "global",
-            worktree = "/",
-            name = "Global (non-git)",
-            sessions = globalSessions,
-        )
-        return grouped + global
+
+        if (orphaned.isNotEmpty() || all.isEmpty()) {
+            result.add(
+                ProjectUi(
+                    id = "global",
+                    worktree = "/",
+                    name = "Global",
+                    sessions = orphaned.sortedByDescending { it.time?.created ?: 0L },
+                )
+            )
+        }
+        return result
     }
 
     fun refresh() {
