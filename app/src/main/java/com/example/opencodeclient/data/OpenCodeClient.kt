@@ -26,6 +26,8 @@ import okhttp3.Response
 
 class OpenCodeClient(
     serverUrl: String,
+    private val username: String? = null,
+    private val password: String? = null,
 ) {
     private val base = serverUrl.trim().trimEnd('/')
     private val json = Json {
@@ -39,21 +41,31 @@ class OpenCodeClient(
 
     private val jsonMedia = "application/json; charset=utf-8".toMediaType()
 
+    private val authHeader: String? =
+        if (username.isNullOrEmpty() && password.isNullOrEmpty()) null
+        else {
+            val token = java.util.Base64.getEncoder().encodeToString(
+                "${username ?: ""}:${password ?: ""}".toByteArray(Charsets.UTF_8)
+            )
+            "Basic $token"
+        }
+
     private suspend fun <T> execute(
         method: String,
         path: String,
         body: String? = null,
         deserialize: (String) -> T,
     ): T = suspendCancellableCoroutine { cont ->
-        val builder = Request.Builder().url("$base$path")
+        val reqBuilder = Request.Builder().url("$base$path")
+        authHeader?.let { reqBuilder.header("Authorization", it) }
         val bodyProvider: () -> okhttp3.RequestBody =
             { (body ?: "").toRequestBody(jsonMedia) }
         when (method) {
-            "GET" -> builder.get()
-            "POST", "PUT", "PATCH", "DELETE" -> builder.method(method, bodyProvider())
+            "GET" -> reqBuilder.get()
+            "POST", "PUT", "PATCH", "DELETE" -> reqBuilder.method(method, bodyProvider())
             else -> throw IllegalArgumentException("Unsupported method: $method")
         }
-        val request = builder.build()
+        val request = reqBuilder.build()
         val call = client.newCall(request)
         cont.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {

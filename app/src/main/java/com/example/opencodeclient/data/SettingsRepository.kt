@@ -15,10 +15,14 @@ class SettingsRepository(private val context: Context) {
         val SERVER_URL = stringPreferencesKey("server_url")
         val PROJECT_PATH = stringPreferencesKey("project_path")
         val LAST_SESSION = stringPreferencesKey("last_session_id")
+        val AUTH_USERNAME = stringPreferencesKey("auth_username")
+        val AUTH_PASSWORD = stringPreferencesKey("auth_password")
     }
 
     val serverUrl: Flow<String?> = context.dataStore.data.map { it[Keys.SERVER_URL] }
     val projectPath: Flow<String?> = context.dataStore.data.map { it[Keys.PROJECT_PATH] }
+    val authUsername: Flow<String?> = context.dataStore.data.map { it[Keys.AUTH_USERNAME] }
+    val authPassword: Flow<String?> = context.dataStore.data.map { it[Keys.AUTH_PASSWORD] }
 
     suspend fun setServerUrl(url: String) {
         context.dataStore.edit { it[Keys.SERVER_URL] = url }
@@ -26,6 +30,15 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setProjectPath(path: String) {
         context.dataStore.edit { it[Keys.PROJECT_PATH] = path }
+    }
+
+    suspend fun setAuth(username: String?, password: String?) {
+        context.dataStore.edit {
+            if (username.isNullOrEmpty()) it.remove(Keys.AUTH_USERNAME)
+            else it[Keys.AUTH_USERNAME] = username
+            if (password.isNullOrEmpty()) it.remove(Keys.AUTH_PASSWORD)
+            else it[Keys.AUTH_PASSWORD] = password
+        }
     }
 
     suspend fun getLastSessionId(): String? =

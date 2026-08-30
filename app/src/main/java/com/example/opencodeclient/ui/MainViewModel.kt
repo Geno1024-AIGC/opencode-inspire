@@ -72,22 +72,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
 
+    private val _authUsername = MutableStateFlow<String?>(null)
+    val authUsername: StateFlow<String?> = _authUsername.asStateFlow()
+
+    private val _authPassword = MutableStateFlow<String?>(null)
+    val authPassword: StateFlow<String?> = _authPassword.asStateFlow()
+
     init {
         viewModelScope.launch {
             settings.serverUrl.collect { _serverUrl.value = it }
         }
+        viewModelScope.launch {
+            settings.authUsername.collect { _authUsername.value = it }
+        }
+        viewModelScope.launch {
+            settings.authPassword.collect { _authPassword.value = it }
+        }
     }
 
-    fun connect(serverUrl: String, onSuccess: () -> Unit = {}) {
+    fun connect(serverUrl: String, username: String? = null, password: String? = null, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             _connectionState.value = UiState.Loading("Connecting...")
             try {
-                val cli = OpenCodeClient(serverUrl)
+                val cli = OpenCodeClient(serverUrl, username, password)
                 val health = withContext(Dispatchers.IO) { cli.health() }
                 if (!health.healthy) throw IllegalStateException("Server is not healthy")
                 client = cli
                 settings.setServerUrl(serverUrl)
+                settings.setAuth(username, password)
                 _serverUrl.value = serverUrl
+                _authUsername.value = username
+                _authPassword.value = password
                 _connectionState.value = UiState.Idle
                 onSuccess()
             } catch (e: Exception) {
@@ -106,7 +121,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         _connectionState.value = UiState.Error("No server configured")
                         return@launch
                     }
-                    val cli = OpenCodeClient(saved)
+                    val cli = OpenCodeClient(saved, _authUsername.value, _authPassword.value)
                     cli.health()
                     client = cli
                 }
