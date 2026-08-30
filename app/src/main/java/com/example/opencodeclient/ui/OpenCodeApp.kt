@@ -24,6 +24,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
@@ -130,11 +131,10 @@ private fun DrawerContent(
     val workspaceState by viewModel.workspaceState.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = Modifier
-            .safeDrawingPadding()
-            .fillMaxWidth(1f),
-    ) {
+    ModalDrawerSheet {
+        Column(
+            modifier = Modifier.fillMaxWidth(1f),
+        ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -199,6 +199,7 @@ private fun DrawerContent(
                 .clickable { onDisconnect() }
                 .padding(16.dp),
         )
+        }
     }
 }
 

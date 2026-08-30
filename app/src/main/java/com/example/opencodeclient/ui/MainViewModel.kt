@@ -134,7 +134,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun toProjectUi(p: Project, all: List<Session>): ProjectUi {
-        val sessions = all.filter { it.projectId == p.id }.sortedByDescending { it.createdAt ?: "" }
+        val sessions = all.filter { it.projectId == p.id }.sortedByDescending { it.time?.created ?: 0L }
         return ProjectUi(
             id = p.id,
             worktree = p.worktree,
