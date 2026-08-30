@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Row
@@ -34,7 +35,11 @@ fun ConnectScreen(
 ) {
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     val state by viewModel.connectionState.collectAsStateWithLifecycle()
+    val savedUser by viewModel.authUsername.collectAsStateWithLifecycle()
+    val savedPass by viewModel.authPassword.collectAsStateWithLifecycle()
     var input by rememberSaveable { mutableStateOf(serverUrl ?: "") }
+    var username by rememberSaveable { mutableStateOf(savedUser ?: "") }
+    var password by rememberSaveable { mutableStateOf(savedPass ?: "") }
     var visited by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(serverUrl) {
@@ -42,6 +47,11 @@ fun ConnectScreen(
             input = serverUrl ?: input
             visited = true
         }
+    }
+
+    LaunchedEffect(savedUser, savedPass) {
+        if (username.isBlank()) username = savedUser ?: ""
+        if (password.isBlank()) password = savedPass ?: ""
     }
 
     Column(
@@ -69,6 +79,25 @@ fun ConnectScreen(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
+        Spacer(Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Username (optional)") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+        Spacer(Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password (optional)") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+        )
         Spacer(Modifier.height(16.dp))
 
         when (val s = state) {
@@ -91,7 +120,14 @@ fun ConnectScreen(
         }
 
         Button(
-            onClick = { viewModel.connect(input.trim(), onSuccess = onConnected) },
+            onClick = {
+                viewModel.connect(
+                    input.trim(),
+                    username = username.trim().takeIf { it.isNotEmpty() },
+                    password = password.takeIf { it.isNotEmpty() },
+                    onSuccess = onConnected,
+                )
+            },
             enabled = input.isNotBlank() && state !is UiState.Loading,
             modifier = Modifier.fillMaxWidth(),
         ) {
