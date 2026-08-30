@@ -96,16 +96,29 @@ class OpenCodeClient(
         }
 
     suspend fun listFiles(path: String? = null): List<FileNode> =
-        execute("GET", "/file${queryOf(mapOf("path" to path))}") { text ->
+        execute("GET", "/file?path=${java.net.URLEncoder.encode(path ?: "", "UTF-8")}") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ListSerializer(FileNode.serializer()), text)
         }
 
-    suspend fun createSession(parentId: String? = null, title: String? = null): Session =
-        execute("POST", "/session", body = buildJsonObject {
-            if (parentId != null) put("parentID", parentId)
-            if (title != null) put("title", title)
-        }.toString()) { json.decodeFromString(Session.serializer(), it) }
+    suspend fun createSession(directory: String? = null, parentId: String? = null, title: String? = null): Session =
+        execute(
+            "POST",
+            "/session${queryOf(mapOf("directory" to directory))}",
+            body = buildJsonObject {
+                if (parentId != null) put("parentID", parentId)
+                if (title != null) put("title", title)
+            }.toString(),
+        ) { json.decodeFromString(Session.serializer(), it) }
+
+    suspend fun sessions(): List<Session> =
+        execute("GET", "/session") { text ->
+            if (text.isBlank()) emptyList()
+            else json.decodeFromString(ListSerializer(Session.serializer()), text)
+        }
+
+    suspend fun session(id: String): Session =
+        execute("GET", "/session/$id") { json.decodeFromString(Session.serializer(), it) }
 
     suspend fun sessionMessages(sessionId: String, limit: Int = 50): List<Pair<Message, List<Part>>> =
         execute("GET", "/session/$sessionId/message?limit=$limit") { text ->
@@ -136,7 +149,7 @@ class OpenCodeClient(
         execute("POST", "/session/$sessionId/abort") { it == "true" }
 
     fun eventStream(): Flow<String> = flow {
-        val request = Request.Builder().url("$base/event").build()
+        val request = Request.Builder().url("$base/global/event").build()
         val call = client.newCall(request)
         try {
             val response = call.execute()
