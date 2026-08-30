@@ -123,8 +123,8 @@ class OpenCodeClient(
             }.toString(),
         ) { json.decodeFromString(Session.serializer(), it) }
 
-    suspend fun sessions(): List<Session> =
-        execute("GET", "/session") { text ->
+    suspend fun sessions(roots: Boolean = true): List<Session> =
+        execute("GET", "/session${queryOf(mapOf("roots" to if (roots) "true" else null))}") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ListSerializer(Session.serializer()), text)
         }
