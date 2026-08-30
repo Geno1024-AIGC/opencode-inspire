@@ -42,6 +42,34 @@ data class SessionTime(
 )
 
 @Serializable
+data class LocationRef(
+    val directory: String = "",
+    @SerialName("workspaceID") val workspaceId: String? = null,
+)
+
+@Serializable
+data class SessionV2Info(
+    val id: String,
+    @SerialName("parentID") val parentId: String? = null,
+    @SerialName("projectID") val projectId: String = "",
+    val title: String = "",
+    val time: SessionTime? = null,
+    val location: LocationRef? = null,
+)
+
+@Serializable
+data class SessionsV2Response(
+    val data: List<SessionV2Info> = emptyList(),
+    val cursor: V2Cursor = V2Cursor(),
+)
+
+@Serializable
+data class V2Cursor(
+    val next: String? = null,
+    val previous: String? = null,
+)
+
+@Serializable
 data class SessionInfo(
     val info: Message,
     val parts: List<Part>,
