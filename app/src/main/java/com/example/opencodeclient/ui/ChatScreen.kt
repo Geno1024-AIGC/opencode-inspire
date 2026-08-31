@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -31,9 +32,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.Tokens
 import com.mikepenz.markdown.m3.Markdown
 
@@ -65,6 +70,7 @@ fun ChatScreen(
     val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
     val contextWindow by viewModel.contextWindow.collectAsStateWithLifecycle()
     val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
+    val pendingQuestions by viewModel.pendingQuestions.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var input by rememberSaveable { mutableStateOf("") }
     var userScrolledAway by remember { mutableStateOf(false) }
@@ -167,6 +173,111 @@ fun ChatScreen(
             }
         }
     }
+
+    pendingQuestions.firstOrNull()?.let { question ->
+        QuestionDialog(
+            question = question,
+            onReply = { answers -> viewModel.replyQuestions(question, answers) },
+            onReject = { viewModel.rejectQuestion(question) },
+        )
+    }
+}
+
+@Composable
+private fun QuestionDialog(
+    question: QuestionRequest,
+    onReply: (List<List<String>>) -> Unit,
+    onReject: () -> Unit,
+) {
+    var selections by rememberSaveable {
+        mutableStateOf(List(question.questions.size) { mutableListOf<String>() } as List<MutableList<String>>)
+    }
+    var customs by rememberSaveable {
+        mutableStateOf(List(question.questions.size) { "" } as List<String>)
+    }
+
+    AlertDialog(
+        onDismissRequest = onReject,
+        title = { Text("OpenCode asks") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                question.questions.forEachIndexed { index, q ->
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            q.header.ifBlank { q.question },
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        if (q.header.isNotBlank() && q.question != q.header) {
+                            Text(q.question, style = MaterialTheme.typography.bodySmall)
+                        }
+                        q.options.forEach { opt ->
+                            val selected = selections[index].contains(opt.label)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selections = selections.toMutableList().also { list ->
+                                            if (q.multiple) {
+                                                if (selected) {
+                                                    list[index] = selections[index].filterNot { it == opt.label }.toMutableList()
+                                                } else {
+                                                    list[index] = (selections[index] + opt.label).toMutableList()
+                                                }
+                                            } else {
+                                                list[index] = if (selected) mutableListOf() else mutableListOf(opt.label)
+                                            }
+                                        }
+                                    }
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                if (q.multiple) {
+                                    Checkbox(checked = selected, onCheckedChange = null)
+                                } else {
+                                    RadioButton(selected = selected, onClick = null)
+                                }
+                                Column {
+                                    Text(opt.label, style = MaterialTheme.typography.bodyMedium)
+                                    if (opt.description.isNotBlank()) {
+                                        Text(opt.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
+                        }
+                        if (q.custom != false) {
+                            OutlinedTextField(
+                                value = customs[index],
+                                onValueChange = { v ->
+                                    customs = customs.toMutableList().also { it[index] = v }
+                                },
+                                label = { Text("Custom answer") },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val answers = question.questions.mapIndexed { i, q ->
+                        val labels = selections[i].toList()
+                        val custom = customs[i].trim()
+                        when {
+                            custom.isNotEmpty() -> labels + custom
+                            else -> labels
+                        }
+                    }
+                    onReply(answers)
+                },
+            ) { Text("Submit") }
+        },
+        dismissButton = {
+            TextButton(onClick = onReject) { Text("Reject") }
+        },
+    )
 }
 
 @Composable
