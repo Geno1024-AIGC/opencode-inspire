@@ -182,7 +182,7 @@ fun ChatScreen(
                         viewModel.send(input.trim())
                         input = ""
                     },
-                    enabled = input.isNotBlank() && !sending,
+                    enabled = input.isNotBlank(),
                     modifier = Modifier.padding(bottom = 4.dp),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Send, "Send")
