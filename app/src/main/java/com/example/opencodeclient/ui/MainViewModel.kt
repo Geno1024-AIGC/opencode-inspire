@@ -27,6 +27,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -46,6 +47,12 @@ data class PartUi(
     val toolState: String? = null,
     val toolInput: String? = null,
     val toolOutput: String? = null,
+)
+
+data class TodoUi(
+    val id: String,
+    val content: String,
+    val status: String,
 )
 
 data class ProjectUi(
@@ -99,6 +106,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    private val _todos = MutableStateFlow<List<TodoUi>>(emptyList())
+    val todos: StateFlow<List<TodoUi>> = _todos.asStateFlow()
 
     private val _sessionTokens = MutableStateFlow<Tokens?>(null)
     val sessionTokens: StateFlow<Tokens?> = _sessionTokens.asStateFlow()
@@ -467,6 +477,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         },
                     )
                 }
+                runCatching {
+                    val todos = withContext(Dispatchers.IO) { c.sessionTodos(sid) }
+                    _todos.value = todos.mapNotNull { t ->
+                        if (t.content.isBlank()) null
+                        else TodoUi(t.id, t.content, t.status)
+                    }
+                }
             } catch (_: Exception) {
                 // ignore, keep current
             }
@@ -580,6 +597,19 @@ fun send(text: String) {
                     text = getAppString(R.string.compact_notice),
                 )
                 _messages.value = _messages.value + notice
+            }
+            "todo.updated" -> {
+                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
+                if (sid != active) return
+                val todos = props?.get("todos")?.jsonArray ?: return
+                _todos.value = todos.mapIndexed { i, t ->
+                    val o = t.jsonObject
+                    TodoUi(
+                        id = "todo-$i-${System.currentTimeMillis()}",
+                        content = o["content"]?.jsonPrimitive?.contentOrNull ?: "",
+                        status = o["status"]?.jsonPrimitive?.contentOrNull ?: "pending",
+                    )
+                }
             }
             "message.updated" -> {
                 val info = props?.get("info")?.jsonObject ?: return

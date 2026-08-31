@@ -108,6 +108,14 @@ val Tokens.promptTokens: Long
     get() = input + (cache?.read ?: 0L)
 
 @Serializable
+data class TodoInfo(
+    val id: String = "",
+    val content: String = "",
+    val status: String = "pending",
+    val priority: String? = null,
+)
+
+@Serializable
 data class ServerProfile(
     val url: String,
     val username: String? = null,
