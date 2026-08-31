@@ -116,6 +116,28 @@ data class ServerProfile(
 )
 
 @Serializable
+data class QuestionOption(
+    val label: String = "",
+    val description: String = "",
+)
+
+@Serializable
+data class QuestionInfo(
+    val question: String = "",
+    val header: String = "",
+    val options: List<QuestionOption> = emptyList(),
+    val multiple: Boolean = false,
+    val custom: Boolean = true,
+)
+
+@Serializable
+data class QuestionRequest(
+    val id: String,
+    @SerialName("sessionID") val sessionId: String = "",
+    val questions: List<QuestionInfo> = emptyList(),
+)
+
+@Serializable
 data class SessionsV2Response(
     val data: List<SessionV2Info> = emptyList(),
     val cursor: V2Cursor = V2Cursor(),
