@@ -95,7 +95,17 @@ data class Tokens(
     val input: Long = 0L,
     val output: Long = 0L,
     val reasoning: Long = 0L,
+    val cache: TokenCache? = null,
 )
+
+@Serializable
+data class TokenCache(
+    val read: Long = 0L,
+    val write: Long = 0L,
+)
+
+val Tokens.promptTokens: Long
+    get() = input + (cache?.read ?: 0L)
 
 @Serializable
 data class SessionsV2Response(

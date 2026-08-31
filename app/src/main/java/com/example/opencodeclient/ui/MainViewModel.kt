@@ -9,6 +9,7 @@ import com.example.opencodeclient.data.Project
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
 import com.example.opencodeclient.data.Tokens
+import com.example.opencodeclient.data.promptTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -87,6 +88,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _contextWindow = MutableStateFlow(0L)
     val contextWindow: StateFlow<Long> = _contextWindow.asStateFlow()
+
+    private val _promptTokens = MutableStateFlow(0L)
+    val promptTokens: StateFlow<Long> = _promptTokens.asStateFlow()
 
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
@@ -433,6 +437,14 @@ fun send(text: String) {
                 val sid = part["sessionID"]?.jsonPrimitive?.contentOrNull ?: return
                 if (sid != active) return
                 val mid = part["messageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val partType = part["type"]?.jsonPrimitive?.contentOrNull
+                if (partType == "step-finish") {
+                    runCatching {
+                        val toks = json.decodeFromString(Tokens.serializer(), part["tokens"].toString())
+                        _promptTokens.value = toks.promptTokens
+                    }
+                    return
+                }
                 val ui = buildPartUi(part) ?: return
                 _messages.value = _messages.value.map {
                     if (it.id != mid) it

@@ -63,6 +63,7 @@ fun ChatScreen(
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
     val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
     val contextWindow by viewModel.contextWindow.collectAsStateWithLifecycle()
+    val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var input by rememberSaveable { mutableStateOf("") }
 
@@ -114,7 +115,7 @@ fun ChatScreen(
                 .padding(padding)
                 .imePadding(),
         ) {
-            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, contextWindow = contextWindow)
+            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow)
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -341,6 +342,7 @@ private fun ReasoningBlock(reasoning: String) {
 private fun TokenStatsBar(
     viewModel: MainViewModel,
     tokens: Tokens?,
+    promptTokens: Long,
     contextWindow: Long,
 ) {
     if (tokens == null && contextWindow <= 0) return
@@ -348,7 +350,8 @@ private fun TokenStatsBar(
     val output = tokens?.output ?: 0L
     val reasoning = tokens?.reasoning ?: 0L
     val total = input + output + reasoning
-    val ratio = if (contextWindow > 0) (total.toFloat() / contextWindow).coerceIn(0f, 1f) else 0f
+    val ctx = if (promptTokens > 0) promptTokens else total
+    val ratio = if (contextWindow > 0) (ctx.toFloat() / contextWindow).coerceIn(0f, 1f) else 0f
     Column(
         modifier = Modifier
             .fillMaxWidth()
