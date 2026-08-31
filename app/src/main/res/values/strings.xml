@@ -142,4 +142,12 @@
 
     <!-- Notification -->
     <string name="notify_session_done">Session finished</string>
+
+    <!-- Model / session errors -->
+    <string name="error_token_limit">Context window exceeded for this model</string>
+    <string name="error_auth_failed">Model authentication failed</string>
+    <string name="error_output_length">Model output exceeded maximum length</string>
+    <string name="error_content_filter">Response was blocked by content filter</string>
+    <string name="error_api">Model request failed</string>
+    <string name="error_model_failed">Session failed</string>
 </resources>
