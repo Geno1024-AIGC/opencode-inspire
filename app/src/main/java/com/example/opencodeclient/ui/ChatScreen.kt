@@ -1,6 +1,7 @@
 package com.example.opencodeclient.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -35,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,8 +45,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mikepenz.markdown.m3.Markdown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +62,13 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     var input by rememberSaveable { mutableStateOf("") }
 
-    LaunchedEffect(messages.size, messages.lastOrNull()?.id) {
+    LaunchedEffect(
+        messages.size,
+        messages.lastOrNull()?.id,
+        messages.lastOrNull()?.text?.length,
+        messages.lastOrNull()?.reasoning?.length,
+        sending,
+    ) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
         }
@@ -200,11 +211,17 @@ private fun MessageBubble(msg: ChatMessage) {
                     if (msg.text.isNotBlank()) Spacer(Modifier.height(8.dp))
                 }
                 if (msg.text.isNotBlank()) {
-                    Text(
-                        msg.text.trim(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = FontFamily.Monospace,
-                    )
+                    if (isUser) {
+                        Text(
+                            msg.text.trim(),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    } else {
+                        Markdown(
+                            content = msg.text.trim(),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }
@@ -213,22 +230,82 @@ private fun MessageBubble(msg: ChatMessage) {
 
 @Composable
 private fun ToolPart(part: PartUi) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    var expanded by remember { mutableStateOf(false) }
+    val title = part.toolTitle ?: part.tool ?: "tool"
+    val status = part.toolState ?: "running"
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded },
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Icon(
-            Icons.Filled.Build,
-            null,
-            Modifier.height(14.dp).width(14.dp),
-            tint = MaterialTheme.colorScheme.tertiary,
-        )
-        Text(
-            part.toolTitle ?: part.tool ?: "tool",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontFamily = FontFamily.Monospace,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(
+                Icons.Filled.Build,
+                null,
+                Modifier.height(14.dp).width(14.dp),
+                tint = MaterialTheme.colorScheme.tertiary,
+            )
+            Text(
+                when (status) {
+                    "completed" -> "✓"
+                    "error" -> "✗"
+                    else -> "…"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = when (status) {
+                    "completed" -> MaterialTheme.colorScheme.primary
+                    "error" -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+            Text(
+                title,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                if (expanded) "▲" else "▼",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (expanded) {
+            val input = part.toolInput
+            val output = part.toolOutput
+            if (!input.isNullOrBlank()) {
+                Text(
+                    input,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 200.dp)
+                        .padding(top = 4.dp),
+                )
+            }
+            if (!output.isNullOrBlank()) {
+                Text(
+                    output,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .padding(top = 4.dp),
+                )
+            }
+        }
     }
 }
 
