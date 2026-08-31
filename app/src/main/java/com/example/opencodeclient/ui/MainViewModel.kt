@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.opencodeclient.R
 import java.util.Locale
 import com.example.opencodeclient.data.Command
+import com.example.opencodeclient.data.ModelInfo
 import com.example.opencodeclient.data.OpenCodeClient
 import com.example.opencodeclient.data.Part
 import com.example.opencodeclient.data.PermissionRequest
@@ -142,6 +143,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _commands = MutableStateFlow<List<Command>>(emptyList())
     val commands: StateFlow<List<Command>> = _commands.asStateFlow()
+
+    private val _models = MutableStateFlow<List<ModelInfo>>(emptyList())
+    val models: StateFlow<List<ModelInfo>> = _models.asStateFlow()
+
+    private val _currentModelId = MutableStateFlow<String?>(null)
+    val currentModelId: StateFlow<String?> = _currentModelId.asStateFlow()
 
     private val _pendingPermissions = MutableStateFlow<List<PermissionRequest>>(emptyList())
     val pendingPermissions: StateFlow<List<PermissionRequest>> = _pendingPermissions.asStateFlow()
@@ -324,6 +331,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         runCatching {
+            _models.value = withContext(Dispatchers.IO) {
+                c.models()
+            }
+        }
+        runCatching {
             _pendingPermissions.value = withContext(Dispatchers.IO) {
                 c.pendingPermissions(_activeSession.value?.directory)
             }.filter { it.sessionId == _activeSession.value?.id }
@@ -458,6 +470,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun activateSession(s: Session) {
         _activeSession.value = s
+        _currentModelId.value = s.model?.id
         settings.setLastSessionId(s.id)
         loadMessages()
     }
@@ -578,6 +591,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val sid = _activeSession.value?.id ?: return
         viewModelScope.launch {
             runCatching { withContext(Dispatchers.IO) { c.switchModel(sid, providerId, modelId) } }
+                .onSuccess {
+                    _currentModelId.value = modelId
+                    _activeSession.value = _activeSession.value?.copy(model = com.example.opencodeclient.data.ModelV2Ref(id = modelId, providerId = providerId))
+                    rollSessionStats(c, sid)
+                }
                 .onFailure { e ->
                     _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.send_failed))
                 }
