@@ -20,6 +20,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -227,9 +228,15 @@ fun ChatScreen(
                 if (sending) {
                     item(key = "sending") { SendingIndicator() }
                 }
-                items(messages.asReversed(), key = { it.id }) { msg ->
+                val reversedMessages = messages.asReversed()
+                itemsIndexed(reversedMessages, key = { idx, item -> item.id }) { index, msg ->
+                    val prevCumulative = if (index + 1 < reversedMessages.size) reversedMessages[index + 1].cumulativeTokens else null
                     MessageBubble(
                         msg = msg,
+                        cumulativeTokens = if (msg.cumulativeTokens > 0) msg.cumulativeTokens else null,
+                        deltaTokens = if (msg.cumulativeTokens > 0) {
+                            if (prevCumulative != null) (msg.cumulativeTokens - prevCumulative).coerceAtLeast(0L) else msg.cumulativeTokens
+                        } else null,
                         userColor = userBubbleColor,
                         assistantColor = assistantBubbleColor,
                     )
@@ -698,6 +705,8 @@ private fun MessageBubble(
     msg: ChatMessage,
     userColor: Long = -1L,
     assistantColor: Long = -1L,
+    cumulativeTokens: Long? = null,
+    deltaTokens: Long? = null,
 ) {
     if (msg.role == "system") {
         SystemNotice(msg.text)
@@ -770,22 +779,38 @@ private fun MessageBubble(
                         MarkdownMessage(msg.text.trim())
                     }
                 }
-                MessageMeta(msg)
+                MessageMeta(
+                    msg = msg,
+                    cumulativeTokens = cumulativeTokens,
+                    deltaTokens = deltaTokens,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun MessageMeta(msg: ChatMessage) {
+private fun MessageMeta(
+    msg: ChatMessage,
+    cumulativeTokens: Long? = null,
+    deltaTokens: Long? = null,
+) {
     val time = msg.time
     val parts = buildList {
         if (!msg.model.isNullOrBlank()) add(msg.model)
-        val tokens = msg.tokens
-        if (tokens != null) {
-            val total = tokens.total
-                ?: (tokens.input + tokens.output + tokens.reasoning)
-            if (total > 0) add("${total} tok")
+        if (cumulativeTokens != null) {
+            if (deltaTokens != null && deltaTokens > 0) {
+                add("cum $cumulativeTokens (+$deltaTokens)")
+            } else {
+                add("cum $cumulativeTokens")
+            }
+        } else {
+            val tokens = msg.tokens
+            if (tokens != null) {
+                val total = tokens.total
+                    ?: (tokens.input + tokens.output + tokens.reasoning)
+                if (total > 0) add("${total} tok")
+            }
         }
         if (time > 0) add(formatMillis(time))
     }
