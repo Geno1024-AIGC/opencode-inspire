@@ -402,7 +402,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun buildReasoning(parts: List<Part>): String? =
         parts.filter { it.type == "reasoning" }.mapNotNull { it.text }.joinToString("\n").ifBlank { null }
 
-    fun loadMessages() {
+        fun loadMessages() {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
         viewModelScope.launch {
@@ -432,6 +432,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (_: Exception) {
                 // ignore, keep current
             }
+        }
+    }
+
+    fun refreshSession() {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        viewModelScope.launch {
+            loadMessages()
+            rollSessionStats(c, sid)
         }
     }
 
