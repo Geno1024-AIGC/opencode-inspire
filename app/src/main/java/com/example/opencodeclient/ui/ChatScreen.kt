@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -304,11 +306,12 @@ fun ChatScreen(
         }
     }
 
-    pendingQuestions.firstOrNull()?.let { question ->
-        QuestionDialog(
-            question = question,
-            onReply = { answers -> viewModel.replyQuestions(question, answers) },
-            onReject = { viewModel.rejectQuestion(question) },
+    if (pendingQuestions.isNotEmpty()) {
+        PendingQuestionsSheet(
+            requests = pendingQuestions,
+            onReply = { q, answers -> viewModel.replyQuestions(q, answers) },
+            onReject = { viewModel.rejectQuestion(it) },
+            onDismissAll = { pendingQuestions.forEach(viewModel::rejectQuestion) },
         )
     }
 
@@ -360,101 +363,138 @@ private fun PermissionDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QuestionDialog(
+private fun PendingQuestionsSheet(
+    requests: List<QuestionRequest>,
+    onReply: (QuestionRequest, List<List<String>>) -> Unit,
+    onReject: (QuestionRequest) -> Unit,
+    onDismissAll: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismissAll) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.chat_questions_title, requests.size),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                TextButton(onClick = onDismissAll) { Text(stringResource(R.string.chat_reject_all)) }
+            }
+            requests.forEach { question ->
+                QuestionCard(
+                    question = question,
+                    onReply = { answers -> onReply(question, answers) },
+                    onReject = { onReject(question) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuestionCard(
     question: QuestionRequest,
     onReply: (List<List<String>>) -> Unit,
     onReject: () -> Unit,
 ) {
-    var selections by rememberSaveable {
-        mutableStateOf(List(question.questions.size) { mutableListOf<String>() } as List<MutableList<String>>)
-    }
-    var customs by rememberSaveable {
-        mutableStateOf(List(question.questions.size) { "" } as List<String>)
-    }
-
-    AlertDialog(
-        onDismissRequest = onReject,
-        title = { Text(stringResource(R.string.chat_erase_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                question.questions.forEachIndexed { index, q ->
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            q.header.ifBlank { q.question },
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        if (q.header.isNotBlank() && q.question != q.header) {
-                            Text(q.question, style = MaterialTheme.typography.bodySmall)
-                        }
-                        q.options.forEach { opt ->
-                            val selected = selections[index].contains(opt.label)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        selections = selections.toMutableList().also { list ->
-                                            if (q.multiple) {
-                                                if (selected) {
-                                                    list[index] = selections[index].filterNot { it == opt.label }.toMutableList()
-                                                } else {
-                                                    list[index] = (selections[index] + opt.label).toMutableList()
-                                                }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            var selections by rememberSaveable(question.id) {
+                mutableStateOf(List(question.questions.size) { mutableListOf<String>() } as List<MutableList<String>>)
+            }
+            var customs by rememberSaveable(question.id) {
+                mutableStateOf(List(question.questions.size) { "" } as List<String>)
+            }
+            question.questions.forEachIndexed { index, q ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        q.header.ifBlank { q.question },
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    if (q.header.isNotBlank() && q.question != q.header) {
+                        Text(q.question, style = MaterialTheme.typography.bodySmall)
+                    }
+                    q.options.forEach { opt ->
+                        val selected = selections[index].contains(opt.label)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selections = selections.toMutableList().also { list ->
+                                        if (q.multiple) {
+                                            if (selected) {
+                                                list[index] = selections[index].filterNot { it == opt.label }.toMutableList()
                                             } else {
-                                                list[index] = if (selected) mutableListOf() else mutableListOf(opt.label)
+                                                list[index] = (selections[index] + opt.label).toMutableList()
                                             }
+                                        } else {
+                                            list[index] = if (selected) mutableListOf() else mutableListOf(opt.label)
                                         }
                                     }
-                                    .padding(vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                if (q.multiple) {
-                                    Checkbox(checked = selected, onCheckedChange = null)
-                                } else {
-                                    RadioButton(selected = selected, onClick = null)
                                 }
-                                Column {
-                                    Text(opt.label, style = MaterialTheme.typography.bodyMedium)
-                                    if (opt.description.isNotBlank()) {
-                                        Text(opt.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (q.multiple) {
+                                Checkbox(checked = selected, onCheckedChange = null)
+                            } else {
+                                RadioButton(selected = selected, onClick = null)
+                            }
+                            Column {
+                                Text(opt.label, style = MaterialTheme.typography.bodyMedium)
+                                if (opt.description.isNotBlank()) {
+                                    Text(opt.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
-                        if (q.custom != false) {
-                            OutlinedTextField(
-                                value = customs[index],
-                                onValueChange = { v ->
-                                    customs = customs.toMutableList().also { it[index] = v }
-                                },
-                                label = { Text(stringResource(R.string.chat_custom_answer)) },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
+                    }
+                    if (q.custom != false) {
+                        OutlinedTextField(
+                            value = customs[index],
+                            onValueChange = { v ->
+                                customs = customs.toMutableList().also { it[index] = v }
+                            },
+                            label = { Text(stringResource(R.string.chat_custom_answer)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val answers = question.questions.mapIndexed { i, q ->
-                        val labels = selections[i].toList()
-                        val custom = customs[i].trim()
-                        when {
-                            custom.isNotEmpty() -> labels + custom
-                            else -> labels
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onReject) { Text(stringResource(R.string.chat_reject)) }
+                TextButton(
+                    onClick = {
+                        val answers = question.questions.mapIndexed { i, q ->
+                            val labels = selections[i].toList()
+                            val custom = customs[i].trim()
+                            if (custom.isNotEmpty()) labels + custom else labels
                         }
-                    }
-                    onReply(answers)
-                },
-            ) { Text(stringResource(R.string.chat_submit)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onReject) { Text(stringResource(R.string.chat_reject)) }
-        },
-    )
+                        onReply(answers)
+                    },
+                ) { Text(stringResource(R.string.chat_submit)) }
+            }
+        }
+    }
 }
 
 @Composable
