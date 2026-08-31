@@ -164,6 +164,26 @@ class OpenCodeClient(
         return m?.limit?.context ?: 0L
     }
 
+    suspend fun pendingQuestions(): List<QuestionRequest> =
+        execute("GET", "/question") { text ->
+            if (text.isBlank()) emptyList()
+            else json.decodeFromString(ListSerializer(QuestionRequest.serializer()), text)
+        }
+
+    suspend fun replyQuestion(requestId: String, answers: List<List<String>>) {
+        execute("POST", "/question/$requestId/reply", buildJsonObject {
+            put("answers", buildJsonArray {
+                answers.forEach { labels ->
+                    add(buildJsonArray { labels.forEach { add(JsonPrimitive(it)) } })
+                }
+            })
+        }.toString()) { it }
+    }
+
+    suspend fun rejectQuestion(requestId: String) {
+        execute("POST", "/question/$requestId/reject", "{}".toString()) { it }
+    }
+
     suspend fun session(id: String): Session =
         execute("GET", "/session/$id") { json.decodeFromString(Session.serializer(), it) }
 
