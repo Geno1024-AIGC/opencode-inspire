@@ -54,6 +54,8 @@
     <string name="chat_custom_answer">自定义回答</string>
     <string name="chat_submit">提交</string>
     <string name="chat_reject">拒绝</string>
+    <string name="chat_questions_title">%d 个待回答问题</string>
+    <string name="chat_reject_all">全部拒绝</string>
     <string name="chat_working">工作中…</string>
     <string name="chat_abort">中止</string>
     <string name="chat_refresh">刷新</string>
@@ -87,6 +89,23 @@
     <string name="color_cancel">取消</string>
     <string name="color_your_title">你的消息颜色</string>
     <string name="color_assistant_title">助手消息颜色</string>
+
+    <!-- Updates -->
+    <string name="settings_updates">更新</string>
+    <string name="channel_release">正式版</string>
+    <string name="channel_canary">Canary</string>
+    <string name="check_updates">检查更新</string>
+    <string name="check_updates_sub">在 GitHub 上检查是否有新版本</string>
+    <string name="check_now">检查</string>
+    <string name="checking_updates">检查中…</string>
+    <string name="update_check_title">更新</string>
+    <string name="update_latest">当前已是最新版本</string>
+    <string name="update_check_failed">检查更新失败</string>
+    <string name="update_available_title">发现新版本</string>
+    <string name="update_available_body">发现新版本（%1$s），当前版本 %2$s</string>
+    <string name="update_open">打开</string>
+    <string name="update_later">稍后</string>
+    <string name="ok">确定</string>
 
     <!-- Workspace / session -->
     <string name="workspace_loading">正在加载…</string>

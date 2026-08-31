@@ -54,6 +54,8 @@
     <string name="chat_custom_answer">Custom answer</string>
     <string name="chat_submit">Submit</string>
     <string name="chat_reject">Reject</string>
+    <string name="chat_questions_title">%d pending question(s)</string>
+    <string name="chat_reject_all">Reject all</string>
     <string name="chat_working">Working…</string>
     <string name="chat_abort">Abort</string>
     <string name="chat_refresh">Refresh</string>
@@ -87,6 +89,23 @@
     <string name="color_cancel">Cancel</string>
     <string name="color_your_title">Your messages color</string>
     <string name="color_assistant_title">Assistant messages color</string>
+
+    <!-- Updates -->
+    <string name="settings_updates">Updates</string>
+    <string name="channel_release">Release</string>
+    <string name="channel_canary">Canary</string>
+    <string name="check_updates">Check for updates</string>
+    <string name="check_updates_sub">Check GitHub for a newer version</string>
+    <string name="check_now">Check</string>
+    <string name="checking_updates">Checking…</string>
+    <string name="update_check_title">Update</string>
+    <string name="update_latest">You are on the latest version</string>
+    <string name="update_check_failed">Failed to check for updates</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_available_body">A newer version (%1$s) is available. Current: %2$s</string>
+    <string name="update_open">Open</string>
+    <string name="update_later">Later</string>
+    <string name="ok">OK</string>
 
     <!-- Workspace / session -->
     <string name="workspace_loading">Loading…</string>
