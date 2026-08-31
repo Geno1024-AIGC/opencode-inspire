@@ -3,6 +3,7 @@ package com.example.opencodeclient.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.opencodeclient.R
 import com.example.opencodeclient.data.OpenCodeClient
 import com.example.opencodeclient.data.Part
 import com.example.opencodeclient.data.Project
@@ -61,6 +62,9 @@ sealed interface UiState {
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = SettingsRepository(application)
 
+    private fun getAppString(resId: Int): String =
+        getApplication<Application>().getString(resId)
+
     var client: OpenCodeClient? = null
         private set
 
@@ -118,6 +122,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _theme = MutableStateFlow("system")
     val theme: StateFlow<String> = _theme.asStateFlow()
+
+    private val _language = MutableStateFlow("system")
+    val language: StateFlow<String> = _language.asStateFlow()
 
     private val _userBubbleColor = MutableStateFlow(-1L)
     val userBubbleColor: StateFlow<Long> = _userBubbleColor.asStateFlow()
@@ -192,17 +199,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun replyQuestions(q: QuestionRequest, answers: List<List<String>>) {
         val c = client ?: return
+        val dir = _activeSession.value?.directory
         viewModelScope.launch {
-            runCatching { withContext(Dispatchers.IO) { c.replyQuestion(q.id, answers) } }
-            _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
+            runCatching { withContext(Dispatchers.IO) { c.replyQuestion(q.id, answers, dir) } }
+                .onSuccess {
+                    _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
+                }
+                .onFailure { e ->
+                    _workspaceState.value = UiState.Error(getAppString(R.string.send_failed) + ": " + (e.message ?: ""))
+                }
         }
     }
 
     fun rejectQuestion(q: QuestionRequest) {
         val c = client ?: return
+        val dir = _activeSession.value?.directory
         viewModelScope.launch {
-            runCatching { withContext(Dispatchers.IO) { c.rejectQuestion(q.id) } }
-            _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
+            runCatching { withContext(Dispatchers.IO) { c.rejectQuestion(q.id, dir) } }
+                .onSuccess {
+                    _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
+                }
+                .onFailure { e ->
+                    _workspaceState.value = UiState.Error(getAppString(R.string.chat_reject) + ": " + (e.message ?: ""))
+                }
         }
     }
 
@@ -259,8 +278,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _selectedProjectId.value = _projects.value.first().id
         }
         runCatching {
-            _pendingQuestions.value = withContext(Dispatchers.IO) { c.pendingQuestions() }
-                .filter { it.sessionId == _activeSession.value?.id }
+            _pendingQuestions.value = withContext(Dispatchers.IO) {
+                c.pendingQuestions(_activeSession.value?.directory)
+            }.filter { it.sessionId == _activeSession.value?.id }
         }
     }
 
@@ -515,6 +535,12 @@ fun send(text: String) {
                         val q = json.decodeFromString(QuestionRequest.serializer(), props.toString())
                         _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id } + q
                     }
+                }
+            }
+            "question.replied", "question.rejected" -> {
+                val sendId = props?.get("requestID")?.jsonPrimitive?.contentOrNull
+                if (sendId != null) {
+                    _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == sendId }
                 }
             }
             "session.status", "session.idle" -> {

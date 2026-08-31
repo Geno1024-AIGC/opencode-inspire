@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenCode 客户端</string>
+
+    <!-- Connect / servers -->
+    <string name="connect_title">OpenCode 客户端</string>
+    <string name="connect_subtitle">选择服务器或添加新服务器</string>
+    <string name="connect_empty">还没有服务器，请先添加你的第一台服务器。</string>
+    <string name="connect_add">添加服务器</string>
+    <string name="connect_save">连接并保存</string>
+    <string name="connect_cancel">取消</string>
+    <string name="connect_connected">已连接</string>
+    <string name="connect_remove">删除服务器</string>
+    <string name="url_label">服务器地址</string>
+    <string name="username_label_optional">用户名（可选）</string>
+    <string name="password_label_optional">密码（可选）</string>
+    <string name="url_hint">http://192.168.1.10:4096</string>
+    <string name="connecting">正在连接…</string>
+    <string name="loading">正在加载…</string>
+    <string name="error_no_server">未配置服务器</string>
+    <string name="error_connect_failed">连接失败</string>
+    <string name="error_load_failed">加载失败</string>
+
+    <!-- Drawer -->
+    <string name="drawer_close">关闭</string>
+    <string name="drawer_settings">设置</string>
+    <string name="drawer_servers">服务器</string>
+    <string name="drawer_projects">项目</string>
+    <string name="drawer_refresh">刷新</string>
+    <string name="drawer_add_project">添加项目</string>
+    <string name="new_chat">新建对话</string>
+    <string name="untitled_session">未命名会话</string>
+    <string name="global_project">全局</string>
+
+    <!-- Servers dialog -->
+    <string name="servers_title">服务器</string>
+    <string name="servers_empty">暂无已保存的服务器。</string>
+    <string name="server_new_url">新服务器地址</string>
+    <string name="server_username">用户名</string>
+    <string name="server_password">密码</string>
+    <string name="server_save">保存服务器</string>
+    <string name="done">完成</string>
+
+    <!-- Add project dialog -->
+    <string name="add_project_title">添加项目</string>
+    <string name="add_project_hint">请输入服务器上的绝对目录以作为项目打开。</string>
+    <string name="directory_label">目录路径</string>
+    <string name="directory_hint">/home/user/myproject</string>
+    <string name="open">打开</string>
+
+    <!-- Chat -->
+    <string name="chat_placeholder">给 OpenCode 发送消息…</string>
+    <string name="chat_erase_title">OpenCode 提问</string>
+    <string name="chat_custom_answer">自定义回答</string>
+    <string name="chat_submit">提交</string>
+    <string name="chat_reject">拒绝</string>
+    <string name="chat_working">工作中…</string>
+    <string name="chat_abort">中止</string>
+    <string name="chat_refresh">刷新</string>
+    <string name="chat_agent">代理</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_general">通用</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_language">语言</string>
+    <string name="lang_system">跟随系统</string>
+    <string name="lang_english">English</string>
+    <string name="lang_chinese">中文</string>
+    <string name="settings_compact_tokens">紧凑 token 计数</string>
+    <string name="settings_compact_tokens_sub">以 2.0M / 12.5k 形式显示 token 数而非完整数字</string>
+    <string name="settings_theme">主题</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">亮色</string>
+    <string name="theme_dark">暗色</string>
+    <string name="settings_bubbles">聊天气泡</string>
+    <string name="settings_my_bubbles">你的消息</string>
+    <string name="settings_assistant_bubbles">助手消息</string>
+    <string name="color_default">D</string>
+    <string name="color_edit">编辑</string>
+    <string name="color_presets">预设</string>
+    <string name="color_customize">自定义</string>
+    <string name="color_hue">色相</string>
+    <string name="color_saturation">饱和度</string>
+    <string name="color_brightness">亮度</string>
+    <string name="color_apply">应用</string>
+    <string name="color_cancel">取消</string>
+    <string name="color_your_title">你的消息颜色</string>
+    <string name="color_assistant_title">助手消息颜色</string>
+
+    <!-- Workspace / session -->
+    <string name="workspace_loading">正在加载…</string>
+    <string name="workspace_error">加载工作区失败</string>
+    <string name="creating_session">正在创建会话…</string>
+    <string name="create_session_error">创建会话失败</string>
+    <string name="open_session_error">打开会话失败</string>
+    <string name="send_failed">发送失败</string>
+</resources>

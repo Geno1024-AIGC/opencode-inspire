@@ -1,4 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">OpenCode Client</string>
+
+    <!-- Connect / servers -->
+    <string name="connect_title">OpenCode Client</string>
+    <string name="connect_subtitle">Choose a server or add a new one</string>
+    <string name="connect_empty">No servers yet. Add your first server to begin.</string>
+    <string name="connect_add">Add server</string>
+    <string name="connect_save">Connect &amp; Save</string>
+    <string name="connect_cancel">Cancel</string>
+    <string name="connect_connected">Connected</string>
+    <string name="connect_remove">Remove server</string>
+    <string name="url_label">Server URL</string>
+    <string name="username_label_optional">Username (optional)</string>
+    <string name="password_label_optional">Password (optional)</string>
+    <string name="url_hint">http://192.168.1.10:4096</string>
+    <string name="connecting">Connecting…</string>
+    <string name="loading">Loading…</string>
+    <string name="error_no_server">No server configured</string>
+    <string name="error_connect_failed">Connection failed</string>
+    <string name="error_load_failed">Failed to load</string>
+
+    <!-- Drawer -->
+    <string name="drawer_close">Close</string>
+    <string name="drawer_settings">Settings</string>
+    <string name="drawer_servers">Servers</string>
+    <string name="drawer_projects">Projects</string>
+    <string name="drawer_refresh">Refresh</string>
+    <string name="drawer_add_project">Add project</string>
+    <string name="new_chat">New chat</string>
+    <string name="untitled_session">Untitled session</string>
+    <string name="global_project">Global</string>
+
+    <!-- Servers dialog -->
+    <string name="servers_title">Servers</string>
+    <string name="servers_empty">No saved servers yet.</string>
+    <string name="server_new_url">New server URL</string>
+    <string name="server_username">Username</string>
+    <string name="server_password">Password</string>
+    <string name="server_save">Save server</string>
+    <string name="done">Done</string>
+
+    <!-- Add project dialog -->
+    <string name="add_project_title">Add project</string>
+    <string name="add_project_hint">Enter an absolute directory on the server to open as a project.</string>
+    <string name="directory_label">Directory path</string>
+    <string name="directory_hint">/home/user/myproject</string>
+    <string name="open">Open</string>
+
+    <!-- Chat -->
+    <string name="chat_placeholder">Message OpenCode…</string>
+    <string name="chat_erase_title">OpenCode asks</string>
+    <string name="chat_custom_answer">Custom answer</string>
+    <string name="chat_submit">Submit</string>
+    <string name="chat_reject">Reject</string>
+    <string name="chat_working">Working…</string>
+    <string name="chat_abort">Abort</string>
+    <string name="chat_refresh">Refresh</string>
+    <string name="chat_agent">agent</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_general">General</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_language">Language</string>
+    <string name="lang_system">Follow system</string>
+    <string name="lang_english">English</string>
+    <string name="lang_chinese">中文</string>
+    <string name="settings_compact_tokens">Compact token counts</string>
+    <string name="settings_compact_tokens_sub">Show token numbers as 2.0M / 12.5k instead of full digits</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_bubbles">Chat bubbles</string>
+    <string name="settings_my_bubbles">Your messages</string>
+    <string name="settings_assistant_bubbles">Assistant messages</string>
+    <string name="color_default">D</string>
+    <string name="color_edit">Edit</string>
+    <string name="color_presets">Presets</string>
+    <string name="color_customize">Customize</string>
+    <string name="color_hue">Hue</string>
+    <string name="color_saturation">Saturation</string>
+    <string name="color_brightness">Brightness</string>
+    <string name="color_apply">Apply</string>
+    <string name="color_cancel">Cancel</string>
+    <string name="color_your_title">Your messages color</string>
+    <string name="color_assistant_title">Assistant messages color</string>
+
+    <!-- Workspace / session -->
+    <string name="workspace_loading">Loading…</string>
+    <string name="workspace_error">Failed to load workspace</string>
+    <string name="creating_session">Creating session…</string>
+    <string name="create_session_error">Failed to create session</string>
+    <string name="open_session_error">Failed to open session</string>
+    <string name="send_failed">Send failed</string>
 </resources>
