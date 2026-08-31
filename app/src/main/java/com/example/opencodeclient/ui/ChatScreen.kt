@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
@@ -74,6 +75,9 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+
 import com.example.opencodeclient.R
 import com.example.opencodeclient.data.FileNode
 import com.example.opencodeclient.data.ModelInfo
@@ -105,6 +109,8 @@ fun ChatScreen(
     val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
     val contextWindow by viewModel.contextWindow.collectAsStateWithLifecycle()
     val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
+    val cumulativeTokens by viewModel.cumulativeTokens.collectAsStateWithLifecycle()
+    val sessionElapsed by viewModel.sessionElapsed.collectAsStateWithLifecycle()
     val pendingQuestions by viewModel.pendingQuestions.collectAsStateWithLifecycle()
     val todos by viewModel.todos.collectAsStateWithLifecycle()
     val commands by viewModel.commands.collectAsStateWithLifecycle()
@@ -115,6 +121,7 @@ fun ChatScreen(
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     var input by rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(""))
     }
@@ -137,56 +144,65 @@ fun ChatScreen(
         if (!userScrolledAway && messages.isNotEmpty()) {
             listState.scrollToItem(0)
         }
-    }
+     }
 
-    Scaffold(
-        modifier = Modifier.statusBarsPadding(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            activeSession?.title?.ifBlank { "OpenCode" } ?: "OpenCode",
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (activeSession != null && models.isNotEmpty()) {
-                            ModelSwitcher(
-                                models = models,
-                                currentModelId = currentModelId,
-                                onSelect = { model -> viewModel.switchModel(model.providerId ?: "opencode", model.id ?: "") },
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.statusBarsPadding(),
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                activeSession?.title?.ifBlank { "OpenCode" } ?: "OpenCode",
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                             val elapsed = sessionElapsed
+                             if (elapsed != null) {
+                                 Text(
+                                    stringResource(R.string.session_elapsed, elapsed / 1000.0),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (activeSession != null && models.isNotEmpty()) {
+                                ModelSwitcher(
+                                    models = models,
+                                    currentModelId = currentModelId,
+                                    onSelect = { model -> viewModel.switchModel(model.providerId ?: "opencode", model.id ?: "") },
+                                )
+                            }
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onMenu) { Icon(Icons.Filled.Menu, stringResource(R.string.drawer_settings)) }
+                    },
+                    actions = {
+                        if (activeSession != null) {
+                            IconButton(onClick = { showFiles = true }) {
+                                Icon(Icons.Filled.Folder, stringResource(R.string.files_title))
+                            }
+                            SessionActionsMenu(
+                                onRename = { title -> viewModel.renameSession(title) },
+                                onDelete = { viewModel.deleteSession() },
                             )
                         }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onMenu) { Icon(Icons.Filled.Menu, stringResource(R.string.drawer_settings)) }
-                },
-                actions = {
-                    if (activeSession != null) {
-                        IconButton(onClick = { showFiles = true }) {
-                            Icon(Icons.Filled.Folder, stringResource(R.string.files_title))
+                        IconButton(onClick = { viewModel.refreshSession() }) {
+                            Icon(Icons.Filled.Refresh, stringResource(R.string.chat_refresh))
                         }
-                        SessionActionsMenu(
-                            onRename = { title -> viewModel.renameSession(title) },
-                            onDelete = { viewModel.deleteSession() },
-                        )
-                    }
-                    IconButton(onClick = { viewModel.refreshSession() }) {
-                        Icon(Icons.Filled.Refresh, stringResource(R.string.chat_refresh))
-                    }
-                    if (sending) {
-                        IconButton(onClick = { viewModel.abort() }) {
-                            Icon(Icons.Filled.Stop, stringResource(R.string.chat_abort))
+                        if (sending) {
+                            IconButton(onClick = { viewModel.abort() }) {
+                                Icon(Icons.Filled.Stop, stringResource(R.string.chat_abort))
+                            }
                         }
-                    }
-                },
-            )
-        },
-        floatingActionButton = {
-            if (sending) {
-                FloatingActionButton(onClick = { viewModel.abort() }) {
+                    },
+                )
+            },
+            floatingActionButton = {
+                if (sending) {
+                    FloatingActionButton(onClick = { viewModel.abort() }) {
                     Icon(Icons.Filled.Stop, stringResource(R.string.chat_abort))
                 }
             }
@@ -282,18 +298,29 @@ fun ChatScreen(
                 IconButton(
                     onClick = {
                         viewModel.send(input.text.trim())
-                        input = TextFieldValue("")
-                    },
-                    enabled = input.text.isNotBlank(),
-                    modifier = Modifier.padding(bottom = 4.dp),
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, "Send")
-                }
-            }
-        }
-    }
+                         input = TextFieldValue("")
+                     },
+                     enabled = input.text.isNotBlank(),
+                     modifier = Modifier.padding(bottom = 4.dp),
+                 ) {
+                     Icon(Icons.AutoMirrored.Filled.Send, "Send")
+                 }
+             }
+         }
+     }
 
-    if (showFiles) {
+     if (userScrolledAway) {
+         FloatingActionButton(
+             onClick = { coroutineScope.launch { listState.scrollToItem(messages.size - 1) } },
+             modifier = Modifier
+                 .align(Alignment.BottomEnd)
+                 .padding(16.dp),
+         ) {
+             Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.scroll_to_bottom))
+         }
+     }
+
+      if (showFiles) {
         val directory = activeSession?.directory
         if (directory != null) {
             ModalBottomSheet(onDismissRequest = { showFiles = false }) {
@@ -315,10 +342,11 @@ fun ChatScreen(
         )
     }
 
-    pendingPermissions.firstOrNull()?.let { permission ->
-        PermissionDialog(permission = permission) { reply ->
-            viewModel.replyPermission(permission, reply)
-        }
+     pendingPermissions.firstOrNull()?.let { permission ->
+         PermissionDialog(permission = permission) { reply ->
+             viewModel.replyPermission(permission, reply)
+         }
+     }
     }
 }
 
