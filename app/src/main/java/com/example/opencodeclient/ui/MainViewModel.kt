@@ -152,6 +152,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settings.theme.collect { _theme.value = it }
         }
         viewModelScope.launch {
+            settings.language.collect { _language.value = it }
+        }
+        viewModelScope.launch {
             settings.userBubbleColor.collect { _userBubbleColor.value = it }
         }
         viewModelScope.launch {
@@ -231,6 +234,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setTheme(value: String) {
         viewModelScope.launch { settings.setTheme(value) }
+    }
+
+    fun setLanguage(value: String) {
+        viewModelScope.launch { settings.setLanguage(value) }
     }
 
     fun setUserBubbleColor(color: Long) {
