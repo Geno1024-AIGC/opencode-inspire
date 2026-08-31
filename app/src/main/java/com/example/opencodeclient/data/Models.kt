@@ -108,6 +108,14 @@ val Tokens.promptTokens: Long
     get() = input + (cache?.read ?: 0L)
 
 @Serializable
+data class ServerProfile(
+    val url: String,
+    val username: String? = null,
+    val password: String? = null,
+    val name: String = "",
+)
+
+@Serializable
 data class SessionsV2Response(
     val data: List<SessionV2Info> = emptyList(),
     val cursor: V2Cursor = V2Cursor(),

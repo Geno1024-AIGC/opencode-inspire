@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -26,12 +27,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -41,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
 import kotlinx.coroutines.launch
 
@@ -98,6 +103,8 @@ private fun MainScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
+    var showSettings by remember { mutableStateOf(false) }
+    var showServers by remember { mutableStateOf(false) }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -106,6 +113,8 @@ private fun MainScreen(
                 viewModel = viewModel,
                 serverUrl = serverUrl,
                 onClose = { scope.launch { drawerState.close() } },
+                onSettings = { showSettings = true },
+                onServers = { showServers = true },
                 onDisconnect = onDisconnect,
             )
         },
@@ -113,6 +122,19 @@ private fun MainScreen(
         ChatScreen(
             viewModel = viewModel,
             onMenu = { scope.launch { drawerState.open() } },
+        )
+    }
+
+    if (showSettings) {
+        SettingsDialog(
+            viewModel = viewModel,
+            onDismiss = { showSettings = false },
+        )
+    }
+    if (showServers) {
+        ServersDialog(
+            viewModel = viewModel,
+            onDismiss = { showServers = false },
         )
     }
     LaunchedEffect(Unit) {
@@ -125,6 +147,8 @@ private fun DrawerContent(
     viewModel: MainViewModel,
     serverUrl: String?,
     onClose: () -> Unit,
+    onSettings: () -> Unit,
+    onServers: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
     val projects by viewModel.projects.collectAsStateWithLifecycle()
@@ -190,15 +214,26 @@ private fun DrawerContent(
         }
 
         HorizontalDivider()
-        Text(
-            "Disconnect",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onDisconnect() }
-                .padding(16.dp),
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                "Settings",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onSettings() }
+                    .padding(16.dp),
+            )
+            Text(
+                "Servers",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onServers() }
+                    .padding(16.dp),
+            )
+        }
         }
     }
 }
@@ -301,4 +336,137 @@ fun formatTokens(count: Long): String = when {
     count >= 1_000_000 -> "%.1fM".format(count / 1_000_000.0)
     count >= 1_000 -> "%.1fk".format(count / 1_000.0)
     else -> count.toString()
+}
+
+@Composable
+private fun SettingsDialog(
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit,
+) {
+    val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
+    val savedUser by viewModel.authUsername.collectAsStateWithLifecycle()
+    val savedPass by viewModel.authPassword.collectAsStateWithLifecycle()
+    var url by rememberSaveable { mutableStateOf(serverUrl ?: "") }
+    var username by rememberSaveable { mutableStateOf(savedUser ?: "") }
+    var password by rememberSaveable { mutableStateOf(savedPass ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Settings") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("Server URL") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    viewModel.connect(
+                        url.trim(),
+                        username = username.trim().takeIf { it.isNotEmpty() },
+                        password = password.takeIf { it.isNotEmpty() },
+                    )
+                    onDismiss()
+                },
+            ) { Text("Save & Reconnect") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+private fun ServersDialog(
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit,
+) {
+    val servers by viewModel.servers.collectAsStateWithLifecycle()
+    val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
+    var url by rememberSaveable { mutableStateOf("") }
+    var username by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Servers") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (servers.isEmpty()) {
+                    Text("No saved servers yet.", style = MaterialTheme.typography.bodySmall)
+                }
+                servers.forEach { p ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f).clickable {
+                            viewModel.connect(p.url, p.username, p.password)
+                        }) {
+                            Text(p.name.ifBlank { p.url }, fontWeight = FontWeight.Medium)
+                            Text(p.url, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (p.url == serverUrl) {
+                            Text("Connected", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                        IconButton(onClick = { viewModel.removeServerProfile(p.url) }) {
+                            Icon(Icons.Filled.Close, "Remove")
+                        }
+                    }
+                }
+                HorizontalDivider()
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("New server URL") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                TextButton(
+                    enabled = url.isNotBlank(),
+                    onClick = {
+                        viewModel.saveServerProfile(ServerProfile(url.trim(), username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }))
+                        url = ""
+                        username = ""
+                        password = ""
+                    },
+                    modifier = Modifier.align(Alignment.End),
+                ) { Text("Save server") }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Done") }
+        },
+    )
 }
