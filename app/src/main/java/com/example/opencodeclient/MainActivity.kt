@@ -6,13 +6,21 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.ui.MainViewModel
@@ -23,15 +31,38 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, true)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
-        }
         setContent {
+            var permissionPromptDismissed by rememberSaveable { mutableStateOf(false) }
+            val needsNotificationPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+
+            if (needsNotificationPermission && !permissionPromptDismissed) {
+                AlertDialog(
+                    onDismissRequest = { permissionPromptDismissed = true },
+                    title = { Text(stringResource(R.string.permission_notif_title)) },
+                    text = { Text(stringResource(R.string.permission_notif_message)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            permissionPromptDismissed = true
+                            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        }) {
+                            Text(stringResource(R.string.permission_notif_allow))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { permissionPromptDismissed = true }) {
+                            Text(stringResource(R.string.permission_notif_later))
+                        }
+                    },
+                )
+            }
+
             val themePref by viewModel.theme.collectAsStateWithLifecycle()
             val langPref by viewModel.language.collectAsStateWithLifecycle()
             val darkTheme = when (themePref) {
