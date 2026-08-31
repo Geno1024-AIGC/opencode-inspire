@@ -1,7 +1,10 @@
 package com.example.opencodeclient.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +23,10 @@ class SettingsRepository(private val context: Context) {
         val AUTH_USERNAME = stringPreferencesKey("auth_username")
         val AUTH_PASSWORD = stringPreferencesKey("auth_password")
         val SERVERS = stringPreferencesKey("servers")
+        val SHORT_TOKENS = booleanPreferencesKey("short_tokens")
+        val THEME = stringPreferencesKey("theme")
+        val USER_BUBBLE_COLOR = longPreferencesKey("user_bubble_color")
+        val ASSIST_BUBBLE_COLOR = longPreferencesKey("assistant_bubble_color")
     }
 
     private val json = Json {
@@ -36,6 +43,27 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.SERVERS]?.let { raw ->
             runCatching { json.decodeFromString<List<ServerProfile>>(raw) }.getOrNull()
         } ?: emptyList()
+    }
+
+    val shortTokens: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHORT_TOKENS] ?: true }
+    val theme: Flow<String> = context.dataStore.data.map { it[Keys.THEME] ?: "system" }
+    val userBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.USER_BUBBLE_COLOR] ?: -1L }
+    val assistantBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.ASSIST_BUBBLE_COLOR] ?: -1L }
+
+    suspend fun setShortTokens(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.SHORT_TOKENS] = enabled }
+    }
+
+    suspend fun setTheme(value: String) {
+        context.dataStore.edit { it[Keys.THEME] = value }
+    }
+
+    suspend fun setUserBubbleColor(color: Long) {
+        context.dataStore.edit { it[Keys.USER_BUBBLE_COLOR] = color }
+    }
+
+    suspend fun setAssistantBubbleColor(color: Long) {
+        context.dataStore.edit { it[Keys.ASSIST_BUBBLE_COLOR] = color }
     }
 
     suspend fun setServerUrl(url: String) {

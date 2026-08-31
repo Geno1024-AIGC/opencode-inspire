@@ -113,6 +113,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _pendingQuestions = MutableStateFlow<List<QuestionRequest>>(emptyList())
     val pendingQuestions: StateFlow<List<QuestionRequest>> = _pendingQuestions.asStateFlow()
 
+    private val _shortTokens = MutableStateFlow(true)
+    val shortTokens: StateFlow<Boolean> = _shortTokens.asStateFlow()
+
+    private val _theme = MutableStateFlow("system")
+    val theme: StateFlow<String> = _theme.asStateFlow()
+
+    private val _userBubbleColor = MutableStateFlow(-1L)
+    val userBubbleColor: StateFlow<Long> = _userBubbleColor.asStateFlow()
+
+    private val _assistantBubbleColor = MutableStateFlow(-1L)
+    val assistantBubbleColor: StateFlow<Long> = _assistantBubbleColor.asStateFlow()
+
     init {
         viewModelScope.launch {
             settings.serverUrl.collect { _serverUrl.value = it }
@@ -125,6 +137,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.servers.collect { _servers.value = it }
+        }
+        viewModelScope.launch {
+            settings.shortTokens.collect { _shortTokens.value = it }
+        }
+        viewModelScope.launch {
+            settings.theme.collect { _theme.value = it }
+        }
+        viewModelScope.launch {
+            settings.userBubbleColor.collect { _userBubbleColor.value = it }
+        }
+        viewModelScope.launch {
+            settings.assistantBubbleColor.collect { _assistantBubbleColor.value = it }
         }
     }
 
@@ -180,6 +204,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { withContext(Dispatchers.IO) { c.rejectQuestion(q.id) } }
             _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
         }
+    }
+
+    fun setShortTokens(enabled: Boolean) {
+        viewModelScope.launch { settings.setShortTokens(enabled) }
+    }
+
+    fun setTheme(value: String) {
+        viewModelScope.launch { settings.setTheme(value) }
+    }
+
+    fun setUserBubbleColor(color: Long) {
+        viewModelScope.launch { settings.setUserBubbleColor(color) }
+    }
+
+    fun setAssistantBubbleColor(color: Long) {
+        viewModelScope.launch { settings.setAssistantBubbleColor(color) }
     }
 
     fun ensureLoaded(onDone: () -> Unit = {}) {
