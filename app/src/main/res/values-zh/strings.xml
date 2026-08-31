@@ -56,6 +56,8 @@
     <string name="chat_reject">拒绝</string>
     <string name="chat_questions_title">%d 个待回答问题</string>
     <string name="chat_reject_all">全部拒绝</string>
+    <string name="scroll_to_bottom">滚动到底部</string>
+    <string name="session_elapsed">回复耗时 %.1fs</string>
     <string name="chat_working">工作中…</string>
     <string name="chat_abort">中止</string>
     <string name="chat_refresh">刷新</string>
