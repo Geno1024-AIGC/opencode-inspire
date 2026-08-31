@@ -52,16 +52,19 @@ import kotlinx.coroutines.launch
 sealed class Screen {
     data object Connect : Screen()
     data object Main : Screen()
+    data object Settings : Screen()
 
     val key: String
         get() = when (this) {
             Connect -> "connect"
             Main -> "main"
+            Settings -> "settings"
         }
 
     companion object {
         fun fromKey(key: String): Screen = when (key) {
             "main" -> Main
+            "settings" -> Settings
             else -> Connect
         }
     }
@@ -90,6 +93,11 @@ fun OpenCodeApp(viewModel: MainViewModel) {
                 viewModel.reset()
                 screenKey = Screen.Connect.key
             },
+            onOpenSettings = { screenKey = Screen.Settings.key },
+        )
+        is Screen.Settings -> SettingsScreen(
+            viewModel = viewModel,
+            onBack = { screenKey = Screen.Main.key },
         )
     }
 }
@@ -99,11 +107,11 @@ fun OpenCodeApp(viewModel: MainViewModel) {
 private fun MainScreen(
     viewModel: MainViewModel,
     onDisconnect: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
-    var showSettings by remember { mutableStateOf(false) }
     var showServers by remember { mutableStateOf(false) }
 
     ModalNavigationDrawer(
@@ -113,7 +121,7 @@ private fun MainScreen(
                 viewModel = viewModel,
                 serverUrl = serverUrl,
                 onClose = { scope.launch { drawerState.close() } },
-                onSettings = { showSettings = true },
+                onSettings = onOpenSettings,
                 onServers = { showServers = true },
                 onDisconnect = onDisconnect,
             )
@@ -125,12 +133,6 @@ private fun MainScreen(
         )
     }
 
-    if (showSettings) {
-        SettingsDialog(
-            viewModel = viewModel,
-            onDismiss = { showSettings = false },
-        )
-    }
     if (showServers) {
         ServersDialog(
             viewModel = viewModel,
@@ -342,64 +344,6 @@ fun formatTokens(count: Long, short: Boolean = true): String = when {
     count >= 1_000_000 -> "%.1fM".format(count / 1_000_000.0)
     count >= 1_000 -> "%.1fk".format(count / 1_000.0)
     else -> count.toString()
-}
-
-@Composable
-private fun SettingsDialog(
-    viewModel: MainViewModel,
-    onDismiss: () -> Unit,
-) {
-    val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
-    val savedUser by viewModel.authUsername.collectAsStateWithLifecycle()
-    val savedPass by viewModel.authPassword.collectAsStateWithLifecycle()
-    var url by rememberSaveable { mutableStateOf(serverUrl ?: "") }
-    var username by rememberSaveable { mutableStateOf(savedUser ?: "") }
-    var password by rememberSaveable { mutableStateOf(savedPass ?: "") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Settings") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = { url = it },
-                    label = { Text("Server URL") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = { Text("Username") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    viewModel.connect(
-                        url.trim(),
-                        username = username.trim().takeIf { it.isNotEmpty() },
-                        password = password.takeIf { it.isNotEmpty() },
-                    )
-                    onDismiss()
-                },
-            ) { Text("Save & Reconnect") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
-    )
 }
 
 @Composable
