@@ -154,6 +154,7 @@ private fun DrawerContent(
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val workspaceState by viewModel.workspaceState.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
+    val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
 
     ModalDrawerSheet {
         Column(
@@ -206,6 +207,7 @@ private fun DrawerContent(
                     ExpandableProject(
                         project = project,
                         activeSessionId = activeSession?.id,
+                        shortTokens = shortTokens,
                         onOpenSession = { viewModel.openSession(it) },
                         onNewSession = { viewModel.newSession(project.worktree) },
                     )
@@ -242,6 +244,7 @@ private fun DrawerContent(
 private fun ExpandableProject(
     project: ProjectUi,
     activeSessionId: String?,
+    shortTokens: Boolean = true,
     onOpenSession: (String) -> Unit,
     onNewSession: () -> Unit,
 ) {
@@ -270,6 +273,7 @@ private fun ExpandableProject(
                 SessionRow(
                     s = s,
                     isActive = s.id == activeSessionId,
+                    shortTokens = shortTokens,
                     onClick = { onOpenSession(s.id) },
                 )
             }
@@ -296,6 +300,7 @@ private fun ExpandableProject(
 private fun SessionRow(
     s: Session,
     isActive: Boolean,
+    shortTokens: Boolean = true,
     onClick: () -> Unit,
 ) {
     Row(
@@ -323,7 +328,7 @@ private fun SessionRow(
             val total = t.input + t.output + t.reasoning
             if (total > 0) {
                 Text(
-                    formatTokens(total),
+                    formatTokens(total, shortTokens),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -332,7 +337,8 @@ private fun SessionRow(
     }
 }
 
-fun formatTokens(count: Long): String = when {
+fun formatTokens(count: Long, short: Boolean = true): String = when {
+    !short -> count.toString()
     count >= 1_000_000 -> "%.1fM".format(count / 1_000_000.0)
     count >= 1_000 -> "%.1fk".format(count / 1_000.0)
     else -> count.toString()
