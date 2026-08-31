@@ -205,7 +205,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         createNotificationChannel()
     }
 
-    private var wasBusyForNotify = false
+    private val sessionBusy = mutableMapOf<String, Boolean>()
 
     private fun createNotificationChannel() {
         val context = getApplication<Application>()
@@ -219,10 +219,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun notifySessionDone() {
-        val session = _activeSession.value ?: return
+    private fun notifySessionDone(sid: String) {
         val context = getApplication<Application>()
-        val title = session.title.ifBlank { "OpenCode" }
+        val title = sessionTitle(sid).ifBlank { "OpenCode" }
         val notification = android.app.Notification.Builder(context, "session_status")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle("$title finished")
@@ -236,6 +235,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } catch (_: Exception) {
             // permission not granted
         }
+    }
+
+    private fun sessionTitle(sid: String): String {
+        for (p in _projects.value) {
+            for (s in p.sessions) {
+                if (s.id == sid && s.title.isNotBlank()) return s.title
+            }
+        }
+        return _activeSession.value?.title.orEmpty()
     }
 
     fun connect(serverUrl: String, username: String? = null, password: String? = null, onSuccess: () -> Unit = {}) {
@@ -800,17 +808,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             "session.status", "session.idle" -> {
-                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
-                if (sid != active) return
+                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull ?: return
                 if (type == "session.idle") {
-                    val wasBusy = wasBusyForNotify
-                    wasBusyForNotify = false
-                    _sending.value = false
-                    if (wasBusy) notifySessionDone()
+                    val wasBusy = sessionBusy.remove(sid) == true
+                    if (sid == active) {
+                        _sending.value = false
+                    }
+                    if (wasBusy) notifySessionDone(sid)
                 } else {
                     val st = props?.get("status")?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull
-                    _sending.value = st == "busy"
-                    wasBusyForNotify = st == "busy"
+                    sessionBusy[sid] = st == "busy"
+                    if (sid == active) {
+                        _sending.value = st == "busy"
+                    }
                 }
             }
             "session.compacted" -> {
