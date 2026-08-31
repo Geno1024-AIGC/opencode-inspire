@@ -8,6 +8,7 @@ import com.example.opencodeclient.data.Part
 import com.example.opencodeclient.data.Project
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
+import com.example.opencodeclient.data.Tokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -80,6 +81,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    private val _sessionTokens = MutableStateFlow<Tokens?>(null)
+    val sessionTokens: StateFlow<Tokens?> = _sessionTokens.asStateFlow()
+
+    private val _contextWindow = MutableStateFlow(0L)
+    val contextWindow: StateFlow<Long> = _contextWindow.asStateFlow()
 
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
@@ -265,10 +272,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val s = withContext(Dispatchers.IO) { c.session(id) }
                 activateSession(s)
+                rollSessionStats(c, id)
                 _workspaceState.value = UiState.Idle
             } catch (e: Exception) {
                 _workspaceState.value = UiState.Error(e.message ?: "Failed to open session")
             }
+        }
+    }
+
+    private suspend fun rollSessionStats(c: OpenCodeClient, id: String) {
+        try {
+            val detail = withContext(Dispatchers.IO) { c.sessionDetail(id) }
+            if (detail != null) {
+                _sessionTokens.value = detail.tokens
+                val modelId = detail.model?.id
+                _contextWindow.value = withContext(Dispatchers.IO) { c.contextWindow(modelId) }
+            }
+        } catch (_: Exception) {
+            // ignore stats failure
         }
     }
 

@@ -28,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.opencodeclient.data.Tokens
 import com.mikepenz.markdown.m3.Markdown
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,6 +61,8 @@ fun ChatScreen(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val sending by viewModel.sending.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
+    val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
+    val contextWindow by viewModel.contextWindow.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var input by rememberSaveable { mutableStateOf("") }
 
@@ -110,6 +114,7 @@ fun ChatScreen(
                 .padding(padding)
                 .imePadding(),
         ) {
+            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, contextWindow = contextWindow)
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -329,5 +334,54 @@ private fun ReasoningBlock(reasoning: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = FontFamily.Monospace,
         )
+    }
+}
+
+@Composable
+private fun TokenStatsBar(
+    viewModel: MainViewModel,
+    tokens: Tokens?,
+    contextWindow: Long,
+) {
+    if (tokens == null && contextWindow <= 0) return
+    val input = tokens?.input ?: 0L
+    val output = tokens?.output ?: 0L
+    val reasoning = tokens?.reasoning ?: 0L
+    val total = input + output + reasoning
+    val ratio = if (contextWindow > 0) (total.toFloat() / contextWindow).coerceIn(0f, 1f) else 0f
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "in ${formatTokens(input)} · out ${formatTokens(output)} · ${formatTokens(total)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontFamily = FontFamily.Monospace,
+            )
+            if (contextWindow > 0 && total > 0) {
+                Text(
+                    "${(ratio * 100).toInt()}% of ${formatTokens(contextWindow)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+        if (contextWindow > 0 && total > 0) {
+            LinearProgressIndicator(
+                progress = { ratio },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp),
+            )
+        }
     }
 }

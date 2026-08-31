@@ -34,6 +34,8 @@ data class Session(
     @SerialName("parentID") val parentId: String? = null,
     val title: String = "",
     val time: SessionTime? = null,
+    val tokens: Tokens? = null,
+    val model: ModelV2Ref? = null,
 )
 
 @Serializable
@@ -58,6 +60,34 @@ data class SessionV2Info(
     val location: LocationRef? = null,
     val tokens: Tokens? = null,
     val cost: Double = 0.0,
+    val model: ModelV2Ref? = null,
+)
+
+@Serializable
+data class ModelV2Ref(
+    val id: String? = null,
+    @SerialName("providerID") val providerId: String? = null,
+    val variant: String? = null,
+)
+
+@Serializable
+data class ModelInfo(
+    val id: String? = null,
+    @SerialName("providerID") val providerId: String? = null,
+    val limit: ModelLimit? = null,
+)
+
+@Serializable
+data class ModelLimit(
+    val context: Long = 0L,
+    val input: Long? = null,
+    val output: Long? = null,
+)
+
+@Serializable
+data class ModelsV2Response(
+    val location: LocationRef? = null,
+    val data: List<ModelInfo> = emptyList(),
 )
 
 @Serializable
@@ -65,14 +95,6 @@ data class Tokens(
     val input: Long = 0L,
     val output: Long = 0L,
     val reasoning: Long = 0L,
-)
-
-@Serializable
-data class SessionTokens(
-    val input: Long = 0L,
-    val output: Long = 0L,
-    val reasoning: Long = 0L,
-    val total: Long = 0L,
 )
 
 @Serializable

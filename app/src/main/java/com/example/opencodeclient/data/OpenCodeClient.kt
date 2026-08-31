@@ -15,6 +15,9 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import okhttp3.Call
 import okhttp3.Callback
@@ -134,9 +137,32 @@ class OpenCodeClient(
                     parentId = v2.parentId,
                     title = v2.title,
                     time = v2.time,
+                    tokens = v2.tokens,
+                    model = v2.model,
                 )
             }
         }
+
+    suspend fun models(): List<ModelInfo> =
+        execute("GET", "/api/model") { text ->
+            if (text.isBlank()) emptyList()
+            else json.decodeFromString(ModelsV2Response.serializer(), text).data
+        }
+
+    suspend fun sessionDetail(id: String): SessionV2Info? =
+        execute("GET", "/api/session/$id") { text ->
+            if (text.isBlank()) null
+            else runCatching {
+                val data = json.decodeFromString<JsonObject>(text)["data"]?.jsonObject
+                json.decodeFromString(SessionV2Info.serializer(), data.toString())
+            }.getOrNull()
+        }
+
+    suspend fun contextWindow(modelId: String?): Long {
+        val models = models()
+        val m = models.firstOrNull { it.id == modelId } ?: models.firstOrNull()
+        return m?.limit?.context ?: 0L
+    }
 
     suspend fun session(id: String): Session =
         execute("GET", "/session/$id") { json.decodeFromString(Session.serializer(), it) }
