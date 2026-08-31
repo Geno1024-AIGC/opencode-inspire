@@ -31,11 +31,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.opencodeclient.R
 import com.example.opencodeclient.data.ServerProfile
 
 @Composable
@@ -57,10 +59,10 @@ fun ConnectScreen(
             .statusBarsPadding()
             .padding(24.dp),
     ) {
-        Text("OpenCode Client", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.connect_title), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Choose a server or add a new one",
+            stringResource(R.string.connect_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -68,7 +70,7 @@ fun ConnectScreen(
 
         if (servers.isEmpty() && !adding) {
             Text(
-                "No servers yet. Add your first server to begin.",
+                stringResource(R.string.connect_empty),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 16.dp),
@@ -79,8 +81,8 @@ fun ConnectScreen(
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it },
-                label = { Text("Server URL") },
-                placeholder = { Text("http://192.168.1.10:4096") },
+                label = { Text(stringResource(R.string.url_label)) },
+                placeholder = { Text(stringResource(R.string.url_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -88,7 +90,7 @@ fun ConnectScreen(
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text("Username (optional)") },
+                label = { Text(stringResource(R.string.username_label_optional)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -96,7 +98,7 @@ fun ConnectScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Password (optional)") },
+                label = { Text(stringResource(R.string.password_label_optional)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
@@ -128,7 +130,7 @@ fun ConnectScreen(
                 enabled = url.isNotBlank() && state !is UiState.Loading,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Connect & Save")
+                Text(stringResource(R.string.connect_save))
             }
             Spacer(Modifier.height(8.dp))
             TextButton(
@@ -140,7 +142,7 @@ fun ConnectScreen(
                 },
                 modifier = Modifier.align(Alignment.End),
             ) {
-                Text("Cancel")
+                Text(stringResource(R.string.connect_cancel))
             }
         } else {
             Button(
@@ -148,7 +150,7 @@ fun ConnectScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
-                Text("Add server")
+                Text(stringResource(R.string.connect_add))
             }
         }
 
@@ -208,7 +210,7 @@ private fun ServerRow(
             }
             if (isCurrent) {
                 Text(
-                    "Connected",
+                    stringResource(R.string.connect_connected),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -218,7 +220,7 @@ private fun ServerRow(
             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Close, contentDescription = "Remove server")
+            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.connect_remove))
         }
     }
 }

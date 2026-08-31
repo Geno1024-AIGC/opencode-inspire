@@ -41,10 +41,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.opencodeclient.R
 import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
 import kotlinx.coroutines.launch
@@ -183,7 +185,7 @@ private fun DrawerContent(
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            IconButton(onClick = onClose) { Icon(Icons.Filled.Close, "Close") }
+            IconButton(onClick = onClose) { Icon(Icons.Filled.Close, stringResource(R.string.drawer_close)) }
         }
         HorizontalDivider()
 
@@ -210,9 +212,9 @@ private fun DrawerContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Projects", style = MaterialTheme.typography.labelLarge)
-                IconButton(onClick = onAddProject) { Icon(Icons.Filled.Add, "Add project") }
-                IconButton(onClick = { viewModel.refresh() }) { Icon(Icons.Filled.Refresh, "Refresh") }
+                Text(stringResource(R.string.drawer_projects), style = MaterialTheme.typography.labelLarge)
+                IconButton(onClick = onAddProject) { Icon(Icons.Filled.Add, stringResource(R.string.drawer_add_project)) }
+                IconButton(onClick = { viewModel.refresh() }) { Icon(Icons.Filled.Refresh, stringResource(R.string.drawer_refresh)) }
             }
             LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)) {
                 items(projects, key = { it.id }) { project ->
@@ -232,7 +234,7 @@ private fun DrawerContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                "Settings",
+                stringResource(R.string.drawer_settings),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier
                     .weight(1f)
@@ -240,7 +242,7 @@ private fun DrawerContent(
                     .padding(16.dp),
             )
             Text(
-                "Servers",
+                stringResource(R.string.drawer_servers),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier
                     .weight(1f)
@@ -302,7 +304,7 @@ private fun ExpandableProject(
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(end = 8.dp),
                 )
-                Text("New chat", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.new_chat), style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -329,7 +331,7 @@ private fun SessionRow(
             modifier = Modifier.padding(end = 8.dp),
         )
         Text(
-            s.title.ifBlank { "Untitled session" },
+            s.title.ifBlank { stringResource(R.string.untitled_session) },
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
@@ -369,11 +371,11 @@ private fun ServersDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Servers") },
+        title = { Text(stringResource(R.string.servers_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (servers.isEmpty()) {
-                    Text("No saved servers yet.", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.servers_empty), style = MaterialTheme.typography.bodySmall)
                 }
                 servers.forEach { p ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -384,10 +386,10 @@ private fun ServersDialog(
                             Text(p.url, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (p.url == serverUrl) {
-                            Text("Connected", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(R.string.connect_connected), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         }
                         IconButton(onClick = { viewModel.removeServerProfile(p.url) }) {
-                            Icon(Icons.Filled.Close, "Remove")
+                            Icon(Icons.Filled.Close, stringResource(R.string.connect_remove))
                         }
                     }
                 }
@@ -395,21 +397,21 @@ private fun ServersDialog(
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("New server URL") },
+                    label = { Text(stringResource(R.string.server_new_url)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("Username") },
+                    label = { Text(stringResource(R.string.server_username)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.server_password)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -422,11 +424,11 @@ private fun ServersDialog(
                         password = ""
                     },
                     modifier = Modifier.align(Alignment.End),
-                ) { Text("Save server") }
+                ) { Text(stringResource(R.string.server_save)) }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Done") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
         },
     )
 }
@@ -441,18 +443,18 @@ private fun AddProjectDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add project") },
+        title = { Text(stringResource(R.string.add_project_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Enter an absolute directory on the server to open as a project.",
+                    stringResource(R.string.add_project_hint),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 OutlinedTextField(
                     value = directory,
                     onValueChange = { directory = it },
-                    label = { Text("Directory path") },
-                    placeholder = { Text("/home/user/myproject") },
+                    label = { Text(stringResource(R.string.directory_label)) },
+                    placeholder = { Text(stringResource(R.string.directory_hint)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -476,13 +478,13 @@ private fun AddProjectDialog(
                 onClick = {
                     viewModel.newSession(directory.trim(), onDone = onDismiss)
                 },
-            ) { Text("Open") }
+            ) { Text(stringResource(R.string.open)) }
         },
         dismissButton = {
             TextButton(
                 enabled = workspaceState !is UiState.Loading,
                 onClick = onDismiss,
-            ) { Text("Cancel") }
+            ) { Text(stringResource(R.string.connect_cancel)) }
         },
     )
 }

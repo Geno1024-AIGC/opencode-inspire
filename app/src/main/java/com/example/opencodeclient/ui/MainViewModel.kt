@@ -1,9 +1,11 @@
 package com.example.opencodeclient.ui
 
 import android.app.Application
+import android.content.res.Configuration
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.opencodeclient.R
+import java.util.Locale
 import com.example.opencodeclient.data.OpenCodeClient
 import com.example.opencodeclient.data.Part
 import com.example.opencodeclient.data.Project
@@ -55,15 +57,24 @@ data class ProjectUi(
 
 sealed interface UiState {
     data object Idle : UiState
-    data class Loading(val message: String = "Loading...") : UiState
-    data class Error(val message: String) : UiState
+    data class Loading(val message: String = "Loading...") : UiState    data class Error(val message: String) : UiState
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = SettingsRepository(application)
 
-    private fun getAppString(resId: Int): String =
-        getApplication<Application>().getString(resId)
+    private fun getAppString(resId: Int): String {
+        val ctx = getApplication<Application>()
+        val locale = when (_language.value) {
+            "en" -> Locale.ENGLISH
+            "zh" -> Locale.SIMPLIFIED_CHINESE
+            else -> Locale.getDefault()
+        }
+        val config = Configuration(ctx.resources.configuration)
+        config.setLocale(locale)
+        val localized = ctx.createConfigurationContext(config)
+        return localized.getString(resId)
+    }
 
     var client: OpenCodeClient? = null
         private set
@@ -164,7 +175,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun connect(serverUrl: String, username: String? = null, password: String? = null, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
-            _connectionState.value = UiState.Loading("Connecting...")
+            _connectionState.value = UiState.Loading(getAppString(R.string.connecting))
             try {
                 val cli = OpenCodeClient(serverUrl, username, password)
                 val health = withContext(Dispatchers.IO) { cli.health() }
@@ -187,7 +198,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 loadWorkspace()
                 onSuccess()
             } catch (e: Exception) {
-                _connectionState.value = UiState.Error(e.message ?: "Connection failed")
+                _connectionState.value = UiState.Error(e.message ?: getAppString(R.string.error_connect_failed))
             }
         }
     }
@@ -250,12 +261,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun ensureLoaded(onDone: () -> Unit = {}) {
         viewModelScope.launch {
-            _connectionState.value = UiState.Loading("Loading...")
+            _connectionState.value = UiState.Loading(getAppString(R.string.loading))
             try {
                 if (client == null) {
                     val saved = _serverUrl.value
                     if (saved == null) {
-                        _connectionState.value = UiState.Error("No server configured")
+                        _connectionState.value = UiState.Error(getAppString(R.string.error_no_server))
                         return@launch
                     }
                     val cli = OpenCodeClient(saved, _authUsername.value, _authPassword.value)
@@ -271,7 +282,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _connectionState.value = UiState.Idle
                 onDone()
             } catch (e: Exception) {
-                _connectionState.value = UiState.Error(e.message ?: "Failed to load")
+                _connectionState.value = UiState.Error(e.message ?: getAppString(R.string.error_load_failed))
             }
         }
     }
@@ -332,7 +343,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 ProjectUi(
                     id = "global",
                     worktree = "/",
-                    name = "Global",
+                    name = getAppString(R.string.global_project),
                     sessions = orphaned.sortedByDescending { it.time?.created ?: 0L },
                 )
             )
@@ -348,7 +359,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 loadWorkspace()
                 _workspaceState.value = UiState.Idle
             } catch (e: Exception) {
-                _workspaceState.value = UiState.Error(e.message ?: "Failed to load workspace")
+                _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.workspace_error))
             }
         }
     }
@@ -361,7 +372,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun newSession(directory: String, onDone: () -> Unit = {}) {
         val c = client ?: return
         viewModelScope.launch {
-            _workspaceState.value = UiState.Loading("Creating session...")
+            _workspaceState.value = UiState.Loading(getAppString(R.string.creating_session))
             try {
                 val s = withContext(Dispatchers.IO) { c.createSession(directory = directory) }
                 selectProjectByWorktree(directory)
@@ -370,7 +381,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _workspaceState.value = UiState.Idle
                 onDone()
             } catch (e: Exception) {
-                _workspaceState.value = UiState.Error(e.message ?: "Failed to create session")
+                _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.create_session_error))
             }
         }
     }
@@ -393,7 +404,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 rollSessionStats(c, id)
                 _workspaceState.value = UiState.Idle
             } catch (e: Exception) {
-                _workspaceState.value = UiState.Error(e.message ?: "Failed to open session")
+                _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.open_session_error))
             }
         }
     }
@@ -488,7 +499,7 @@ fun send(text: String) {
                 _messages.value = _messages.value + ChatMessage(
                     id = "err-${System.currentTimeMillis()}",
                     role = "error",
-                    text = e.message ?: "Send failed",
+                    text = e.message ?: getAppString(R.string.send_failed),
                 )
                 _sending.value = false
             }
