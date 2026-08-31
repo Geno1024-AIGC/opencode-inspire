@@ -178,7 +178,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val proj = resolve(dir)
             result.add(
                 ProjectUi(
-                    id = proj?.id ?: "dir-$dir",
+                    id = "dir-$dir",
                     worktree = dir,
                     name = dir.substringAfterLast('/').ifBlank { dir },
                     sessions = sessions.sortedByDescending { it.time?.created ?: 0L },
