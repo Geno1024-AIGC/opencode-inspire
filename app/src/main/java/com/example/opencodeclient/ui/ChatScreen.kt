@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
@@ -111,6 +112,9 @@ fun ChatScreen(
                     IconButton(onClick = onMenu) { Icon(Icons.Filled.Menu, "Menu") }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.refreshSession() }) {
+                        Icon(Icons.Filled.Refresh, "Refresh")
+                    }
                     if (sending) {
                         IconButton(onClick = { viewModel.abort() }) {
                             Icon(Icons.Filled.Stop, "Abort")
