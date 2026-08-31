@@ -1,6 +1,9 @@
 package com.example.opencodeclient.ui
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 import android.content.res.Configuration
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -195,6 +198,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.assistantBubbleColor.collect { _assistantBubbleColor.value = it }
+        }
+        createNotificationChannel()
+    }
+
+    private var wasBusyForNotify = false
+
+    private fun createNotificationChannel() {
+        val context = getApplication<Application>()
+        val channel = NotificationChannel(
+            "session_status",
+            "Session status",
+            NotificationManager.IMPORTANCE_LOW,
+        )
+        context.getSystemService(Context.NOTIFICATION_SERVICE)?.let { service ->
+            (service as? NotificationManager)?.createNotificationChannel(channel)
+        }
+    }
+
+    private fun notifySessionDone() {
+        val session = _activeSession.value ?: return
+        val context = getApplication<Application>()
+        val title = session.title.ifBlank { "OpenCode" }
+        val notification = android.app.Notification.Builder(context, "session_status")
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setContentTitle("$title finished")
+            .setContentText(getAppString(R.string.notify_session_done))
+            .setAutoCancel(true)
+            .build()
+        try {
+            context.getSystemService(Context.NOTIFICATION_SERVICE)?.let { service ->
+                (service as? NotificationManager)?.notify(1001, notification)
+            }
+        } catch (_: Exception) {
+            // permission not granted
         }
     }
 
@@ -734,10 +771,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
                 if (sid != active) return
                 if (type == "session.idle") {
+                    val wasBusy = wasBusyForNotify
+                    wasBusyForNotify = false
                     _sending.value = false
+                    if (wasBusy) notifySessionDone()
                 } else {
                     val st = props?.get("status")?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull
                     _sending.value = st == "busy"
+                    wasBusyForNotify = st == "busy"
                 }
             }
             "session.compacted" -> {
