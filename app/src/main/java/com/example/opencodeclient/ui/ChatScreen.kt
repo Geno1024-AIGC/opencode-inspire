@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
@@ -67,6 +68,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
+import com.example.opencodeclient.data.ModelInfo
 import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.Tokens
 import com.mikepenz.markdown.compose.components.MarkdownComponentModel
@@ -97,6 +99,8 @@ fun ChatScreen(
     val pendingQuestions by viewModel.pendingQuestions.collectAsStateWithLifecycle()
     val todos by viewModel.todos.collectAsStateWithLifecycle()
     val commands by viewModel.commands.collectAsStateWithLifecycle()
+    val models by viewModel.models.collectAsStateWithLifecycle()
+    val currentModelId by viewModel.currentModelId.collectAsStateWithLifecycle()
     val pendingPermissions by viewModel.pendingPermissions.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
@@ -128,15 +132,32 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        activeSession?.title?.ifBlank { "OpenCode" } ?: "OpenCode",
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Column {
+                        Text(
+                            activeSession?.title?.ifBlank { "OpenCode" } ?: "OpenCode",
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (activeSession != null && models.isNotEmpty()) {
+                            ModelSwitcher(
+                                models = models,
+                                currentModelId = currentModelId,
+                                onSelect = { model -> viewModel.switchModel(model.providerId ?: "opencode", model.id ?: "") },
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onMenu) { Icon(Icons.Filled.Menu, stringResource(R.string.drawer_settings)) }
                 },
                 actions = {
+                    if (activeSession != null) {
+                        SessionActionsMenu(
+                            onRename = { title -> viewModel.renameSession(title) },
+                            onDelete = { viewModel.deleteSession() },
+                        )
+                    }
                     IconButton(onClick = { viewModel.refreshSession() }) {
                         Icon(Icons.Filled.Refresh, stringResource(R.string.chat_refresh))
                     }
@@ -993,5 +1014,121 @@ private fun TokenStatsBar(
                     .height(3.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun ModelSwitcher(
+    models: List<ModelInfo>,
+    currentModelId: String?,
+    onSelect: (ModelInfo) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val current = models.firstOrNull { it.id == currentModelId } ?: models.firstOrNull()
+    Box {
+        Text(
+            text = current?.id ?: stringResource(R.string.model_label),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .clickable { expanded = true }
+                .padding(vertical = 2.dp),
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            models.forEach { model ->
+                val selected = model.id == currentModelId
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            model.id ?: "",
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelect(model)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SessionActionsMenu(
+    onRename: (String) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    var showRename by remember { mutableStateOf(false) }
+    var showDelete by remember { mutableStateOf(false) }
+
+    Box {
+        IconButton(onClick = { menuOpen = true }) {
+            Icon(Icons.Filled.MoreVert, stringResource(R.string.settings_title))
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.session_rename)) },
+                onClick = {
+                    menuOpen = false
+                    showRename = true
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.session_delete)) },
+                onClick = {
+                    menuOpen = false
+                    showDelete = true
+                },
+            )
+        }
+    }
+
+    if (showRename) {
+        val title = stringResource(R.string.rename_title)
+        var name by rememberSaveable { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showRename = false },
+            title = { Text(title) },
+            text = {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    placeholder = { Text(stringResource(R.string.rename_placeholder)) },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRename = false
+                        onRename(name)
+                    },
+                ) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRename = false }) { Text(stringResource(R.string.chat_reject)) }
+            },
+        )
+    }
+
+    if (showDelete) {
+        AlertDialog(
+            onDismissRequest = { showDelete = false },
+            title = { Text(stringResource(R.string.session_delete_title)) },
+            text = { Text(stringResource(R.string.session_delete_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDelete = false
+                        onDelete()
+                    },
+                ) { Text(stringResource(R.string.session_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDelete = false }) { Text(stringResource(R.string.chat_reject)) }
+            },
+        )
     }
 }
