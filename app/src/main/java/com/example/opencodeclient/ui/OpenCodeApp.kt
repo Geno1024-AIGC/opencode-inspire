@@ -282,6 +282,23 @@ private fun SessionRow(
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
+        s.tokens?.let { t ->
+            val total = t.input + t.output + t.reasoning
+            if (total > 0) {
+                Text(
+                    formatTokens(total),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
+}
+
+fun formatTokens(count: Long): String = when {
+    count >= 1_000_000 -> "%.1fM".format(count / 1_000_000.0)
+    count >= 1_000 -> "%.1fk".format(count / 1_000.0)
+    else -> count.toString()
 }
