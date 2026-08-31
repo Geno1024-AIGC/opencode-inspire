@@ -571,6 +571,16 @@ fun send(text: String) {
                     _sending.value = st == "busy"
                 }
             }
+            "session.compacted" -> {
+                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
+                if (sid != active) return
+                val notice = ChatMessage(
+                    id = "system-compact-${System.currentTimeMillis()}",
+                    role = "system",
+                    text = getAppString(R.string.compact_notice),
+                )
+                _messages.value = _messages.value + notice
+            }
             "message.updated" -> {
                 val info = props?.get("info")?.jsonObject ?: return
                 val sid = info["sessionID"]?.jsonPrimitive?.contentOrNull ?: return

@@ -95,4 +95,12 @@
     <string name="create_session_error">创建会话失败</string>
     <string name="open_session_error">打开会话失败</string>
     <string name="send_failed">发送失败</string>
+
+    <!-- Tool rendering -->
+    <string name="tool_input">输入</string>
+    <string name="tool_ran">执行</string>
+    <string name="tool_edited">已修改</string>
+
+    <!-- Compression notice -->
+    <string name="compact_notice">上下文已压缩，较早的消息已被摘要</string>
 </resources>

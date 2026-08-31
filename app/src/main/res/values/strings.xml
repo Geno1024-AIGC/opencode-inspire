@@ -95,4 +95,12 @@
     <string name="create_session_error">Failed to create session</string>
     <string name="open_session_error">Failed to open session</string>
     <string name="send_failed">Send failed</string>
+
+    <!-- Tool rendering -->
+    <string name="tool_input">Input</string>
+    <string name="tool_ran">ran</string>
+    <string name="tool_edited">edited</string>
+
+    <!-- Compression notice -->
+    <string name="compact_notice">Context was compressed; earlier messages were summarized</string>
 </resources>
