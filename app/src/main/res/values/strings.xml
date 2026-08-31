@@ -106,4 +106,37 @@
 
     <!-- Todos -->
     <string name="todo_title">Todos %1$d/%2$d</string>
+
+    <!-- Slash commands -->
+    <string name="slash_trigger">Commands</string>
+    <string name="slash_no_commands">No commands available</string>
+
+    <!-- Code block copy -->
+    <string name="copy">Copy</string>
+    <string name="copied">Copied</string>
+
+    <!-- Permission -->
+    <string name="permission_title">Permission request</string>
+    <string name="permission_allow_once">Allow once</string>
+    <string name="permission_allow_always">Always allow</string>
+    <string name="permission_deny">Deny</string>
+
+    <!-- Model switcher -->
+    <string name="model_label">Model</string>
+
+    <!-- Session management -->
+    <string name="session_rename">Rename</string>
+    <string name="session_delete">Delete session</string>
+    <string name="session_delete_confirm">Delete this session and all its messages?</string>
+    <string name="session_delete_title">Delete session</string>
+    <string name="rename_title">Rename session</string>
+    <string name="rename_placeholder">New title</string>
+    <string name="save">Save</string>
+
+    <!-- File browser -->
+    <string name="files_title">Files</string>
+    <string name="files_empty">No files</string>
+    <string name="files_up">Up</string>
+    <string name="files_root">/</string>
+    <string name="files_open_in_chat">Open in chat</string>
 </resources>

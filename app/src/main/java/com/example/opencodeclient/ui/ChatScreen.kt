@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +43,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,10 +63,14 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
 import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.Tokens
+import com.mikepenz.markdown.compose.components.MarkdownComponentModel
+import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.model.DefaultMarkdownTypography
 import com.mikepenz.markdown.model.MarkdownTypography
@@ -88,6 +96,8 @@ fun ChatScreen(
     val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
     val pendingQuestions by viewModel.pendingQuestions.collectAsStateWithLifecycle()
     val todos by viewModel.todos.collectAsStateWithLifecycle()
+    val commands by viewModel.commands.collectAsStateWithLifecycle()
+    val pendingPermissions by viewModel.pendingPermissions.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
@@ -186,12 +196,53 @@ fun ChatScreen(
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = { input = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text(stringResource(R.string.chat_placeholder)) },
-                )
+                Box(modifier = Modifier.weight(1f)) {
+                    val trimmed = input.trimStart()
+                    val showCommands = input.startsWith("/") && !trimmed.contains(" ")
+                    OutlinedTextField(
+                        value = input,
+                        onValueChange = { input = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(stringResource(R.string.chat_placeholder)) },
+                    )
+                    if (showCommands) {
+                        DropdownMenu(
+                            expanded = true,
+                            onDismissRequest = {},
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            if (commands.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.slash_no_commands)) },
+                                    onClick = {},
+                                )
+                            } else {
+                                commands.forEach { cmd ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text("/${cmd.name}", fontWeight = FontWeight.SemiBold)
+                                                if (cmd.description.isNotBlank()) {
+                                                    Text(
+                                                        cmd.description,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.runCommand(cmd)
+                                            input = ""
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 IconButton(
                     onClick = {
                         viewModel.send(input.trim())
@@ -213,6 +264,53 @@ fun ChatScreen(
             onReject = { viewModel.rejectQuestion(question) },
         )
     }
+
+    pendingPermissions.firstOrNull()?.let { permission ->
+        PermissionDialog(permission = permission) { reply ->
+            viewModel.replyPermission(permission, reply)
+        }
+    }
+}
+
+@Composable
+private fun PermissionDialog(
+    permission: com.example.opencodeclient.data.PermissionRequest,
+    onReply: (String) -> Unit,
+) {
+    val resourceText = permission.patterns.joinToString(", ")
+    AlertDialog(
+        onDismissRequest = { onReply("reject") },
+        title = { Text(stringResource(R.string.permission_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    permission.permission,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                if (resourceText.isNotBlank()) {
+                    Text(
+                        resourceText,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                permission.metadata?.takeIf { it.isNotEmpty() }?.entries?.take(5)?.forEach { (k, v) ->
+                    SummaryRow(label = k, value = v, monospace = true)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onReply("once") }) { Text(stringResource(R.string.permission_allow_once)) }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { onReply("always") }) { Text(stringResource(R.string.permission_allow_always)) }
+                TextButton(onClick = { onReply("reject") }) { Text(stringResource(R.string.permission_deny)) }
+            }
+        },
+    )
 }
 
 @Composable
@@ -340,11 +438,69 @@ private fun MarkdownMessage(content: String) {
         bullet = t.bodyLarge,
         list = t.bodyLarge,
     )
+    val components = markdownComponents(
+        codeFence = { model ->
+            CopyableCode(fenceCode(model.content, model.node))
+        },
+        codeBlock = { model ->
+            CopyableCode(blockCode(model.content, model.node))
+        },
+    )
     Markdown(
         content = content,
         typography = typography,
+        components = components,
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+private fun fenceCode(content: String, node: org.intellij.markdown.ast.ASTNode): String =
+    if (node.children.size >= 3) {
+        val start = node.children[2].startOffset
+        val end = node.children[node.children.size - 2].endOffset
+        content.substring(start, end).replaceIndent()
+    } else {
+        content
+    }
+
+private fun blockCode(content: String, node: org.intellij.markdown.ast.ASTNode): String {
+    if (node.children.isEmpty()) return content
+    val start = node.children[0].startOffset
+    val end = node.children[node.children.size - 1].endOffset
+    return content.substring(start, end).replaceIndent()
+}
+
+@Composable
+private fun CopyableCode(code: String) {
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+    val copyLabel = stringResource(if (copied) R.string.copied else R.string.copy)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+            .padding(vertical = 4.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(onClick = {
+                clipboard.setText(AnnotatedString(code))
+                copied = true
+            }) {
+                Text(copyLabel, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        Text(
+            code,
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        )
+    }
 }
 
 @Composable

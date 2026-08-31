@@ -6,8 +6,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.opencodeclient.R
 import java.util.Locale
+import com.example.opencodeclient.data.Command
 import com.example.opencodeclient.data.OpenCodeClient
 import com.example.opencodeclient.data.Part
+import com.example.opencodeclient.data.PermissionRequest
 import com.example.opencodeclient.data.Project
 import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.ServerProfile
@@ -137,6 +139,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _pendingQuestions = MutableStateFlow<List<QuestionRequest>>(emptyList())
     val pendingQuestions: StateFlow<List<QuestionRequest>> = _pendingQuestions.asStateFlow()
+
+    private val _commands = MutableStateFlow<List<Command>>(emptyList())
+    val commands: StateFlow<List<Command>> = _commands.asStateFlow()
+
+    private val _pendingPermissions = MutableStateFlow<List<PermissionRequest>>(emptyList())
+    val pendingPermissions: StateFlow<List<PermissionRequest>> = _pendingPermissions.asStateFlow()
 
     private val _shortTokens = MutableStateFlow(true)
     val shortTokens: StateFlow<Boolean> = _shortTokens.asStateFlow()
@@ -308,6 +316,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         runCatching {
             _pendingQuestions.value = withContext(Dispatchers.IO) {
                 c.pendingQuestions(_activeSession.value?.directory)
+            }.filter { it.sessionId == _activeSession.value?.id }
+        }
+        runCatching {
+            _commands.value = withContext(Dispatchers.IO) {
+                c.commands(_activeSession.value?.directory)
+            }
+        }
+        runCatching {
+            _pendingPermissions.value = withContext(Dispatchers.IO) {
+                c.pendingPermissions(_activeSession.value?.directory)
             }.filter { it.sessionId == _activeSession.value?.id }
         }
     }
@@ -499,7 +517,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-fun send(text: String) {
+    fun send(text: String) {
         if (text.isBlank()) return
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
@@ -518,6 +536,107 @@ fun send(text: String) {
                     role = "error",
                     text = e.message ?: getAppString(R.string.send_failed),
                 )
+                _sending.value = false
+            }
+        }
+    }
+
+    fun runCommand(command: Command) {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        viewModelScope.launch {
+            _sending.value = true
+            try {
+                withContext(Dispatchers.IO) { c.executeCommand(sid, command.name) }
+            } catch (e: Exception) {
+                _messages.value = _messages.value + ChatMessage(
+                    id = "err-${System.currentTimeMillis()}",
+                    role = "error",
+                    text = e.message ?: getAppString(R.string.send_failed),
+                )
+                _sending.value = false
+            }
+        }
+    }
+
+    fun replyPermission(permission: PermissionRequest, reply: String) {
+        val c = client ?: return
+        val dir = _activeSession.value?.directory
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { c.replyPermission(permission.id, reply, null, dir) } }
+                .onSuccess {
+                    _pendingPermissions.value = _pendingPermissions.value.filterNot { it.id == permission.id }
+                }
+                .onFailure { e ->
+                    _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.send_failed))
+                }
+        }
+    }
+
+    fun switchModel(providerId: String, modelId: String) {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { c.switchModel(sid, providerId, modelId) } }
+                .onFailure { e ->
+                    _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.send_failed))
+                }
+        }
+    }
+
+    fun renameSession(title: String) {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { c.renameSession(sid, title) } }
+                .onSuccess {
+                    _activeSession.value = _activeSession.value?.copy(title = title)
+                    _projects.value = _projects.value.map { p ->
+                        p.copy(sessions = p.sessions.map { if (it.id == sid) it.copy(title = title) else it })
+                    }
+                }
+                .onFailure { e ->
+                    _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.send_failed))
+                }
+        }
+    }
+
+    fun deleteSession() {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        val dir = _activeSession.value?.directory
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { c.deleteSession(sid) } }
+                .onSuccess {
+                    _projects.value = _projects.value.map { p ->
+                        p.copy(sessions = p.sessions.filterNot { it.id == sid })
+                    }
+                    reset()
+                }
+                .onFailure { e ->
+                    _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.send_failed))
+                }
+        }
+    }
+
+    suspend fun listFiles(path: String): List<com.example.opencodeclient.data.FileNode> {
+        val c = client ?: return emptyList()
+        return withContext(Dispatchers.IO) { c.listFiles(path) }
+    }
+
+    fun openFileInChat(path: String) {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        viewModelScope.launch {
+            _sending.value = true
+            _messages.value = _messages.value + ChatMessage(
+                id = "user-${System.currentTimeMillis()}",
+                role = "user",
+                text = "Read $path",
+            )
+            try {
+                withContext(Dispatchers.IO) { c.sendPromptAsync(sid, "Read $path and summarize its purpose") }
+            } catch (_: Exception) {
                 _sending.value = false
             }
         }
@@ -576,6 +695,21 @@ fun send(text: String) {
                 val sendId = props?.get("requestID")?.jsonPrimitive?.contentOrNull
                 if (sendId != null) {
                     _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == sendId }
+                }
+            }
+            "permission.asked" -> {
+                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
+                if (sid == active) {
+                    runCatching {
+                        val p = json.decodeFromString(PermissionRequest.serializer(), props.toString())
+                        _pendingPermissions.value = _pendingPermissions.value.filterNot { it.id == p.id } + p
+                    }
+                }
+            }
+            "permission.replied" -> {
+                val sendId = props?.get("requestID")?.jsonPrimitive?.contentOrNull
+                if (sendId != null) {
+                    _pendingPermissions.value = _pendingPermissions.value.filterNot { it.id == sendId }
                 }
             }
             "session.status", "session.idle" -> {

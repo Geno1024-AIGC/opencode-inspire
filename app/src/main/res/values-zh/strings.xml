@@ -106,4 +106,37 @@
 
     <!-- Todos -->
     <string name="todo_title">待办 %1$d/%2$d</string>
+
+    <!-- Slash commands -->
+    <string name="slash_trigger">命令</string>
+    <string name="slash_no_commands">没有可用命令</string>
+
+    <!-- Code block copy -->
+    <string name="copy">复制</string>
+    <string name="copied">已复制</string>
+
+    <!-- Permission -->
+    <string name="permission_title">权限请求</string>
+    <string name="permission_allow_once">允许一次</string>
+    <string name="permission_allow_always">始终允许</string>
+    <string name="permission_deny">拒绝</string>
+
+    <!-- Model switcher -->
+    <string name="model_label">模型</string>
+
+    <!-- Session management -->
+    <string name="session_rename">重命名</string>
+    <string name="session_delete">删除会话</string>
+    <string name="session_delete_confirm">删除此会话及其所有消息？</string>
+    <string name="session_delete_title">删除会话</string>
+    <string name="rename_title">重命名会话</string>
+    <string name="rename_placeholder">新标题</string>
+    <string name="save">保存</string>
+
+    <!-- File browser -->
+    <string name="files_title">文件</string>
+    <string name="files_empty">无文件</string>
+    <string name="files_up">上级</string>
+    <string name="files_root">/</string>
+    <string name="files_open_in_chat">在聊天中打开</string>
 </resources>
