@@ -69,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
 import com.example.opencodeclient.data.FileNode
@@ -82,6 +83,7 @@ import com.mikepenz.markdown.model.DefaultMarkdownTypography
 import com.mikepenz.markdown.model.MarkdownTypography
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -110,7 +112,9 @@ fun ChatScreen(
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    var input by rememberSaveable { mutableStateOf("") }
+    var input by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(""))
+    }
     var showFiles by rememberSaveable { mutableStateOf(false) }
     var userScrolledAway by remember { mutableStateOf(false) }
 
@@ -226,8 +230,8 @@ fun ChatScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    val trimmed = input.trimStart()
-                    val showCommands = input.startsWith("/") && !trimmed.contains(" ")
+                    val trimmed = input.text.trimStart()
+                    val showCommands = input.text.startsWith("/") && !trimmed.contains(" ")
                     OutlinedTextField(
                         value = input,
                         onValueChange = { input = it },
@@ -264,7 +268,7 @@ fun ChatScreen(
                                         },
                                         onClick = {
                                             viewModel.runCommand(cmd)
-                                            input = ""
+                                            input = TextFieldValue("")
                                         },
                                     )
                                 }
@@ -274,10 +278,10 @@ fun ChatScreen(
                 }
                 IconButton(
                     onClick = {
-                        viewModel.send(input.trim())
-                        input = ""
+                        viewModel.send(input.text.trim())
+                        input = TextFieldValue("")
                     },
-                    enabled = input.isNotBlank(),
+                    enabled = input.text.isNotBlank(),
                     modifier = Modifier.padding(bottom = 4.dp),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Send, "Send")
@@ -784,7 +788,12 @@ private fun ToolPart(part: PartUi) {
         }
 
         if (!part.toolInput.isNullOrBlank()) {
-            SummaryRow(label = stringResource(R.string.tool_input), value = details.inputSummary, monospace = true)
+            SummaryRow(
+                label = stringResource(R.string.tool_input),
+                value = details.inputSummary,
+                monospace = true,
+                maxLines = if (expanded) Int.MAX_VALUE else 4,
+            )
         }
         if (details.outputPrefix != null) {
             Text(
@@ -818,7 +827,7 @@ private fun ToolPart(part: PartUi) {
 }
 
 @Composable
-private fun SummaryRow(label: String, value: String, monospace: Boolean = false) {
+private fun SummaryRow(label: String, value: String, monospace: Boolean = false, maxLines: Int = Int.MAX_VALUE) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top,
@@ -835,6 +844,8 @@ private fun SummaryRow(label: String, value: String, monospace: Boolean = false)
             style = MaterialTheme.typography.bodySmall,
             fontFamily = if (monospace) FontFamily.Monospace else null,
             color = MaterialTheme.colorScheme.onSurface,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -903,7 +914,7 @@ private fun fileEditDetails(tool: String, inputObj: JsonObject?, trimmed: String
         ?: inputObj?.get("filePath")?.jsonPrimitive?.contentOrNull
         ?: inputObj?.get("path")?.jsonPrimitive?.contentOrNull
     return ToolDetails(
-        inputSummary = inputObj?.let { prettyText(it.toString()) } ?: "",
+        inputSummary = inputObj?.let { prettyJson(it) } ?: "",
         outputPrefix = if (file != null) "${labels.edited} $file" else null,
         outputText = summarizeText(trimmed),
     )
@@ -962,6 +973,16 @@ private fun countJsonArray(s: String): Int =
 
 private fun prettyText(s: String): String =
     runCatching { Json.parseToJsonElement(s).jsonObject }.getOrNull()?.toString()?.let { it } ?: s
+
+private val prettyJsonInstance = Json {
+    prettyPrint = true
+    prettyPrintIndent = "  "
+    ignoreUnknownKeys = true
+}
+
+private fun prettyJson(obj: JsonObject): String =
+    runCatching { prettyJsonInstance.encodeToString(JsonElement.serializer(), obj) }
+        .getOrNull() ?: obj.toString()
 
 @Composable
 private fun ReasoningBlock(reasoning: String) {
