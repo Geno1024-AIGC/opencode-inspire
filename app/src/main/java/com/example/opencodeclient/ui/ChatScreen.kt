@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
@@ -86,6 +87,7 @@ fun ChatScreen(
     val contextWindow by viewModel.contextWindow.collectAsStateWithLifecycle()
     val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
     val pendingQuestions by viewModel.pendingQuestions.collectAsStateWithLifecycle()
+    val todos by viewModel.todos.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
@@ -170,6 +172,11 @@ fun ChatScreen(
                         assistantColor = assistantBubbleColor,
                     )
                 }
+            }
+
+            if (todos.isNotEmpty()) {
+                TodoPanel(todos)
+                Spacer(Modifier.height(4.dp))
             }
 
             Row(
@@ -338,6 +345,81 @@ private fun MarkdownMessage(content: String) {
         typography = typography,
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+@Composable
+private fun TodoPanel(todos: List<TodoUi>) {
+    var expanded by rememberSaveable { mutableStateOf(true) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            .clickable { expanded = !expanded }
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        val done = todos.count { it.status == "completed" }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                Icons.Filled.CheckCircle,
+                null,
+                Modifier.height(16.dp).width(16.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                stringResource(R.string.todo_title, done, todos.size),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                if (expanded) "▲" else "▼",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (expanded) {
+            todos.forEach { todo ->
+                TodoRow(todo)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodoRow(todo: TodoUi) {
+    val done = todo.status == "completed"
+    val color = when (todo.status) {
+        "completed" -> MaterialTheme.colorScheme.primary
+        "in_progress" -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            when (todo.status) {
+                "completed" -> "✓"
+                "in_progress" -> "…"
+                else -> "○"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = color,
+        )
+        Text(
+            todo.content,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            textDecoration = if (done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+        )
+    }
 }
 
 @Composable

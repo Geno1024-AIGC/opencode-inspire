@@ -194,6 +194,12 @@ class OpenCodeClient(
                 .map { it.info to it.parts }
         }
 
+    suspend fun sessionTodos(sessionId: String): List<TodoInfo> =
+        execute("GET", "/session/$sessionId/todo") { text ->
+            if (text.isBlank()) emptyList()
+            else json.decodeFromString(ListSerializer(TodoInfo.serializer()), text)
+        }
+
     private fun promptBody(text: String): String = buildJsonObject {
         put("parts", buildJsonArray {
             add(buildJsonObject {

@@ -103,4 +103,7 @@
 
     <!-- Compression notice -->
     <string name="compact_notice">Context was compressed; earlier messages were summarized</string>
+
+    <!-- Todos -->
+    <string name="todo_title">Todos %1$d/%2$d</string>
 </resources>
