@@ -7,6 +7,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
@@ -17,12 +19,24 @@ class SettingsRepository(private val context: Context) {
         val LAST_SESSION = stringPreferencesKey("last_session_id")
         val AUTH_USERNAME = stringPreferencesKey("auth_username")
         val AUTH_PASSWORD = stringPreferencesKey("auth_password")
+        val SERVERS = stringPreferencesKey("servers")
+    }
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
     }
 
     val serverUrl: Flow<String?> = context.dataStore.data.map { it[Keys.SERVER_URL] }
     val projectPath: Flow<String?> = context.dataStore.data.map { it[Keys.PROJECT_PATH] }
     val authUsername: Flow<String?> = context.dataStore.data.map { it[Keys.AUTH_USERNAME] }
     val authPassword: Flow<String?> = context.dataStore.data.map { it[Keys.AUTH_PASSWORD] }
+
+    val servers: Flow<List<ServerProfile>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.SERVERS]?.let { raw ->
+            runCatching { json.decodeFromString<List<ServerProfile>>(raw) }.getOrNull()
+        } ?: emptyList()
+    }
 
     suspend fun setServerUrl(url: String) {
         context.dataStore.edit { it[Keys.SERVER_URL] = url }
@@ -38,6 +52,28 @@ class SettingsRepository(private val context: Context) {
             else it[Keys.AUTH_USERNAME] = username
             if (password.isNullOrEmpty()) it.remove(Keys.AUTH_PASSWORD)
             else it[Keys.AUTH_PASSWORD] = password
+        }
+    }
+
+    suspend fun saveServer(profile: ServerProfile) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.SERVERS]?.let { raw ->
+                runCatching { json.decodeFromString<List<ServerProfile>>(raw) }.getOrNull()
+            } ?: emptyList()
+            val updated = current.filterNot { it.url == profile.url } + profile
+            prefs[Keys.SERVERS] = json.encodeToString(ListSerializer(ServerProfile.serializer()), updated)
+        }
+    }
+
+    suspend fun removeServer(url: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.SERVERS]?.let { raw ->
+                runCatching { json.decodeFromString<List<ServerProfile>>(raw) }.getOrNull()
+            } ?: emptyList()
+            prefs[Keys.SERVERS] = json.encodeToString(
+                ListSerializer(ServerProfile.serializer()),
+                current.filterNot { it.url == url },
+            )
         }
     }
 

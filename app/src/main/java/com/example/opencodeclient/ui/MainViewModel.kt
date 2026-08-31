@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.opencodeclient.data.OpenCodeClient
 import com.example.opencodeclient.data.Part
 import com.example.opencodeclient.data.Project
+import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
 import com.example.opencodeclient.data.Tokens
@@ -105,6 +106,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _authPassword = MutableStateFlow<String?>(null)
     val authPassword: StateFlow<String?> = _authPassword.asStateFlow()
 
+    private val _servers = MutableStateFlow<List<ServerProfile>>(emptyList())
+    val servers: StateFlow<List<ServerProfile>> = _servers.asStateFlow()
+
     init {
         viewModelScope.launch {
             settings.serverUrl.collect { _serverUrl.value = it }
@@ -114,6 +118,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.authPassword.collect { _authPassword.value = it }
+        }
+        viewModelScope.launch {
+            settings.servers.collect { _servers.value = it }
         }
     }
 
@@ -125,18 +132,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val health = withContext(Dispatchers.IO) { cli.health() }
                 if (!health.healthy) throw IllegalStateException("Server is not healthy")
                 client = cli
+                _activeSession.value = null
+                _messages.value = emptyList()
+                _sessionTokens.value = null
+                _contextWindow.value = 0L
+                _promptTokens.value = 0L
+                _sending.value = false
                 settings.setServerUrl(serverUrl)
                 settings.setAuth(username, password)
                 _serverUrl.value = serverUrl
                 _authUsername.value = username
                 _authPassword.value = password
+                saveServerProfile(ServerProfile(serverUrl, username, password))
                 _connectionState.value = UiState.Idle
                 observeEvents()
+                loadWorkspace()
                 onSuccess()
             } catch (e: Exception) {
                 _connectionState.value = UiState.Error(e.message ?: "Connection failed")
             }
         }
+    }
+
+    fun saveServerProfile(profile: ServerProfile) {
+        viewModelScope.launch { settings.saveServer(profile) }
+    }
+
+    fun removeServerProfile(url: String) {
+        viewModelScope.launch { settings.removeServer(url) }
     }
 
     fun ensureLoaded(onDone: () -> Unit = {}) {

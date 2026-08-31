@@ -41,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -66,16 +67,23 @@ fun ChatScreen(
     val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var input by rememberSaveable { mutableStateOf("") }
+    var userScrolledAway by remember { mutableStateOf(false) }
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (firstIndex, offset) ->
+            userScrolledAway = !(firstIndex == 0 && offset == 0)
+        }
+    }
 
     LaunchedEffect(
         messages.size,
-        messages.lastOrNull()?.id,
-        messages.lastOrNull()?.text?.length,
-        messages.lastOrNull()?.reasoning?.length,
         sending,
+        userScrolledAway,
     ) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+        if (!userScrolledAway && messages.isNotEmpty()) {
+            listState.scrollToItem(0)
         }
     }
 
@@ -121,14 +129,15 @@ fun ChatScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
+                reverseLayout = true,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(messages, key = { it.id }) { msg ->
-                    MessageBubble(msg)
-                }
                 if (sending) {
-                    item { SendingIndicator() }
+                    item(key = "sending") { SendingIndicator() }
+                }
+                items(messages.asReversed(), key = { it.id }) { msg ->
+                    MessageBubble(msg)
                 }
             }
 
