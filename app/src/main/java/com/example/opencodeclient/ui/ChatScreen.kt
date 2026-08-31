@@ -66,6 +66,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -701,9 +702,39 @@ private fun MessageBubble(
                         MarkdownMessage(msg.text.trim())
                     }
                 }
+                MessageMeta(msg)
             }
         }
     }
+}
+
+@Composable
+private fun MessageMeta(msg: ChatMessage) {
+    val time = msg.time
+    val parts = buildList {
+        if (!msg.model.isNullOrBlank()) add(msg.model)
+        val tokens = msg.tokens
+        if (tokens != null) {
+            val total = tokens.total
+                ?: (tokens.input + tokens.output + tokens.reasoning)
+            if (total > 0) add("${total} tok")
+        }
+        if (time > 0) add(formatMillis(time))
+    }
+    if (parts.isEmpty()) return
+    Text(
+        parts.joinToString(" · "),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+        fontFamily = FontFamily.Monospace,
+        textAlign = TextAlign.End,
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+    )
+}
+
+private fun formatMillis(millis: Long): String {
+    val cal = java.util.Calendar.getInstance().apply { timeInMillis = millis }
+    return "%02d:%02d".format(cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
 }
 
 @Composable

@@ -43,6 +43,9 @@ data class ChatMessage(
     val text: String,
     val reasoning: String? = null,
     val parts: List<PartUi> = emptyList(),
+    val model: String? = null,
+    val tokens: Tokens? = null,
+    val time: Long = 0L,
 )
 
 data class PartUi(
@@ -518,6 +521,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun buildReasoning(parts: List<Part>): String? =
         parts.filter { it.type == "reasoning" }.mapNotNull { it.text }.joinToString("\n").ifBlank { null }
 
+    private fun serverTimeToMillis(value: Long?): Long =
+        when {
+            value == null || value <= 0L -> 0L
+            value < 10_000_000_000L -> value * 1000L
+            else -> value
+        }
+
         fun loadMessages() {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
@@ -543,6 +553,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 toolOutput = p.state?.output,
                             )
                         },
+                        model = msg.modelID ?: msg.model?.id,
+                        tokens = msg.tokens,
+                        time = serverTimeToMillis(msg.time?.created),
                     )
                 }
                 runCatching {
@@ -577,6 +590,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 id = "user-${System.currentTimeMillis()}",
                 role = "user",
                 text = text,
+                time = System.currentTimeMillis(),
             )
             try {
                 withContext(Dispatchers.IO) { c.sendPromptAsync(sid, text) }
@@ -688,6 +702,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 id = "user-${System.currentTimeMillis()}",
                 role = "user",
                 text = "Read $path",
+                time = System.currentTimeMillis(),
             )
             try {
                 withContext(Dispatchers.IO) { c.sendPromptAsync(sid, "Read $path and summarize its purpose") }
@@ -840,7 +855,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val mid = info["id"]?.jsonPrimitive?.contentOrNull ?: return
                 val role = info["role"]?.jsonPrimitive?.contentOrNull ?: "assistant"
                 if (role != "user" && _messages.value.none { it.id == mid }) {
-                    _messages.value = _messages.value + ChatMessage(mid, role, "")
+                    val model = info["modelID"]?.jsonPrimitive?.contentOrNull
+                    val tokens = info["tokens"]?.let {
+                        runCatching { json.decodeFromString(Tokens.serializer(), it.toString()) }.getOrNull()
+                    }
+                    val created = info["time"]?.jsonObject?.get("created")?.jsonPrimitive?.contentOrNull
+                        ?.toLongOrNull()
+                    _messages.value = _messages.value + ChatMessage(
+                        id = mid,
+                        role = role,
+                        text = "",
+                        model = model,
+                        tokens = tokens,
+                        time = serverTimeToMillis(created),
+                    )
                 }
             }
             "message.part.updated" -> {
@@ -879,7 +907,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val delta = props["delta"]?.jsonPrimitive?.contentOrNull ?: return
                 if (field != "text") return
                 val updated = if (_messages.value.none { it.id == mid }) {
-                    _messages.value + ChatMessage(mid, "assistant", delta)
+                    _messages.value + ChatMessage(id = mid, role = "assistant", text = delta, time = System.currentTimeMillis())
                 } else {
                     _messages.value.map {
                         if (it.id != mid) it
