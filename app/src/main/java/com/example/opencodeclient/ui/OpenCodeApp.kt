@@ -113,6 +113,7 @@ private fun MainScreen(
     val scope = rememberCoroutineScope()
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     var showServers by remember { mutableStateOf(false) }
+    var showAddProject by remember { mutableStateOf(false) }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -123,6 +124,7 @@ private fun MainScreen(
                 onClose = { scope.launch { drawerState.close() } },
                 onSettings = onOpenSettings,
                 onServers = { showServers = true },
+                onAddProject = { showAddProject = true },
                 onDisconnect = onDisconnect,
             )
         },
@@ -139,6 +141,12 @@ private fun MainScreen(
             onDismiss = { showServers = false },
         )
     }
+    if (showAddProject) {
+        AddProjectDialog(
+            viewModel = viewModel,
+            onDismiss = { showAddProject = false },
+        )
+    }
     LaunchedEffect(Unit) {
         viewModel.ensureLoaded()
     }
@@ -151,6 +159,7 @@ private fun DrawerContent(
     onClose: () -> Unit,
     onSettings: () -> Unit,
     onServers: () -> Unit,
+    onAddProject: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
     val projects by viewModel.projects.collectAsStateWithLifecycle()
@@ -202,6 +211,7 @@ private fun DrawerContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Projects", style = MaterialTheme.typography.labelLarge)
+                IconButton(onClick = onAddProject) { Icon(Icons.Filled.Add, "Add project") }
                 IconButton(onClick = { viewModel.refresh() }) { Icon(Icons.Filled.Refresh, "Refresh") }
             }
             LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)) {
@@ -417,6 +427,62 @@ private fun ServersDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("Done") }
+        },
+    )
+}
+
+@Composable
+private fun AddProjectDialog(
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit,
+) {
+    var directory by rememberSaveable { mutableStateOf("") }
+    val workspaceState by viewModel.workspaceState.collectAsStateWithLifecycle()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add project") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Enter an absolute directory on the server to open as a project.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = directory,
+                    onValueChange = { directory = it },
+                    label = { Text("Directory path") },
+                    placeholder = { Text("/home/user/myproject") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (workspaceState is UiState.Loading) {
+                    Text(
+                        (workspaceState as UiState.Loading).message,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                } else if (workspaceState is UiState.Error) {
+                    Text(
+                        (workspaceState as UiState.Error).message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = directory.isNotBlank() && workspaceState !is UiState.Loading,
+                onClick = {
+                    viewModel.newSession(directory.trim(), onDone = onDismiss)
+                },
+            ) { Text("Open") }
+        },
+        dismissButton = {
+            TextButton(
+                enabled = workspaceState !is UiState.Loading,
+                onClick = onDismiss,
+            ) { Text("Cancel") }
         },
     )
 }
