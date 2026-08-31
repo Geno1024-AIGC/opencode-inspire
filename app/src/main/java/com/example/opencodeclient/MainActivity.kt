@@ -63,6 +63,8 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
+            val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
+            val updateMessage by viewModel.updateMessage.collectAsStateWithLifecycle()
             val themePref by viewModel.theme.collectAsStateWithLifecycle()
             val langPref by viewModel.language.collectAsStateWithLifecycle()
             val darkTheme = when (themePref) {
@@ -89,6 +91,37 @@ class MainActivity : ComponentActivity() {
                 OpenCodeTheme(darkTheme = darkTheme) {
                     Surface(color = MaterialTheme.colorScheme.background) {
                         OpenCodeApp(viewModel)
+
+                        val ctx = androidx.compose.ui.platform.LocalContext.current
+                        updateInfo?.let { info ->
+                            AlertDialog(
+                                onDismissRequest = viewModel::dismissUpdate,
+                                title = { Text(stringResource(R.string.update_available_title)) },
+                                text = {
+                                    Text(stringResource(R.string.update_available_body, info.version, BuildConfig.VERSION_NAME))
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(info.url))
+                                        runCatching { ctx.startActivity(intent) }
+                                        viewModel.dismissUpdate()
+                                    }) { Text(stringResource(R.string.update_open)) }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = viewModel::dismissUpdate) { Text(stringResource(R.string.update_later)) }
+                                },
+                            )
+                        }
+                        updateMessage?.let { message ->
+                            AlertDialog(
+                                onDismissRequest = viewModel::dismissUpdateMessage,
+                                title = { Text(stringResource(R.string.update_check_title)) },
+                                text = { Text(message) },
+                                confirmButton = {
+                                    TextButton(onClick = viewModel::dismissUpdateMessage) { Text(stringResource(R.string.ok)) }
+                                },
+                            )
+                        }
                     }
                 }
             }
