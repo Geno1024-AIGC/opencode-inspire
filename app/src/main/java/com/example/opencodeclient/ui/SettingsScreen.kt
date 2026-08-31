@@ -25,11 +25,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -103,7 +107,7 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setShortTokens,
             )
             SectionLabel(R.string.settings_language)
-            RadioSetting(
+            DropdownSetting(
                 listOf(
                     "system" to stringResource(R.string.lang_system),
                     "en" to stringResource(R.string.lang_english),
@@ -184,6 +188,49 @@ private fun RadioSetting(
         ) {
             RadioButton(selected = selected == value, onClick = { onSelect(value) })
             Text(label, style = MaterialTheme.typography.bodyLarge)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DropdownSetting(
+    options: List<Pair<String, String>>,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentLabel = options.firstOrNull { it.first == selected }?.second
+        ?: options.first().second
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = currentLabel,
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { (value, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onSelect(value)
+                        expanded = false
+                    },
+                )
+            }
         }
     }
 }
