@@ -1,5 +1,6 @@
 package com.example.opencodeclient.ui
 
+import com.example.opencodeclient.BuildConfig
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -145,6 +146,14 @@ fun SettingsScreen(
             )
 
             Spacer(Modifier.size(32.dp))
+
+            Text(
+                "v${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
 
             val target = picking
             if (target != null) {

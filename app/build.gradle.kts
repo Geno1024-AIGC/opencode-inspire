@@ -5,6 +5,32 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+import java.io.File
+
+// ---- Dynamic version: 0.1.$pack.$build.$commit ----
+val commitSha: String = providers.exec {
+    commandLine("git", "rev-parse", "--short=8", "HEAD")
+}.standardOutput.asText.get().trim().ifBlank { "00000000" }
+
+val commitCount: Int = providers.exec {
+    commandLine("git", "rev-list", "--count", "HEAD")
+}.standardOutput.asText.get().trim().toIntOrNull() ?: 0
+
+// pack: use GitHub Actions run number when building on CI; otherwise commit count as baseline
+val packFromCi: String = providers.environmentVariable("GITHUB_RUN_NUMBER").orNull ?: ""
+val pack = packFromCi.ifBlank { commitCount.toString() }
+
+// build: commit count (baseline) + local per-build increment
+val buildCounterFile = File(projectDir, "build/build_count.txt")
+fun readCounter(): Int =
+    runCatching { buildCounterFile.readText().trim().toInt() }.getOrDefault(0)
+val extraBuilds = readCounter() + 1
+buildCounterFile.parentFile?.mkdirs()
+buildCounterFile.writeText(extraBuilds.toString())
+val build = commitCount + extraBuilds
+
+val appVersionName = "0.1.$pack.$build.$commitSha"
+
 android {
     namespace = "com.example.opencodeclient"
     compileSdk = 36
@@ -14,7 +40,10 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = appVersionName
+        buildConfigField("String", "GIT_COMMIT", "\"$commitSha\"")
+        buildConfigField("int", "PACK", "$pack")
+        buildConfigField("int", "BUILD", "$build")
     }
 
     buildTypes {
@@ -38,6 +67,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
