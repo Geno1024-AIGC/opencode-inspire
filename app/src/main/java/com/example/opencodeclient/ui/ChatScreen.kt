@@ -1041,7 +1041,7 @@ private fun TokenStatsBar(
             )
             if (contextWindow > 0 && total > 0) {
                 Text(
-                    "${(ratio * 100).toInt()}% of ${formatTokens(contextWindow, shortTokens)}",
+                    "${formatTokens(ctx, shortTokens)} / ${formatTokens(contextWindow, shortTokens)} (${(ratio * 100).toInt()}%)",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = FontFamily.Monospace,
