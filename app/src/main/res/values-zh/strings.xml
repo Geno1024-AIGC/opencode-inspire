@@ -142,4 +142,12 @@
 
     <!-- Notification -->
     <string name="notify_session_done">会话已完成</string>
+
+    <!-- Model / session errors -->
+    <string name="error_token_limit">模型的上下文窗口已超限</string>
+    <string name="error_auth_failed">模型鉴权失败</string>
+    <string name="error_output_length">模型输出超出最大长度</string>
+    <string name="error_content_filter">响应被内容过滤器拦截</string>
+    <string name="error_api">模型请求失败</string>
+    <string name="error_model_failed">会话执行失败</string>
 </resources>

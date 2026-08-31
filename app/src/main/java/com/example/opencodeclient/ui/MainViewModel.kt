@@ -697,6 +697,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun describeSessionError(error: JsonObject?): String {
+        if (error == null) return getAppString(R.string.error_model_failed)
+        val name = error["name"]?.jsonPrimitive?.contentOrNull
+        val data = error["data"]?.jsonObject
+        val message = data?.get("message")?.jsonPrimitive?.contentOrNull
+        val prefix = when (name) {
+            "ContextOverflowError" -> getAppString(R.string.error_token_limit)
+            "ProviderAuthError" -> getAppString(R.string.error_auth_failed)
+            "MessageOutputLengthError" -> getAppString(R.string.error_output_length)
+            "ContentFilterError" -> getAppString(R.string.error_content_filter)
+            "APIError" -> getAppString(R.string.error_api)
+            "UnknownError" -> getAppString(R.string.error_model_failed)
+            else -> getAppString(R.string.error_model_failed)
+        }
+        return if (message.isNullOrBlank()) prefix else "$prefix\n$message"
+    }
+
     private fun buildPartUi(part: JsonObject): PartUi? {
         val type = part["type"]?.jsonPrimitive?.contentOrNull ?: return null
         val text = part["text"]?.jsonPrimitive?.contentOrNull
@@ -790,6 +807,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     text = getAppString(R.string.compact_notice),
                 )
                 _messages.value = _messages.value + notice
+            }
+            "session.error" -> {
+                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
+                if (sid != null && sid != active) return
+                val errText = describeSessionError(props?.get("error")?.jsonObject)
+                val errMsg = ChatMessage(
+                    id = "session-error-${System.currentTimeMillis()}",
+                    role = "error",
+                    text = errText,
+                )
+                _messages.value = _messages.value + errMsg
+                _sending.value = false
             }
             "todo.updated" -> {
                 val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
