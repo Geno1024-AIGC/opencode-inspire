@@ -139,4 +139,7 @@
     <string name="files_up">上级</string>
     <string name="files_root">/</string>
     <string name="files_open_in_chat">在聊天中打开</string>
+
+    <!-- Notification -->
+    <string name="notify_session_done">会话已完成</string>
 </resources>

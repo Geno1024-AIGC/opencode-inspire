@@ -139,4 +139,7 @@
     <string name="files_up">Up</string>
     <string name="files_root">/</string>
     <string name="files_open_in_chat">Open in chat</string>
+
+    <!-- Notification -->
+    <string name="notify_session_done">Session finished</string>
 </resources>
