@@ -25,6 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
@@ -37,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -68,6 +71,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
+import com.example.opencodeclient.data.FileNode
 import com.example.opencodeclient.data.ModelInfo
 import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.Tokens
@@ -107,6 +111,7 @@ fun ChatScreen(
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var input by rememberSaveable { mutableStateOf("") }
+    var showFiles by rememberSaveable { mutableStateOf(false) }
     var userScrolledAway by remember { mutableStateOf(false) }
 
     LaunchedEffect(listState) {
@@ -153,6 +158,9 @@ fun ChatScreen(
                 },
                 actions = {
                     if (activeSession != null) {
+                        IconButton(onClick = { showFiles = true }) {
+                            Icon(Icons.Filled.Folder, stringResource(R.string.files_title))
+                        }
                         SessionActionsMenu(
                             onRename = { title -> viewModel.renameSession(title) },
                             onDelete = { viewModel.deleteSession() },
@@ -274,6 +282,19 @@ fun ChatScreen(
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Send, "Send")
                 }
+            }
+        }
+    }
+
+    if (showFiles) {
+        val directory = activeSession?.directory
+        if (directory != null) {
+            ModalBottomSheet(onDismissRequest = { showFiles = false }) {
+                FileBrowserSheet(
+                    root = directory,
+                    viewModel = viewModel,
+                    onClose = { showFiles = false },
+                )
             }
         }
     }
@@ -1132,3 +1153,113 @@ private fun SessionActionsMenu(
         )
     }
 }
+
+@Composable
+private fun FileBrowserSheet(
+    root: String,
+    viewModel: MainViewModel,
+    onClose: () -> Unit,
+) {
+    var path by rememberSaveable { mutableStateOf(root) }
+    var files by remember { mutableStateOf<List<FileNode>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(path) {
+        loading = true
+        files = try {
+            viewModel.listFiles(path)
+        } catch (_: Exception) {
+            emptyList()
+        }
+        loading = false
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 24.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                fileLabel(path),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+            )
+            if (loading) {
+                CircularProgressIndicator(Modifier.height(16.dp).width(16.dp), strokeWidth = 2.dp)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+
+        LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
+            if (path != root) {
+                item(key = "up") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { path = parentOf(path, root) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(Icons.Filled.Folder, null, Modifier.height(18.dp).width(18.dp), tint = MaterialTheme.colorScheme.tertiary)
+                        Text(stringResource(R.string.files_up), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+            if (files.isEmpty() && !loading) {
+                item(key = "empty") {
+                    Text(
+                        stringResource(R.string.files_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                    )
+                }
+            }
+            items(files, key = { it.path }) { node ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            when (node.type) {
+                                "directory" -> path = node.path
+                                else -> viewModel.openFileInChat(node.path)
+                            }
+                        }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        if (node.type == "directory") Icons.Filled.Folder else Icons.Filled.InsertDriveFile,
+                        null,
+                        Modifier.height(18.dp).width(18.dp),
+                        tint = if (node.type == "directory") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(node.name, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}
+
+private fun parentOf(path: String, root: String): String {
+    val p = path.trimEnd('/')
+    val r = root.trimEnd('/')
+    if (p == r) return path
+    val idx = p.lastIndexOf('/')
+    if (idx <= 0) return "/"
+    return p.substring(0, idx)
+}
+
+private fun fileLabel(path: String): String =
+    path.substringAfterLast('/').ifBlank { path }
