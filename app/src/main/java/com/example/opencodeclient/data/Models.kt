@@ -92,6 +92,7 @@ data class ModelsV2Response(
 
 @Serializable
 data class Tokens(
+    val total: Long? = null,
     val input: Long = 0L,
     val output: Long = 0L,
     val reasoning: Long = 0L,
@@ -195,10 +196,20 @@ data class SessionInfo(
 @Serializable
 data class Message(
     val id: String,
-    val sessionID: String? = null,
+    @SerialName("sessionID") val sessionID: String? = null,
     val role: String? = null,
     val provider: ProviderRef? = null,
     val model: ModelRef? = null,
+    @SerialName("providerID") val providerID: String? = null,
+    @SerialName("modelID") val modelID: String? = null,
+    val tokens: Tokens? = null,
+    val time: MessageTime? = null,
+)
+
+@Serializable
+data class MessageTime(
+    val created: Long? = null,
+    val completed: Long? = null,
 )
 
 @Serializable
