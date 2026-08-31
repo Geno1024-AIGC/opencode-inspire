@@ -21,6 +21,7 @@ import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
 import com.example.opencodeclient.data.Tokens
+import com.example.opencodeclient.data.TokenHistoryStore
 import com.example.opencodeclient.data.Updater
 import com.example.opencodeclient.data.promptTokens
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +49,7 @@ data class ChatMessage(
     val model: String? = null,
     val tokens: Tokens? = null,
     val time: Long = 0L,
+    val cumulativeTokens: Long = 0L,
 )
 
 data class PartUi(
@@ -129,6 +131,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _promptTokens = MutableStateFlow(0L)
     val promptTokens: StateFlow<Long> = _promptTokens.asStateFlow()
+
+    private val _cumulativeTokens = MutableStateFlow(0L)
+    val cumulativeTokens: StateFlow<Long> = _cumulativeTokens.asStateFlow()
+
+    private var lastUserSendTime: Long? = null
+    private val _sessionElapsed = MutableStateFlow<Long?>(null)
+    val sessionElapsed: StateFlow<Long?> = _sessionElapsed.asStateFlow()
 
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
@@ -236,7 +245,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun notifySessionDone(sid: String) {
+    private fun notifySessionDone(sid: String, tokens: Long = 0L) {
+        viewModelScope.launch {
+            if (tokens > 0L) TokenHistoryStore.addToday(getApplication(), tokens)
+        }
         val context = getApplication<Application>()
         val title = sessionTitle(sid).ifBlank { "OpenCode" }
         val notification = android.app.Notification.Builder(context, "session_status")
@@ -276,6 +288,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _sessionTokens.value = null
                 _contextWindow.value = 0L
                 _promptTokens.value = 0L
+                _cumulativeTokens.value = 0L
+                lastUserSendTime = null
+                _sessionElapsed.value = null
                 _sending.value = false
                 settings.setServerUrl(serverUrl)
                 settings.setAuth(username, password)
@@ -594,7 +609,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val pairs = withContext(Dispatchers.IO) { c.sessionMessages(sid, 100) }
+                var cum = 0L
                 _messages.value = pairs.map { (msg, parts) ->
+                    val tokens = msg.tokens
+                    val tokenTotal = tokens?.total ?: 0L
+                    if (tokenTotal > 0) cum += tokenTotal
                     ChatMessage(
                         id = msg.id,
                         role = msg.role ?: "unknown",
@@ -614,8 +633,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             )
                         },
                         model = msg.modelID ?: msg.model?.id,
-                        tokens = msg.tokens,
+                        tokens = tokens,
                         time = serverTimeToMillis(msg.time?.created),
+                        cumulativeTokens = cum,
                     )
                 }
                 runCatching {
@@ -640,13 +660,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun send(text: String) {
-        if (text.isBlank()) return
-        val c = client ?: return
-        val sid = _activeSession.value?.id ?: return
-        viewModelScope.launch {
-            _sending.value = true
-            _messages.value = _messages.value + ChatMessage(
+     fun send(text: String) {
+         if (text.isBlank()) return
+         val c = client ?: return
+         val sid = _activeSession.value?.id ?: return
+         viewModelScope.launch {
+             _sending.value = true
+             lastUserSendTime = System.currentTimeMillis()
+             _sessionElapsed.value = null
+             _messages.value = _messages.value + ChatMessage(
                 id = "user-${System.currentTimeMillis()}",
                 role = "user",
                 text = text,
@@ -865,8 +887,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val wasBusy = sessionBusy.remove(sid) == true
                     if (sid == active) {
                         _sending.value = false
+                        val elapsed = lastUserSendTime?.let { System.currentTimeMillis() - it }
+                        if (elapsed != null && elapsed > 0) _sessionElapsed.value = elapsed
                     }
-                    if (wasBusy) notifySessionDone(sid)
+                    if (wasBusy) notifySessionDone(sid, _sessionTokens.value?.total ?: 0L)
                 } else {
                     val st = props?.get("status")?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull
                     sessionBusy[sid] = st == "busy"
@@ -923,6 +947,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     val created = info["time"]?.jsonObject?.get("created")?.jsonPrimitive?.contentOrNull
                         ?.toLongOrNull()
+                    val tokenTotal = tokens?.total ?: 0L
+                    if (tokenTotal > 0) {
+                        _cumulativeTokens.value += tokenTotal
+                    }
                     _messages.value = _messages.value + ChatMessage(
                         id = mid,
                         role = role,
@@ -930,6 +958,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         model = model,
                         tokens = tokens,
                         time = serverTimeToMillis(created),
+                        cumulativeTokens = _cumulativeTokens.value,
                     )
                 }
             }
@@ -969,7 +998,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val delta = props["delta"]?.jsonPrimitive?.contentOrNull ?: return
                 if (field != "text") return
                 val updated = if (_messages.value.none { it.id == mid }) {
-                    _messages.value + ChatMessage(id = mid, role = "assistant", text = delta, time = System.currentTimeMillis())
+                    _messages.value + ChatMessage(id = mid, role = "assistant", text = delta, time = System.currentTimeMillis(), cumulativeTokens = _cumulativeTokens.value)
                 } else {
                     _messages.value.map {
                         if (it.id != mid) it
