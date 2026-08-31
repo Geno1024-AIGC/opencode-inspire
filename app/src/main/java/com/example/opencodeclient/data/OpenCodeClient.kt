@@ -164,14 +164,14 @@ class OpenCodeClient(
         return m?.limit?.context ?: 0L
     }
 
-    suspend fun pendingQuestions(): List<QuestionRequest> =
-        execute("GET", "/question") { text ->
+    suspend fun pendingQuestions(directory: String? = null): List<QuestionRequest> =
+        execute("GET", "/question${queryOf(mapOf("directory" to directory))}") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ListSerializer(QuestionRequest.serializer()), text)
         }
 
-    suspend fun replyQuestion(requestId: String, answers: List<List<String>>) {
-        execute("POST", "/question/$requestId/reply", buildJsonObject {
+    suspend fun replyQuestion(requestId: String, answers: List<List<String>>, directory: String? = null) {
+        execute("POST", "/question/$requestId/reply${queryOf(mapOf("directory" to directory))}", buildJsonObject {
             put("answers", buildJsonArray {
                 answers.forEach { labels ->
                     add(buildJsonArray { labels.forEach { add(JsonPrimitive(it)) } })
@@ -180,8 +180,8 @@ class OpenCodeClient(
         }.toString()) { it }
     }
 
-    suspend fun rejectQuestion(requestId: String) {
-        execute("POST", "/question/$requestId/reject", "{}".toString()) { it }
+    suspend fun rejectQuestion(requestId: String, directory: String? = null) {
+        execute("POST", "/question/$requestId/reject${queryOf(mapOf("directory" to directory))}", "{}".toString()) { it }
     }
 
     suspend fun session(id: String): Session =
