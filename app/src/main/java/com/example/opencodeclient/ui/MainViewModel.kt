@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.opencodeclient.data.OpenCodeClient
 import com.example.opencodeclient.data.Part
 import com.example.opencodeclient.data.Project
+import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
@@ -109,6 +110,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _servers = MutableStateFlow<List<ServerProfile>>(emptyList())
     val servers: StateFlow<List<ServerProfile>> = _servers.asStateFlow()
 
+    private val _pendingQuestions = MutableStateFlow<List<QuestionRequest>>(emptyList())
+    val pendingQuestions: StateFlow<List<QuestionRequest>> = _pendingQuestions.asStateFlow()
+
     init {
         viewModelScope.launch {
             settings.serverUrl.collect { _serverUrl.value = it }
@@ -162,6 +166,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { settings.removeServer(url) }
     }
 
+    fun replyQuestions(q: QuestionRequest, answers: List<List<String>>) {
+        val c = client ?: return
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { c.replyQuestion(q.id, answers) } }
+            _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
+        }
+    }
+
+    fun rejectQuestion(q: QuestionRequest) {
+        val c = client ?: return
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { c.rejectQuestion(q.id) } }
+            _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
+        }
+    }
+
     fun ensureLoaded(onDone: () -> Unit = {}) {
         viewModelScope.launch {
             _connectionState.value = UiState.Loading("Loading...")
@@ -197,6 +217,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _projects.value = groupProjects(rawProjects, allSessions)
         if (_selectedProjectId.value == null && _projects.value.isNotEmpty()) {
             _selectedProjectId.value = _projects.value.first().id
+        }
+        runCatching {
+            _pendingQuestions.value = withContext(Dispatchers.IO) { c.pendingQuestions() }
+                .filter { it.sessionId == _activeSession.value?.id }
         }
     }
 
@@ -435,6 +459,15 @@ fun send(text: String) {
         if (active == null) return
 
         when (type) {
+            "question.asked" -> {
+                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
+                if (sid == active) {
+                    runCatching {
+                        val q = json.decodeFromString(QuestionRequest.serializer(), props.toString())
+                        _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id } + q
+                    }
+                }
+            }
             "session.status", "session.idle" -> {
                 val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
                 if (sid != active) return
