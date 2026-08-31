@@ -194,6 +194,64 @@ class OpenCodeClient(
                 .map { it.info to it.parts }
         }
 
+    suspend fun commands(directory: String? = null): List<Command> =
+        execute("GET", "/command${queryOf(mapOf("directory" to directory))}") { text ->
+            if (text.isBlank()) emptyList()
+            else json.decodeFromString(ListSerializer(Command.serializer()), text)
+        }
+
+    suspend fun executeCommand(sessionId: String, command: String, arguments: String = "") {
+        execute(
+            "POST",
+            "/session/$sessionId/command${queryOf(mapOf("directory" to null))}",
+            body = buildJsonObject {
+                put("command", JsonPrimitive(command))
+                put("arguments", JsonPrimitive(arguments))
+            }.toString(),
+        ) {}
+    }
+
+    suspend fun pendingPermissions(directory: String? = null): List<PermissionRequest> =
+        execute("GET", "/permission${queryOf(mapOf("directory" to directory))}") { text ->
+            if (text.isBlank()) emptyList()
+            else json.decodeFromString(ListSerializer(PermissionRequest.serializer()), text)
+        }
+
+    suspend fun replyPermission(requestId: String, reply: String, message: String? = null, directory: String? = null) {
+        execute(
+            "POST",
+            "/permission/$requestId/reply${queryOf(mapOf("directory" to directory))}",
+            body = buildJsonObject {
+                put("reply", JsonPrimitive(reply))
+                if (!message.isNullOrBlank()) put("message", JsonPrimitive(message))
+            }.toString(),
+        ) {}
+    }
+
+    suspend fun switchModel(sessionId: String, providerId: String, modelId: String) {
+        execute(
+            "POST",
+            "/api/session/$sessionId/model",
+            body = buildJsonObject {
+                put("model", buildJsonObject {
+                    put("providerID", JsonPrimitive(providerId))
+                    put("id", JsonPrimitive(modelId))
+                })
+            }.toString(),
+        ) {}
+    }
+
+    suspend fun renameSession(sessionId: String, title: String) {
+        execute(
+            "PATCH",
+            "/session/$sessionId",
+            body = buildJsonObject { put("title", JsonPrimitive(title)) }.toString(),
+        ) {}
+    }
+
+    suspend fun deleteSession(sessionId: String): Boolean =
+        execute("DELETE", "/session/$sessionId") { it == "true" }
+
     suspend fun sessionTodos(sessionId: String): List<TodoInfo> =
         execute("GET", "/session/$sessionId/todo") { text ->
             if (text.isBlank()) emptyList()

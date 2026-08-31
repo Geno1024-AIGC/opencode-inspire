@@ -116,6 +116,35 @@ data class TodoInfo(
 )
 
 @Serializable
+data class Command(
+    val name: String = "",
+    val description: String = "",
+    val agent: String? = null,
+    val model: String? = null,
+    val source: String = "command",
+    val template: String = "",
+    val subtask: Boolean = false,
+    val hints: List<String> = emptyList(),
+)
+
+@Serializable
+data class PermissionRequest(
+    val id: String = "",
+    @SerialName("sessionID") val sessionId: String = "",
+    val permission: String = "",
+    val patterns: List<String> = emptyList(),
+    val metadata: Map<String, String>? = null,
+    val always: List<String> = emptyList(),
+    val tool: PermissionTool? = null,
+)
+
+@Serializable
+data class PermissionTool(
+    @SerialName("messageID") val messageId: String = "",
+    @SerialName("callID") val callId: String = "",
+)
+
+@Serializable
 data class ServerProfile(
     val url: String,
     val username: String? = null,
