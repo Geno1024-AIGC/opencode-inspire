@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.res.Configuration
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.opencodeclient.BuildConfig
 import com.example.opencodeclient.R
 import java.util.Locale
 import com.example.opencodeclient.data.Command
@@ -20,6 +21,7 @@ import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
 import com.example.opencodeclient.data.Tokens
+import com.example.opencodeclient.data.Updater
 import com.example.opencodeclient.data.promptTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -168,6 +170,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _language = MutableStateFlow("system")
     val language: StateFlow<String> = _language.asStateFlow()
 
+    private val _channel = MutableStateFlow("release")
+    val channel: StateFlow<String> = _channel.asStateFlow()
+
+    private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
+    val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
+
+    private val _checkingUpdate = MutableStateFlow(false)
+    val checkingUpdate: StateFlow<Boolean> = _checkingUpdate.asStateFlow()
+
+    private val _updateMessage = MutableStateFlow<String?>(null)
+    val updateMessage: StateFlow<String?> = _updateMessage.asStateFlow()
+
     private val _userBubbleColor = MutableStateFlow(-1L)
     val userBubbleColor: StateFlow<Long> = _userBubbleColor.asStateFlow()
 
@@ -195,6 +209,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.language.collect { _language.value = it }
+        }
+        viewModelScope.launch {
+            settings.channel.collect { _channel.value = it }
         }
         viewModelScope.launch {
             settings.userBubbleColor.collect { _userBubbleColor.value = it }
@@ -270,6 +287,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 observeEvents()
                 loadWorkspace()
                 onSuccess()
+                checkForUpdates(notifyLatest = false)
             } catch (e: Exception) {
                 _connectionState.value = UiState.Error(e.message ?: getAppString(R.string.error_connect_failed))
             }
@@ -322,6 +340,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setLanguage(value: String) {
         viewModelScope.launch { settings.setLanguage(value) }
+    }
+
+    fun setChannel(value: String) {
+        viewModelScope.launch { settings.setChannel(value) }
+    }
+
+    fun checkForUpdates(notifyLatest: Boolean = true) {
+        if (_checkingUpdate.value) return
+        viewModelScope.launch {
+            _checkingUpdate.value = true
+            try {
+                val releases = Updater.fetchReleases()
+                val rel = Updater.releaseFor(releases, _channel.value)
+                val current = BuildConfig.VERSION_NAME
+                if (rel != null && Updater.isNewer(rel.tagName, current)) {
+                    _updateInfo.value = UpdateInfo(version = rel.tagName, url = rel.htmlUrl)
+                } else {
+                    _updateInfo.value = null
+                    if (notifyLatest) _updateMessage.value = getAppString(R.string.update_latest)
+                }
+            } catch (_: Exception) {
+                if (notifyLatest) _updateMessage.value = getAppString(R.string.update_check_failed)
+            } finally {
+                _checkingUpdate.value = false
+            }
+        }
+    }
+
+    fun dismissUpdate() {
+        _updateInfo.value = null
+    }
+
+    fun dismissUpdateMessage() {
+        _updateMessage.value = null
     }
 
     fun setUserBubbleColor(color: Long) {
@@ -943,3 +995,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { settings.setLastSessionId(null) }
     }
 }
+
+data class UpdateInfo(
+    val version: String,
+    val url: String,
+)

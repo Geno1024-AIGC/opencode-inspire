@@ -78,6 +78,10 @@ fun SettingsScreen(
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
+    val channel by viewModel.channel.collectAsStateWithLifecycle()
+    val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
+    val checkingUpdate by viewModel.checkingUpdate.collectAsStateWithLifecycle()
+    val updateMessage by viewModel.updateMessage.collectAsStateWithLifecycle()
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
 
@@ -144,6 +148,38 @@ fun SettingsScreen(
                 color = assistantBubbleColor,
                 onClick = { picking = "assistant" },
             )
+
+            HorizontalDivider()
+
+            SectionLabel(R.string.settings_updates)
+            DropdownSetting(
+                listOf(
+                    "release" to stringResource(R.string.channel_release),
+                    "canary" to stringResource(R.string.channel_canary),
+                ),
+                selected = channel,
+                onSelect = viewModel::setChannel,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.check_updates), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.check_updates_sub),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(
+                    onClick = { viewModel.checkForUpdates() },
+                    enabled = !checkingUpdate,
+                ) {
+                    Text(if (checkingUpdate) stringResource(R.string.checking_updates) else stringResource(R.string.check_now))
+                }
+            }
 
             Spacer(Modifier.size(32.dp))
 

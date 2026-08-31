@@ -26,6 +26,7 @@ class SettingsRepository(private val context: Context) {
         val SHORT_TOKENS = booleanPreferencesKey("short_tokens")
         val THEME = stringPreferencesKey("theme")
         val LANGUAGE = stringPreferencesKey("language")
+        val CHANNEL = stringPreferencesKey("channel")
         val USER_BUBBLE_COLOR = longPreferencesKey("user_bubble_color")
         val ASSIST_BUBBLE_COLOR = longPreferencesKey("assistant_bubble_color")
     }
@@ -49,6 +50,7 @@ class SettingsRepository(private val context: Context) {
     val shortTokens: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHORT_TOKENS] ?: true }
     val theme: Flow<String> = context.dataStore.data.map { it[Keys.THEME] ?: "system" }
     val language: Flow<String> = context.dataStore.data.map { it[Keys.LANGUAGE] ?: "system" }
+    val channel: Flow<String> = context.dataStore.data.map { it[Keys.CHANNEL] ?: "release" }
     val userBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.USER_BUBBLE_COLOR] ?: -1L }
     val assistantBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.ASSIST_BUBBLE_COLOR] ?: -1L }
 
@@ -62,6 +64,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setLanguage(value: String) {
         context.dataStore.edit { it[Keys.LANGUAGE] = value }
+    }
+
+    suspend fun setChannel(value: String) {
+        context.dataStore.edit { it[Keys.CHANNEL] = value }
     }
 
     suspend fun setUserBubbleColor(color: Long) {
