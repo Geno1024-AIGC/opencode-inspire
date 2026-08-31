@@ -50,6 +50,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.opencodeclient.R
 import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.Tokens
 import com.mikepenz.markdown.m3.Markdown
@@ -112,15 +114,15 @@ fun ChatScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onMenu) { Icon(Icons.Filled.Menu, "Menu") }
+                    IconButton(onClick = onMenu) { Icon(Icons.Filled.Menu, stringResource(R.string.drawer_settings)) }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.refreshSession() }) {
-                        Icon(Icons.Filled.Refresh, "Refresh")
+                        Icon(Icons.Filled.Refresh, stringResource(R.string.chat_refresh))
                     }
                     if (sending) {
                         IconButton(onClick = { viewModel.abort() }) {
-                            Icon(Icons.Filled.Stop, "Abort")
+                            Icon(Icons.Filled.Stop, stringResource(R.string.chat_abort))
                         }
                     }
                 },
@@ -129,7 +131,7 @@ fun ChatScreen(
         floatingActionButton = {
             if (sending) {
                 FloatingActionButton(onClick = { viewModel.abort() }) {
-                    Icon(Icons.Filled.Stop, "Abort")
+                    Icon(Icons.Filled.Stop, stringResource(R.string.chat_abort))
                 }
             }
         },
@@ -173,7 +175,7 @@ fun ChatScreen(
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Message OpenCode...") },
+                    placeholder = { Text(stringResource(R.string.chat_placeholder)) },
                 )
                 IconButton(
                     onClick = {
@@ -213,7 +215,7 @@ private fun QuestionDialog(
 
     AlertDialog(
         onDismissRequest = onReject,
-        title = { Text("OpenCode asks") },
+        title = { Text(stringResource(R.string.chat_erase_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 question.questions.forEachIndexed { index, q ->
@@ -266,7 +268,7 @@ private fun QuestionDialog(
                                 onValueChange = { v ->
                                     customs = customs.toMutableList().also { it[index] = v }
                                 },
-                                label = { Text("Custom answer") },
+                                label = { Text(stringResource(R.string.chat_custom_answer)) },
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -287,10 +289,10 @@ private fun QuestionDialog(
                     }
                     onReply(answers)
                 },
-            ) { Text("Submit") }
+            ) { Text(stringResource(R.string.chat_submit)) }
         },
         dismissButton = {
-            TextButton(onClick = onReject) { Text("Reject") }
+            TextButton(onClick = onReject) { Text(stringResource(R.string.chat_reject)) }
         },
     )
 }
@@ -300,7 +302,7 @@ private fun SendingIndicator() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
         Spacer(Modifier.width(8.dp))
-        Text("Working...", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.chat_working), style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -372,7 +374,7 @@ private fun MessageBubble(
             if (!isUser && msg.parts.isNotEmpty()) {
                 Icon(
                     Icons.Filled.Build,
-                    contentDescription = "agent",
+                    contentDescription = stringResource(R.string.chat_agent),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
