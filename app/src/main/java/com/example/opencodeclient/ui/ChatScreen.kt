@@ -50,6 +50,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +60,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.Tokens
 import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.model.DefaultMarkdownTypography
+import com.mikepenz.markdown.model.MarkdownTypography
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -302,6 +305,32 @@ private fun SendingIndicator() {
 }
 
 @Composable
+private fun MarkdownMessage(content: String) {
+    val t = MaterialTheme.typography
+    val codeStyle = t.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+    val typography: MarkdownTypography = DefaultMarkdownTypography(
+        text = t.bodyLarge,
+        code = codeStyle,
+        h1 = t.headlineLarge,
+        h2 = t.headlineMedium,
+        h3 = t.headlineSmall,
+        h4 = t.titleLarge,
+        h5 = t.titleMedium,
+        h6 = t.titleSmall,
+        quote = t.bodyMedium,
+        paragraph = t.bodyLarge,
+        ordered = t.bodyLarge,
+        bullet = t.bodyLarge,
+        list = t.bodyLarge,
+    )
+    Markdown(
+        content = content,
+        typography = typography,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
 private fun MessageBubble(
     msg: ChatMessage,
     userColor: Long = -1L,
@@ -371,10 +400,7 @@ private fun MessageBubble(
                             color = onBackground,
                         )
                     } else {
-                        Markdown(
-                            content = msg.text.trim(),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        MarkdownMessage(msg.text.trim())
                     }
                 }
             }
