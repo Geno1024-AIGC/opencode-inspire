@@ -9,11 +9,19 @@ import com.example.opencodeclient.data.Project
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 data class ChatMessage(
     val id: String,
@@ -29,6 +37,8 @@ data class PartUi(
     val tool: String? = null,
     val toolTitle: String? = null,
     val toolState: String? = null,
+    val toolInput: String? = null,
+    val toolOutput: String? = null,
 )
 
 data class ProjectUi(
@@ -74,6 +84,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
 
+    private val json = Json { ignoreUnknownKeys = true }
+
+    private var eventJob: Job? = null
+
     private val _authUsername = MutableStateFlow<String?>(null)
     val authUsername: StateFlow<String?> = _authUsername.asStateFlow()
 
@@ -106,6 +120,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _authUsername.value = username
                 _authPassword.value = password
                 _connectionState.value = UiState.Idle
+                observeEvents()
                 onSuccess()
             } catch (e: Exception) {
                 _connectionState.value = UiState.Error(e.message ?: "Connection failed")
@@ -127,6 +142,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     cli.health()
                     client = cli
                 }
+                observeEvents()
                 loadWorkspace()
                 val last = settings.getLastSessionId()
                 if (last != null) {
@@ -291,8 +307,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 type = p.type,
                                 text = p.text,
                                 tool = p.tool,
-                                toolTitle = p.title,
+                                toolTitle = p.title ?: p.tool,
                                 toolState = p.state?.status,
+                                toolInput = p.state?.input?.let {
+                                    if (it is kotlinx.serialization.json.JsonPrimitive) it.contentOrNull else it.toString()
+                                },
+                                toolOutput = p.state?.output,
                             )
                         },
                     )
@@ -303,7 +323,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun send(text: String) {
+fun send(text: String) {
         if (text.isBlank()) return
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
@@ -315,24 +335,114 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 text = text,
             )
             try {
-                val (msg, parts) = withContext(Dispatchers.IO) { c.sendPrompt(sid, text) }
-                _messages.value = _messages.value + ChatMessage(
-                    id = msg.id,
-                    role = msg.role ?: "assistant",
-                    text = buildText(parts),
-                    reasoning = buildReasoning(parts),
-                    parts = parts.map { p ->
-                        PartUi(p.type, p.text, p.tool, p.title, p.state?.status)
-                    },
-                )
+                withContext(Dispatchers.IO) { c.sendPromptAsync(sid, text) }
             } catch (e: Exception) {
                 _messages.value = _messages.value + ChatMessage(
                     id = "err-${System.currentTimeMillis()}",
                     role = "error",
                     text = e.message ?: "Send failed",
                 )
-            } finally {
                 _sending.value = false
+            }
+        }
+    }
+
+    private fun buildPartUi(part: JsonObject): PartUi? {
+        val type = part["type"]?.jsonPrimitive?.contentOrNull ?: return null
+        val text = part["text"]?.jsonPrimitive?.contentOrNull
+        val tool = part["tool"]?.jsonPrimitive?.contentOrNull
+        val title = part["title"]?.jsonPrimitive?.contentOrNull
+        val state = part["state"]?.jsonObject
+        val status = state?.get("status")?.jsonPrimitive?.contentOrNull
+        val output = state?.get("output")?.let { if (it is JsonPrimitive) it.contentOrNull else it.toString() }
+        val input = state?.get("input")?.let {
+            if (it is JsonPrimitive) it.contentOrNull else it.toString()
+        }
+        return PartUi(type, text, tool, title ?: tool, status, input, output)
+    }
+
+    private fun observeEvents() {
+        val c = client ?: return
+        eventJob?.cancel()
+        eventJob = viewModelScope.launch {
+            while (true) {
+                try {
+                    c.eventStream().collect { raw -> handleEvent(raw) }
+                } catch (_: Exception) {
+                    // stream ended, retry
+                }
+                delay(2000)
+            }
+        }
+    }
+
+    private fun handleEvent(raw: String) {
+        val dataStr = raw.substringAfter("data:").trim()
+        if (dataStr.isEmpty()) return
+        val obj = runCatching { json.parseToJsonElement(dataStr).jsonObject }.getOrNull() ?: return
+        val payload = obj["payload"]?.jsonObject ?: return
+        val type = payload["type"]?.jsonPrimitive?.contentOrNull ?: return
+        val props = payload["properties"]?.jsonObject
+        val active = _activeSession.value?.id
+        if (active == null) return
+
+        when (type) {
+            "session.status", "session.idle" -> {
+                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
+                if (sid != active) return
+                if (type == "session.idle") {
+                    _sending.value = false
+                } else {
+                    val st = props?.get("status")?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull
+                    _sending.value = st == "busy"
+                }
+            }
+            "message.updated" -> {
+                val info = props?.get("info")?.jsonObject ?: return
+                val sid = info["sessionID"]?.jsonPrimitive?.contentOrNull ?: return
+                if (sid != active) return
+                val mid = info["id"]?.jsonPrimitive?.contentOrNull ?: return
+                val role = info["role"]?.jsonPrimitive?.contentOrNull ?: "assistant"
+                if (role != "user" && _messages.value.none { it.id == mid }) {
+                    _messages.value = _messages.value + ChatMessage(mid, role, "")
+                }
+            }
+            "message.part.updated" -> {
+                val part = props?.get("part")?.jsonObject ?: return
+                val sid = part["sessionID"]?.jsonPrimitive?.contentOrNull ?: return
+                if (sid != active) return
+                val mid = part["messageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val ui = buildPartUi(part) ?: return
+                _messages.value = _messages.value.map {
+                    if (it.id != mid) it
+                    else when (ui.type) {
+                        "text" -> if ((ui.text?.length ?: 0) > it.text.length) it.copy(text = ui.text ?: it.text) else it
+                        "reasoning" -> if ((ui.text?.length ?: 0) > (it.reasoning?.length ?: 0)) it.copy(reasoning = ui.text ?: it.reasoning) else it
+                        else -> {
+                            val parts = it.parts.filterNot { existing ->
+                                ui.tool != null && existing.tool == ui.tool && existing.toolTitle == ui.toolTitle
+                            } + ui
+                            it.copy(parts = parts)
+                        }
+                    }
+                }
+            }
+            "message.part.delta" -> {
+                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull ?: return
+                if (sid != active) return
+                val mid = props["messageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val field = props["field"]?.jsonPrimitive?.contentOrNull ?: return
+                val delta = props["delta"]?.jsonPrimitive?.contentOrNull ?: return
+                if (field != "text") return
+                val updated = if (_messages.value.none { it.id == mid }) {
+                    _messages.value + ChatMessage(mid, "assistant", delta)
+                } else {
+                    _messages.value.map {
+                        if (it.id != mid) it
+                        else it.copy(text = it.text + delta)
+                    }
+                }
+                _messages.value = updated
             }
         }
     }

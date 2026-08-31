@@ -2,6 +2,7 @@ package com.example.opencodeclient.data
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class HealthResponse(
@@ -55,6 +56,23 @@ data class SessionV2Info(
     val title: String = "",
     val time: SessionTime? = null,
     val location: LocationRef? = null,
+    val tokens: Tokens? = null,
+    val cost: Double = 0.0,
+)
+
+@Serializable
+data class Tokens(
+    val input: Long = 0L,
+    val output: Long = 0L,
+    val reasoning: Long = 0L,
+)
+
+@Serializable
+data class SessionTokens(
+    val input: Long = 0L,
+    val output: Long = 0L,
+    val reasoning: Long = 0L,
+    val total: Long = 0L,
 )
 
 @Serializable
@@ -97,17 +115,15 @@ data class Part(
     val tool: String? = null,
     val state: ToolState? = null,
     val title: String? = null,
-    val toolInput: String? = null,
     val error: String? = null,
+    val callID: String? = null,
 )
 
 @Serializable
 data class ToolState(
     val status: String? = null,
-    val input: JsonHolder? = null,
-    val inputState: JsonHolder? = null,
+    val input: JsonElement? = null,
+    val inputState: JsonElement? = null,
     val output: String? = null,
+    val error: String? = null,
 )
-
-@Serializable
-data class JsonHolder(val value: String? = null)

@@ -170,8 +170,9 @@ class OpenCodeClient(
         execute("POST", "/session/$sessionId/abort") { it == "true" }
 
     fun eventStream(): Flow<String> = flow {
-        val request = Request.Builder().url("$base/global/event").build()
-        val call = client.newCall(request)
+        val req = Request.Builder().url("$base/global/event")
+        authHeader?.let { req.header("Authorization", it) }
+        val call = client.newCall(req.build())
         try {
             val response = call.execute()
             if (!response.isSuccessful) {
