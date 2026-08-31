@@ -20,14 +20,12 @@ val commitCount: Int = providers.exec {
 val packFromCi: String = providers.environmentVariable("GITHUB_RUN_NUMBER").orNull ?: ""
 val pack = packFromCi.ifBlank { commitCount.toString() }
 
-// build: commit count (baseline) + local per-build increment
-val buildCounterFile = File(projectDir, "build/build_count.txt")
-fun readCounter(): Int =
-    runCatching { buildCounterFile.readText().trim().toInt() }.getOrDefault(0)
-val extraBuilds = readCounter() + 1
-buildCounterFile.parentFile?.mkdirs()
-buildCounterFile.writeText(extraBuilds.toString())
-val build = commitCount + extraBuilds
+// build: tracked counter file (increments each build, committed manually)
+val buildCounterFile = File(rootProject.projectDir, "build_count.txt")
+val counterNow = runCatching { buildCounterFile.readText().trim().toInt() }
+    .getOrDefault(commitCount)
+val build = counterNow
+buildCounterFile.writeText((counterNow + 1).toString())
 
 val appVersionName = "0.1.$pack.$build.$commitSha"
 
