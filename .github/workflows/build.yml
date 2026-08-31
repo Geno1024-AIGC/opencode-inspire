@@ -37,3 +37,28 @@ jobs:
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish canary release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          SHORT_SHA=$(git rev-parse --short=8 HEAD)
+          TAG="0.1.${{ github.run_number }}.$COMMIT_COUNT.$SHORT_SHA"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          # Delete any previous canary prereleases so only the latest remains
+          gh release list --limit 100 --json tagName,isPrerelease \
+            --jq '.[] | select(.isPrerelease == true) | .tagName' \
+            | while IFS= read -r old_tag; do
+                if [ -n "$old_tag" ] && [ "$old_tag" != "$TAG" ]; then
+                  gh release delete "$old_tag" --yes --cleanup-tag
+                fi
+              done
+          # Publish the new canary as a prerelease (visible to the app without auth)
+          gh release create "$TAG" "$APK" \
+            --repo "Geno1024-AIGC/opencode-inspire" \
+            --title "Canary $TAG" \
+            --notes "Auto-built canary from master." \
+            --prerelease
