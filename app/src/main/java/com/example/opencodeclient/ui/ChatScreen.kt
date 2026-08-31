@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -71,6 +72,9 @@ fun ChatScreen(
     val contextWindow by viewModel.contextWindow.collectAsStateWithLifecycle()
     val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
     val pendingQuestions by viewModel.pendingQuestions.collectAsStateWithLifecycle()
+    val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
+    val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
+    val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var input by rememberSaveable { mutableStateOf("") }
     var userScrolledAway by remember { mutableStateOf(false) }
@@ -129,7 +133,7 @@ fun ChatScreen(
                 .padding(padding)
                 .imePadding(),
         ) {
-            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow)
+            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens)
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -143,7 +147,11 @@ fun ChatScreen(
                     item(key = "sending") { SendingIndicator() }
                 }
                 items(messages.asReversed(), key = { it.id }) { msg ->
-                    MessageBubble(msg)
+                    MessageBubble(
+                        msg = msg,
+                        userColor = userBubbleColor,
+                        assistantColor = assistantBubbleColor,
+                    )
                 }
             }
 
@@ -290,13 +298,28 @@ private fun SendingIndicator() {
 }
 
 @Composable
-private fun MessageBubble(msg: ChatMessage) {
+private fun MessageBubble(
+    msg: ChatMessage,
+    userColor: Long = -1L,
+    assistantColor: Long = -1L,
+) {
     val isUser = msg.role == "user"
     val isError = msg.role == "error"
+    val custom = when {
+        isUser && userColor >= 0 -> Color(userColor)
+        !isUser && !isError && assistantColor >= 0 -> Color(assistantColor)
+        else -> null
+    }
     val background = when {
-        isUser -> MaterialTheme.colorScheme.primaryContainer
+        isUser -> custom ?: MaterialTheme.colorScheme.primaryContainer
         isError -> MaterialTheme.colorScheme.errorContainer
-        else -> MaterialTheme.colorScheme.surfaceVariant
+        else -> custom ?: MaterialTheme.colorScheme.surfaceVariant
+    }
+    val onBackground = if (custom != null) {
+        val luminance = (0.299f * background.red + 0.587f * background.green + 0.114f * background.blue)
+        if (luminance > 0.5f) Color.Black else Color.White
+    } else {
+        MaterialTheme.colorScheme.onSurface
     }
     val shape = RoundedCornerShape(
         topStart = 16.dp,
@@ -341,6 +364,7 @@ private fun MessageBubble(msg: ChatMessage) {
                         Text(
                             msg.text.trim(),
                             style = MaterialTheme.typography.bodyMedium,
+                            color = onBackground,
                         )
                     } else {
                         Markdown(
@@ -464,6 +488,7 @@ private fun TokenStatsBar(
     tokens: Tokens?,
     promptTokens: Long,
     contextWindow: Long,
+    shortTokens: Boolean,
 ) {
     if (tokens == null && contextWindow <= 0) return
     val input = tokens?.input ?: 0L
@@ -484,14 +509,14 @@ private fun TokenStatsBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "in ${formatTokens(input)} · out ${formatTokens(output)} · ${formatTokens(total)}",
+                "in ${formatTokens(input, shortTokens)} · out ${formatTokens(output, shortTokens)} · ${formatTokens(total, shortTokens)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = FontFamily.Monospace,
             )
             if (contextWindow > 0 && total > 0) {
                 Text(
-                    "${(ratio * 100).toInt()}% of ${formatTokens(contextWindow)}",
+                    "${(ratio * 100).toInt()}% of ${formatTokens(contextWindow, shortTokens)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = FontFamily.Monospace,
