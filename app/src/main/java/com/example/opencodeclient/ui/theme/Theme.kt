@@ -7,6 +7,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 
 enum class ThemePreset(val id: String) {
     DEFAULT("default"),
@@ -171,14 +172,14 @@ val PresetLightSchemes = mapOf(
 fun buildCustomScheme(dark: Boolean, colors: Map<String, Long>): ColorScheme {
     val base = if (dark) PresetDarkSchemes[ThemePreset.DEFAULT]!! else PresetLightSchemes[ThemePreset.DEFAULT]!!
     return base.copy(
-        primary = Color(colors["primary"] ?: base.primary.value.toLong()),
-        onPrimary = Color(colors["onPrimary"] ?: base.onPrimary.value.toLong()),
-        background = Color(colors["background"] ?: base.background.value.toLong()),
-        onBackground = Color(colors["onBackground"] ?: base.onBackground.value.toLong()),
-        surface = Color(colors["surface"] ?: base.surface.value.toLong()),
-        onSurface = Color(colors["onSurface"] ?: base.onSurface.value.toLong()),
-        surfaceVariant = Color(colors["surfaceVariant"] ?: base.surfaceVariant.value.toLong()),
-        onSurfaceVariant = Color(colors["onSurfaceVariant"] ?: base.onSurfaceVariant.value.toLong()),
+        primary = Color(colors["primary"] ?: base.primary.toArgb().toLong() and 0xFFFFFFFFL),
+        onPrimary = Color(colors["onPrimary"] ?: base.onPrimary.toArgb().toLong() and 0xFFFFFFFFL),
+        background = Color(colors["background"] ?: base.background.toArgb().toLong() and 0xFFFFFFFFL),
+        onBackground = Color(colors["onBackground"] ?: base.onBackground.toArgb().toLong() and 0xFFFFFFFFL),
+        surface = Color(colors["surface"] ?: base.surface.toArgb().toLong() and 0xFFFFFFFFL),
+        onSurface = Color(colors["onSurface"] ?: base.onSurface.toArgb().toLong() and 0xFFFFFFFFL),
+        surfaceVariant = Color(colors["surfaceVariant"] ?: base.surfaceVariant.toArgb().toLong() and 0xFFFFFFFFL),
+        onSurfaceVariant = Color(colors["onSurfaceVariant"] ?: base.onSurfaceVariant.toArgb().toLong() and 0xFFFFFFFFL),
     )
 }
 
