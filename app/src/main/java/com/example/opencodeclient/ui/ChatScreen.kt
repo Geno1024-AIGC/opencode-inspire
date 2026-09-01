@@ -388,7 +388,7 @@ private fun PermissionDialog(
                     Text(
                         resourceText,
                         style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = MonoFontFamily,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -591,7 +591,7 @@ private fun CopyableCode(code: String) {
         }
         Text(
             code,
-            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
@@ -770,7 +770,7 @@ private fun MessageBubble(
                 stringResource(R.string.session_elapsed, sessionElapsed / 1000.0),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                fontFamily = FontFamily.Monospace,
+                fontFamily = MonoFontFamily,
                 modifier = Modifier.align(
                     if (isUser) Alignment.End else Alignment.Start
                 ).padding(top = 2.dp),
@@ -781,7 +781,7 @@ private fun MessageBubble(
                 stringResource(R.string.session_elapsed, responseTime / 1000.0),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                fontFamily = FontFamily.Monospace,
+                fontFamily = MonoFontFamily,
                 modifier = Modifier.align(Alignment.Start).padding(top = 2.dp),
             )
         }
@@ -818,7 +818,7 @@ private fun MessageMeta(
         parts.joinToString(" · "),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-        fontFamily = FontFamily.Monospace,
+        fontFamily = MonoFontFamily,
         textAlign = TextAlign.End,
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
     )
@@ -933,7 +933,7 @@ private fun ToolPart(part: PartUi) {
             Text(
                 details.outputText,
                 style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = MonoFontFamily,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = if (expanded) Int.MAX_VALUE else 3,
                 overflow = TextOverflow.Ellipsis,
@@ -966,7 +966,7 @@ private fun SummaryRow(label: String, value: String, monospace: Boolean = false,
         Text(
             value,
             style = MaterialTheme.typography.bodySmall,
-            fontFamily = if (monospace) FontFamily.Monospace else null,
+            fontFamily = if (monospace) MonoFontFamily else null,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = maxLines,
             overflow = TextOverflow.Ellipsis,
@@ -1179,7 +1179,7 @@ private fun ReasoningBlock(reasoning: String) {
                 style = MaterialTheme.typography.bodySmall,
                 fontStyle = FontStyle.Italic,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = MonoFontFamily,
             )
         }
     }
@@ -1215,14 +1215,14 @@ private fun TokenStatsBar(
                 "in ${formatTokens(input, shortTokens)} · out ${formatTokens(output, shortTokens)} · ${formatTokens(total, shortTokens)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = MonoFontFamily,
             )
             if (contextWindow > 0 && total > 0) {
                 Text(
                     "${formatTokens(ctx, shortTokens)} / ${formatTokens(contextWindow, shortTokens)} (${(ratio * 100).toInt()}%)",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = MonoFontFamily,
                 )
             }
         }

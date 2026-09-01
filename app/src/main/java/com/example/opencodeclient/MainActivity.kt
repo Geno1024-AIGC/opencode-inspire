@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import com.example.opencodeclient.ui.MonoFontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -198,7 +199,7 @@ class MainActivity : ComponentActivity() {
                                             Text(
                                                 stringResource(R.string.download_percent, pct),
                                                 style = MaterialTheme.typography.bodyLarge,
-                                                fontFamily = FontFamily.Monospace,
+                                                fontFamily = MonoFontFamily,
                                             )
                                         }
                                         val detail = if (downloadTotal > 0L) {
@@ -216,7 +217,7 @@ class MainActivity : ComponentActivity() {
                                         Text(
                                             detail,
                                             style = MaterialTheme.typography.bodySmall,
-                                            fontFamily = FontFamily.Monospace,
+                                            fontFamily = MonoFontFamily,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         if (downloadTotal > 0L && downloadSpeed > 0L && downloadDone < downloadTotal) {
@@ -224,7 +225,7 @@ class MainActivity : ComponentActivity() {
                                             Text(
                                                 stringResource(R.string.download_eta, formatEta(eta)),
                                                 style = MaterialTheme.typography.bodySmall,
-                                                fontFamily = FontFamily.Monospace,
+                                                fontFamily = MonoFontFamily,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }

@@ -80,7 +80,7 @@ private fun parseInlineInternal(text: String, linkColor: androidx.compose.ui.gra
                     if (close > 0) {
                         withStyle(
                             SpanStyle(
-                                fontFamily = FontFamily.Monospace,
+                                fontFamily = MonoFontFamily,
                                 background = androidx.compose.ui.graphics.Color(0x22000000),
                             )
                         ) {
@@ -289,7 +289,7 @@ fun MarkdownMessage(content: String) {
                                 Text(
                                     item.content,
                                     style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = FontFamily.Monospace,
+                                        fontFamily = MonoFontFamily,
                                         fontSize = 13.sp,
                                     ),
                                     modifier = Modifier.horizontalScroll(rememberScrollState()),

@@ -324,7 +324,7 @@ fun SettingsScreen(
                         "v${BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = MonoFontFamily,
                     )
                 }
             }
@@ -567,7 +567,7 @@ private fun ColorPickerDialog(
                         .background(currentColor, RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("#%06X".format((currentColor.toArgb() and 0xFFFFFF)), color = contrastColor(currentColor), fontFamily = FontFamily.Monospace)
+                    Text("#%06X".format((currentColor.toArgb() and 0xFFFFFF)), color = contrastColor(currentColor), fontFamily = MonoFontFamily)
                 }
                 SliderRow(stringResource(R.string.color_hue), hue, { hue = it })
                 SliderRow(stringResource(R.string.color_saturation), sat, { sat = it })
