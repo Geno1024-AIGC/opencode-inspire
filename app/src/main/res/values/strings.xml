@@ -44,7 +44,8 @@
     <!-- Add project dialog -->
     <string name="add_project_title">Add project</string>
     <string name="add_project_hint">Enter an absolute directory on the server to open as a project.</string>
-    <string name="add_project_browse">Browse folders</string>
+    <string name="add_project_browse">Browse server folders</string>
+    <string name="add_project_browse_empty">No subfolders found.</string>
     <string name="directory_label">Directory path</string>
     <string name="directory_hint">/home/user/myproject</string>
     <string name="open">Open</string>

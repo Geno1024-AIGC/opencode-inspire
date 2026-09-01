@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -482,6 +483,18 @@ private fun AddProjectDialog(
 ) {
     var directory by rememberSaveable { mutableStateOf("") }
     val workspaceState by viewModel.workspaceState.collectAsStateWithLifecycle()
+    var showBrowser by rememberSaveable { mutableStateOf(false) }
+
+    if (showBrowser) {
+        ServerFolderBrowser(
+            viewModel = viewModel,
+            onPick = { path ->
+                directory = path
+                showBrowser = false
+            },
+            onDismiss = { showBrowser = false },
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -500,6 +513,11 @@ private fun AddProjectDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                TextButton(onClick = { showBrowser = true }) {
+                    Icon(Icons.Filled.Folder, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.padding(horizontal = 4.dp))
+                    Text(stringResource(R.string.add_project_browse))
+                }
                 if (workspaceState is UiState.Loading) {
                     Text(
                         (workspaceState as UiState.Loading).message,
@@ -527,6 +545,90 @@ private fun AddProjectDialog(
                 enabled = workspaceState !is UiState.Loading,
                 onClick = onDismiss,
             ) { Text(stringResource(R.string.connect_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun ServerFolderBrowser(
+    viewModel: MainViewModel,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var currentPath by rememberSaveable { mutableStateOf("") }
+    var entries by remember { mutableStateOf(emptyList<com.example.opencodeclient.data.FileNode>()) }
+    var loading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentPath) {
+        loading = true
+        entries = viewModel.listServerFiles(currentPath.ifBlank { null })
+        loading = false
+    }
+
+    val dirs = entries.filter { it.type == "directory" || it.children != null }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                currentPath.ifBlank { "/" },
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        text = {
+            if (loading) {
+                Text(stringResource(R.string.connecting), style = MaterialTheme.typography.bodySmall)
+            } else if (dirs.isEmpty()) {
+                Text(stringResource(R.string.add_project_browse_empty), style = MaterialTheme.typography.bodySmall)
+            } else {
+                LazyColumn {
+                    if (currentPath.isNotBlank()) {
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        currentPath = currentPath.trimEnd('/').substringBeforeLast('/')
+                                    }
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.padding(horizontal = 4.dp))
+                                Text("..", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                    items(dirs) { node ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    currentPath = node.path.ifBlank { "$currentPath/${node.name}".trimStart('/') }
+                                }
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.padding(horizontal = 4.dp))
+                            Text(node.name, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onPick(currentPath) }) {
+                Text(stringResource(R.string.open))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.connect_cancel))
+            }
         },
     )
 }
