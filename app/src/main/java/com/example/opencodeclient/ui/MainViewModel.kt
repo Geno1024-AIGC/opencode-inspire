@@ -731,20 +731,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
          viewModelScope.launch {
+            _sending.value = false
             loadMessages()
             rollSessionStats(c, sid)
         }
     }
 
     private fun recomputeSessionElapsed() {
-        var firstUser = 0L
+        var lastUser = 0L
         var last = 0L
         for (m in _messages.value) {
             if (m.time <= 0L) continue
-            if (m.role == "user" && (firstUser == 0L || m.time < firstUser)) firstUser = m.time
+            if (m.role == "user" && m.time > lastUser) lastUser = m.time
             if (m.time > last) last = m.time
         }
-        _sessionElapsed.value = if (firstUser > 0L && last > firstUser) last - firstUser else null
+        _sessionElapsed.value = if (lastUser > 0L && last > lastUser) last - lastUser else null
     }
 
      fun send(text: String) {
