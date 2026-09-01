@@ -21,7 +21,6 @@ import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
 import com.example.opencodeclient.data.Tokens
-import com.example.opencodeclient.data.TokenHistoryStore
 import com.example.opencodeclient.data.Updater
 import com.example.opencodeclient.data.promptTokens
 import kotlinx.coroutines.Dispatchers
@@ -249,9 +248,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun notifySessionDone(sid: String, tokens: Long = 0L) {
-        viewModelScope.launch {
-            if (tokens > 0L) TokenHistoryStore.addToday(getApplication(), tokens)
-        }
         val context = getApplication<Application>()
         val title = sessionTitle(sid).ifBlank { "OpenCode" }
         val notification = android.app.Notification.Builder(context, "session_status")
@@ -272,7 +268,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun loadTokenHistory() {
         viewModelScope.launch {
             _tokenHistory.value = withContext(Dispatchers.IO) {
-                TokenHistoryStore.loadAll(getApplication())
+                val c = client ?: return@withContext emptyMap()
+                val map = mutableMapOf<String, Long>()
+                val zone = java.time.ZoneId.systemDefault()
+                c.sessions().forEach { s ->
+                    val created = s.time?.created ?: 0L
+                    if (created > 0L) {
+                        val day = java.time.Instant.ofEpochMilli(created)
+                            .atZone(zone).toLocalDate().toString()
+                        val toks = s.tokens
+                        val total = toks?.total
+                            ?: ((toks?.input ?: 0L) + (toks?.output ?: 0L) + (toks?.reasoning ?: 0L))
+                        if (total > 0L) map[day] = (map[day] ?: 0L) + total
+                    }
+                }
+                map
             }
         }
     }
