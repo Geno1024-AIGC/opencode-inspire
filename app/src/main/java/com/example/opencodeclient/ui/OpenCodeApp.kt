@@ -395,6 +395,13 @@ fun formatBytes(bytes: Long): String = bytes.toString()
 
 fun formatSpeed(bytesPerSec: Long): String = formatBytes(bytesPerSec) + "/s"
 
+fun formatEta(seconds: Long): String = when {
+    seconds < 0 -> ""
+    seconds < 60 -> "${seconds}s"
+    seconds < 3600 -> "${seconds / 60}m ${seconds % 60}s"
+    else -> "${seconds / 3600}h ${seconds % 3600 / 60}m"
+}
+
 @Composable
 private fun ServersDialog(
     viewModel: MainViewModel,
