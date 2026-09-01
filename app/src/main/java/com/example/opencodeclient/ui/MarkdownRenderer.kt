@@ -33,7 +33,11 @@ private data class MdSpan(val start: Int, val end: Int, val style: SpanStyle?)
 private data class MdLine(val type: String, val content: String, val level: Int = 0)
 private data class MdTable(val headers: List<String>, val rows: List<List<String>>)
 
-private fun parseInline(text: String, linkColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified): AnnotatedString {
+private fun parseInline(text: String): AnnotatedString = parseInlineInternal(text)
+
+private fun parseInline(text: String, linkColor: androidx.compose.ui.graphics.Color): AnnotatedString = parseInlineInternal(text, linkColor)
+
+private fun parseInlineInternal(text: String, linkColor: androidx.compose.ui.graphics.Color? = null): AnnotatedString {
     return buildAnnotatedString {
         var i = 0
         while (i < text.length) {
@@ -74,7 +78,12 @@ private fun parseInline(text: String, linkColor: androidx.compose.ui.graphics.Co
                 text.startsWith("`", i) -> {
                     val close = text.indexOf("`", i + 1)
                     if (close > 0) {
-                        withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) {
+                        withStyle(
+                            SpanStyle(
+                                fontFamily = FontFamily.Monospace,
+                                background = androidx.compose.ui.graphics.Color(0x22000000),
+                            )
+                        ) {
                             append(text.substring(i + 1, close))
                         }
                         i = close + 1
@@ -88,8 +97,9 @@ private fun parseInline(text: String, linkColor: androidx.compose.ui.graphics.Co
                     val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
                     if (closeBracket > 0 && openParen == closeBracket + 1 && closeParen > openParen) {
                         val linkText = text.substring(i + 1, closeBracket)
-                        if (linkColor != androidx.compose.ui.graphics.Color.Unspecified) {
-                            withStyle(SpanStyle(color = linkColor)) {
+                        val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
+                        if (color != androidx.compose.ui.graphics.Color.Unspecified) {
+                            withStyle(SpanStyle(color = color)) {
                                 append(linkText)
                             }
                         } else {
