@@ -247,13 +247,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun showDownloadProgress(downloaded: Long, total: Long) {
+    fun showDownloadProgress(downloaded: Long, total: Long, speed: Long = 0L) {
         val context = getApplication<Application>()
         val progress = if (total > 0L) (downloaded * 100L / total).toInt().coerceIn(0, 100) else -1
+        val detail = if (total > 0L) {
+            context.getString(
+                R.string.download_progress_detail,
+                formatBytes(downloaded),
+                formatBytes(total),
+                formatSpeed(speed),
+            )
+        } else {
+            context.getString(R.string.download_percent, progress.coerceAtLeast(0))
+        }
         val builder = android.app.Notification.Builder(context, "download")
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(context.getString(R.string.download_title))
-            .setContentText(context.getString(R.string.download_percent, progress.coerceAtLeast(0)))
+            .setContentText(detail)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
         if (total > 0L) {

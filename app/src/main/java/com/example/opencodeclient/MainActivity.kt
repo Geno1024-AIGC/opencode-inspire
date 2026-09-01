@@ -20,6 +20,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -33,6 +34,8 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.ui.MainViewModel
 import com.example.opencodeclient.ui.OpenCodeApp
+import com.example.opencodeclient.ui.formatBytes
+import com.example.opencodeclient.ui.formatSpeed
 import com.example.opencodeclient.ui.theme.OpenCodeTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -107,6 +110,9 @@ class MainActivity : ComponentActivity() {
                         val ctx = androidx.compose.ui.platform.LocalContext.current
                         val scope = rememberCoroutineScope()
                         var downloadPercent by remember { mutableIntStateOf(-1) }
+                        var downloadDone by remember { mutableLongStateOf(0L) }
+                        var downloadTotal by remember { mutableLongStateOf(0L) }
+                        var downloadSpeed by remember { mutableLongStateOf(0L) }
                         updateInfo?.let { info ->
                             AlertDialog(
                                 onDismissRequest = viewModel::dismissUpdate,
@@ -117,7 +123,11 @@ class MainActivity : ComponentActivity() {
                                 confirmButton = {
                                     TextButton(onClick = {
                                         downloadPercent = 0
+                                        downloadDone = 0L
+                                        downloadTotal = 0L
+                                        downloadSpeed = 0L
                                         scope.launch {
+                                            val startTime = System.currentTimeMillis()
                                             val apk = runCatching {
                                                 withContext(Dispatchers.IO) {
                                                     val file = File(ctx.cacheDir, "update_${System.currentTimeMillis()}.apk")
@@ -136,10 +146,15 @@ class MainActivity : ComponentActivity() {
                                                             while (input.read(buf).also { n = it } != -1) {
                                                                 output.write(buf, 0, n)
                                                                 downloaded += n
+                                                                val elapsed = System.currentTimeMillis() - startTime
+                                                                val speed = if (elapsed > 0L) downloaded * 1000L / elapsed else 0L
                                                                 withContext(Dispatchers.Main) {
                                                                     downloadPercent = if (total > 0L) (downloaded * 100L / total).toInt().coerceIn(0, 100) else -1
+                                                                    downloadDone = downloaded
+                                                                    downloadTotal = total
+                                                                    downloadSpeed = speed
                                                                 }
-                                                                viewModel.showDownloadProgress(downloaded, total)
+                                                                viewModel.showDownloadProgress(downloaded, total, speed)
                                                             }
                                                         }
                                                     }
@@ -148,6 +163,9 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             }.getOrNull()
                                             downloadPercent = -1
+                                            downloadDone = 0L
+                                            downloadTotal = 0L
+                                            downloadSpeed = 0L
                                             viewModel.dismissUpdate()
                                             viewModel.cancelDownloadNotification()
                                             if (apk != null && apk.exists() && apk.length() > 0L) {
@@ -178,8 +196,19 @@ class MainActivity : ComponentActivity() {
                                     Text(
                                         if (pct >= 0) stringResource(R.string.download_percent, pct) else "",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(bottom = 8.dp),
+                                        modifier = Modifier.padding(bottom = 4.dp),
                                     )
+                                    if (downloadTotal > 0L) {
+                                        Text(
+                                            stringResource(R.string.download_progress_detail,
+                                                formatBytes(downloadDone),
+                                                formatBytes(downloadTotal),
+                                                formatSpeed(downloadSpeed)),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(bottom = 8.dp),
+                                        )
+                                    }
                                     if (pct >= 0) {
                                         LinearProgressIndicator(
                                             progress = { pct / 100f },

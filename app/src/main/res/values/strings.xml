@@ -117,6 +117,7 @@
     <string name="update_download_failed">Update download failed</string>
     <string name="download_title">Downloading update…</string>
     <string name="download_percent">%1$d%%</string>
+    <string name="download_progress_detail">%1$s / %2$s · %3$s</string>
     <string name="update_later">Later</string>
     <string name="ok">OK</string>
 
