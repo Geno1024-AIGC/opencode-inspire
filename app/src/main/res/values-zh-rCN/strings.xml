@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">OpenCode 客户端</string>
+    <string name="cancel">取消</string>
 
     <!-- Connect / servers -->
     <string name="connect_title">OpenCode 客户端</string>

@@ -21,8 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -125,10 +123,10 @@ class MainActivity : ComponentActivity() {
 
                         val ctx = androidx.compose.ui.platform.LocalContext.current
                         val scope = rememberCoroutineScope()
-                        var downloadPercent by remember { mutableIntStateOf(-1) }
-                        var downloadDone by remember { mutableLongStateOf(0L) }
-                        var downloadTotal by remember { mutableLongStateOf(0L) }
-                        var downloadSpeed by remember { mutableLongStateOf(0L) }
+                        val downloadPercent by viewModel.downloadPercent.collectAsStateWithLifecycle()
+                        val downloadDone by viewModel.downloadDone.collectAsStateWithLifecycle()
+                        val downloadTotal by viewModel.downloadTotal.collectAsStateWithLifecycle()
+                        val downloadSpeed by viewModel.downloadSpeed.collectAsStateWithLifecycle()
                         updateInfo?.let { info ->
                             AlertDialog(
                                 onDismissRequest = viewModel::dismissUpdate,
@@ -138,10 +136,6 @@ class MainActivity : ComponentActivity() {
                                 },
                                 confirmButton = {
                                     TextButton(onClick = {
-                                        downloadPercent = 0
-                                        downloadDone = 0L
-                                        downloadTotal = 0L
-                                        downloadSpeed = 0L
                                         scope.launch {
                                             val startTime = System.currentTimeMillis()
                                             val apk = runCatching {
@@ -164,12 +158,6 @@ class MainActivity : ComponentActivity() {
                                                                 downloaded += n
                                                                 val elapsed = System.currentTimeMillis() - startTime
                                                                 val speed = if (elapsed > 0L) downloaded * 1000L / elapsed else 0L
-                                                                withContext(Dispatchers.Main) {
-                                                                    downloadPercent = if (total > 0L) (downloaded * 100L / total).toInt().coerceIn(0, 100) else -1
-                                                                    downloadDone = downloaded
-                                                                    downloadTotal = total
-                                                                    downloadSpeed = speed
-                                                                }
                                                                 viewModel.showDownloadProgress(downloaded, total, speed)
                                                             }
                                                         }
@@ -178,12 +166,8 @@ class MainActivity : ComponentActivity() {
                                                     file
                                                 }
                                             }.getOrNull()
-                                            downloadPercent = -1
-                                            downloadDone = 0L
-                                            downloadTotal = 0L
-                                            downloadSpeed = 0L
                                             viewModel.dismissUpdate()
-                                            viewModel.cancelDownloadNotification()
+                                            viewModel.dismissDownload()
                                             if (apk != null && apk.exists() && apk.length() > 0L) {
                                                 val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", apk)
                                                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
@@ -205,7 +189,7 @@ class MainActivity : ComponentActivity() {
                         }
                         if (downloadPercent >= 0) {
                             AlertDialog(
-                                onDismissRequest = {},
+                                onDismissRequest = viewModel::dismissDownload,
                                 title = { Text(stringResource(R.string.download_title)) },
                                 text = {
                                     val pct = downloadPercent
@@ -255,6 +239,11 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 confirmButton = {},
+                                dismissButton = {
+                                    TextButton(onClick = viewModel::dismissDownload) {
+                                        Text(stringResource(R.string.cancel))
+                                    }
+                                },
                             )
                         }
                         updateMessage?.let { message ->
