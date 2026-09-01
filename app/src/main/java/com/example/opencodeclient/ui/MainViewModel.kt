@@ -178,6 +178,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _theme = MutableStateFlow("system")
     val theme: StateFlow<String> = _theme.asStateFlow()
 
+    private val _themePreset = MutableStateFlow("default")
+    val themePreset: StateFlow<String> = _themePreset.asStateFlow()
+
+    private val _customThemeColors = MutableStateFlow("{}")
+    val customThemeColors: StateFlow<String> = _customThemeColors.asStateFlow()
+
     private val _language = MutableStateFlow("system")
     val language: StateFlow<String> = _language.asStateFlow()
 
@@ -217,6 +223,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.theme.collect { _theme.value = it }
+        }
+        viewModelScope.launch {
+            settings.themePreset.collect { _themePreset.value = it }
+        }
+        viewModelScope.launch {
+            settings.customThemeColors.collect { _customThemeColors.value = it }
         }
         viewModelScope.launch {
             settings.language.collect { _language.value = it }
@@ -422,6 +434,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setTheme(value: String) {
         viewModelScope.launch { settings.setTheme(value) }
+    }
+
+    fun setThemePreset(value: String) {
+        viewModelScope.launch { settings.setThemePreset(value) }
+    }
+
+    fun setCustomThemeColors(json: String) {
+        viewModelScope.launch { settings.setCustomThemeColors(json) }
     }
 
     fun setLanguage(value: String) {
