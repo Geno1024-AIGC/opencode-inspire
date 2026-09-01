@@ -237,13 +237,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun createNotificationChannel() {
         val context = getApplication<Application>()
-        val channel = NotificationChannel(
-            "session_status",
-            "Session status",
-            NotificationManager.IMPORTANCE_LOW,
+        val channels = listOf(
+            NotificationChannel("session_status", "Session status", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel("download", "Update download", NotificationManager.IMPORTANCE_LOW),
         )
         context.getSystemService(Context.NOTIFICATION_SERVICE)?.let { service ->
-            (service as? NotificationManager)?.createNotificationChannel(channel)
+            val nm = service as? NotificationManager ?: return
+            channels.forEach { runCatching { nm.createNotificationChannel(it) } }
+        }
+    }
+
+    fun showDownloadProgress(downloaded: Long, total: Long) {
+        val context = getApplication<Application>()
+        val progress = if (total > 0L) (downloaded * 100L / total).toInt().coerceIn(0, 100) else -1
+        val builder = android.app.Notification.Builder(context, "download")
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle(context.getString(R.string.download_title))
+            .setContentText(context.getString(R.string.download_percent, progress.coerceAtLeast(0)))
+            .setOnlyAlertOnce(true)
+            .setOngoing(true)
+        if (total > 0L) {
+            builder.setProgress(100, progress, false)
+        } else {
+            builder.setProgress(0, 0, true)
+        }
+        try {
+            context.getSystemService(Context.NOTIFICATION_SERVICE)?.let { service ->
+                (service as? NotificationManager)?.notify(1002, builder.build())
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    fun cancelDownloadNotification() {
+        val context = getApplication<Application>()
+        try {
+            context.getSystemService(Context.NOTIFICATION_SERVICE)?.let { service ->
+                (service as? NotificationManager)?.cancel(1002)
+            }
+        } catch (_: Exception) {
         }
     }
 
