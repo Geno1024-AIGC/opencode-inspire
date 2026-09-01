@@ -139,6 +139,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _sessionElapsed = MutableStateFlow<Long?>(null)
     val sessionElapsed: StateFlow<Long?> = _sessionElapsed.asStateFlow()
 
+    private val _tokenHistory = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val tokenHistory: StateFlow<Map<String, Long>> = _tokenHistory.asStateFlow()
+
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
 
@@ -263,6 +266,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         } catch (_: Exception) {
             // permission not granted
+        }
+    }
+
+    fun loadTokenHistory() {
+        viewModelScope.launch {
+            _tokenHistory.value = withContext(Dispatchers.IO) {
+                TokenHistoryStore.loadAll(getApplication())
+            }
         }
     }
 

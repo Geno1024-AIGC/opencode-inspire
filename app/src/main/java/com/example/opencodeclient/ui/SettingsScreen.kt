@@ -72,6 +72,7 @@ private val presetColors = listOf(
 fun SettingsScreen(
     viewModel: MainViewModel,
     onBack: () -> Unit,
+    onOpenCalendar: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
 
@@ -181,11 +182,35 @@ fun SettingsScreen(
                 }
             }
 
+            HorizontalDivider()
+
+            SectionLabel(R.string.settings_token_history)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenCalendar)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_token_history), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.settings_token_history_sub),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    stringResource(R.string.color_edit),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+
             Spacer(Modifier.size(32.dp))
 
             Text(
-                "v${BuildConfig.VERSION_NAME}",
-                style = MaterialTheme.typography.labelSmall,
+                "v${BuildConfig.VERSION_NAME}",                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = FontFamily.Monospace,
                 modifier = Modifier.align(Alignment.CenterHorizontally),

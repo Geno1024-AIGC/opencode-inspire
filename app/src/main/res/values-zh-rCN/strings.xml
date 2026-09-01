@@ -92,6 +92,13 @@
     <string name="color_your_title">你的消息颜色</string>
     <string name="color_assistant_title">助手消息颜色</string>
 
+    <!-- Token calendar -->
+    <string name="calendar_title">Token 使用日历</string>
+    <string name="calendar_total">总计：%1$d</string>
+    <string name="calendar_empty">暂无 Token 记录</string>
+    <string name="settings_token_history">Token 记录</string>
+    <string name="settings_token_history_sub">每日 Token 用量</string>
+
     <!-- Updates -->
     <string name="settings_updates">更新</string>
     <string name="channel_release">正式版</string>
