@@ -148,7 +148,7 @@ fun SettingsScreen(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionLabel(R.string.settings_appearance)
                     SectionLabel(R.string.settings_theme, small = true)
-                    RadioSetting(
+                    DropdownSetting(
                         listOf(
                             "system" to stringResource(R.string.theme_system),
                             "light" to stringResource(R.string.theme_light),
@@ -195,7 +195,15 @@ fun SettingsScreen(
                         }
 
                         val isDark = theme == "dark" || (theme == "system" && isSystemInDarkTheme())
-                        val basePreset = PresetDarkSchemes[ThemePreset.DEFAULT]!!
+                        val colorDefaults = mapOf(
+                            "primary" to (if (isDark) 0xFF7AA2F7L else 0xFF1F6FEBL),
+                            "background" to (if (isDark) 0xFF0D1117L else 0xFFFFFFFFL),
+                            "surface" to (if (isDark) 0xFF161B22L else 0xFFF6F8FAL),
+                            "onBackground" to (if (isDark) 0xFFC9D1D9L else 0xFF1F2328L),
+                            "onSurface" to (if (isDark) 0xFFC9D1D9L else 0xFF1F2328L),
+                            "surfaceVariant" to (if (isDark) 0xFF21262DL else 0xFFE8ECEFL),
+                            "onSurfaceVariant" to (if (isDark) 0xFF8B949EL else 0xFF636C76L),
+                        )
                         val colorKeys = listOf(
                             "primary" to R.string.theme_custom_primary,
                             "background" to R.string.theme_custom_background,
@@ -207,25 +215,16 @@ fun SettingsScreen(
                         )
                         var customPicking by remember { mutableStateOf<String?>(null) }
                         colorKeys.forEach { (key, resId) ->
-                            val currentColor = customColors[key]
+                            val displayColor = customColors[key] ?: colorDefaults[key] ?: -1L
                             ColorPreviewRow(
                                 title = stringResource(resId),
-                                color = currentColor ?: -1L,
+                                color = displayColor,
                                 onClick = { customPicking = key },
                             )
                         }
                         if (customPicking != null) {
                             val key = customPicking!!
-                            val defaultColor = when (key) {
-                                "primary" -> if (isDark) 0xFF7AA2F7 else 0xFF1F6FEB
-                                "background" -> if (isDark) 0xFF0D1117 else 0xFFFFFFFF
-                                "surface" -> if (isDark) 0xFF161B22 else 0xFFF6F8FA
-                                "onBackground" -> if (isDark) 0xFFC9D1D9 else 0xFF1F2328
-                                "onSurface" -> if (isDark) 0xFFC9D1D9 else 0xFF1F2328
-                                "surfaceVariant" -> if (isDark) 0xFF21262D else 0xFFE8ECEF
-                                "onSurfaceVariant" -> if (isDark) 0xFF8B949E else 0xFF636C76
-                                else -> 0xFFFFFFFF
-                            }
+                            val defaultColor = colorDefaults[key] ?: 0xFFFFFFFFL
                             ColorPickerDialog(
                                 title = stringResource(
                                     when (key) {
