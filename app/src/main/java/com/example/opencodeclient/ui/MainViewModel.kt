@@ -702,6 +702,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         else TodoUi(t.id, t.content, t.status)
                     }
                 }
+                recomputeSessionElapsed()
             } catch (_: Exception) {
                 // ignore, keep current
             }
@@ -711,10 +712,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshSession() {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
-        viewModelScope.launch {
+         viewModelScope.launch {
             loadMessages()
             rollSessionStats(c, sid)
         }
+    }
+
+    private fun recomputeSessionElapsed() {
+        var firstUser = 0L
+        var last = 0L
+        for (m in _messages.value) {
+            if (m.time <= 0L) continue
+            if (m.role == "user" && (firstUser == 0L || m.time < firstUser)) firstUser = m.time
+            if (m.time > last) last = m.time
+        }
+        _sessionElapsed.value = if (firstUser > 0L && last > firstUser) last - firstUser else null
     }
 
      fun send(text: String) {

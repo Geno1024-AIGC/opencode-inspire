@@ -74,7 +74,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -123,9 +122,7 @@ fun ChatScreen(
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    var input by rememberSaveable(stateSaver = TextFieldValue.Saver) {
-        mutableStateOf(TextFieldValue(""))
-    }
+    var input by rememberSaveable { mutableStateOf("") }
     var showFiles by rememberSaveable { mutableStateOf(false) }
     var userScrolledAway by remember { mutableStateOf(false) }
 
@@ -249,8 +246,8 @@ fun ChatScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Box(modifier = Modifier.weight(1f)) {
-                    val trimmed = input.text.trimStart()
-                    val showCommands = input.text.startsWith("/") && !trimmed.contains(" ")
+                    val trimmed = input.trimStart()
+                    val showCommands = input.startsWith("/") && !trimmed.contains(" ")
                     OutlinedTextField(
                         value = input,
                         onValueChange = { input = it },
@@ -287,7 +284,7 @@ fun ChatScreen(
                                         },
                                         onClick = {
                                             viewModel.runCommand(cmd)
-                                            input = TextFieldValue("")
+                                            input = ""
                                         },
                                     )
                                 }
@@ -297,10 +294,10 @@ fun ChatScreen(
                 }
                 IconButton(
                     onClick = {
-                        viewModel.send(input.text.trim())
-                         input = TextFieldValue("")
+                        viewModel.send(input.trim())
+                         input = ""
                      },
-                     enabled = input.text.isNotBlank(),
+                     enabled = input.isNotBlank(),
                      modifier = Modifier.padding(bottom = 4.dp),
                  ) {
                      Icon(Icons.AutoMirrored.Filled.Send, "Send")
