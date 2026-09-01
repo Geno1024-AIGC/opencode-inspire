@@ -1002,7 +1002,20 @@ private fun summarizeInput(tool: String, o: JsonObject): String {
     val cmd = o["command"]?.jsonPrimitive?.contentOrNull
     if (cmd != null) return cmd
     val query = o["query"]?.jsonPrimitive?.contentOrNull
-    if (query != null) return query
+    if (query != null) {
+        return when (tool) {
+            "websearch" -> {
+                val num = o["numResults"]?.jsonPrimitive?.contentOrNull
+                val type = o["type"]?.jsonPrimitive?.contentOrNull
+                buildString {
+                    append("🔍 $query")
+                    if (num != null) append("  ($num results)")
+                    if (type != null && type != "auto") append("  [$type]")
+                }
+            }
+            else -> query
+        }
+    }
     val file = o["file"]?.jsonPrimitive?.contentOrNull ?: o["filePath"]?.jsonPrimitive?.contentOrNull
     if (file != null) {
         return when (tool) {
