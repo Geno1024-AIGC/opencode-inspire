@@ -17,6 +17,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
@@ -26,6 +27,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.ui.MainViewModel
 import com.example.opencodeclient.ui.OpenCodeApp
 import com.example.opencodeclient.ui.theme.OpenCodeTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -93,6 +98,7 @@ class MainActivity : ComponentActivity() {
                         OpenCodeApp(viewModel)
 
                         val ctx = androidx.compose.ui.platform.LocalContext.current
+                        val scope = rememberCoroutineScope()
                         updateInfo?.let { info ->
                             AlertDialog(
                                 onDismissRequest = viewModel::dismissUpdate,
@@ -102,10 +108,37 @@ class MainActivity : ComponentActivity() {
                                 },
                                 confirmButton = {
                                     TextButton(onClick = {
-                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(info.url))
-                                        runCatching { ctx.startActivity(intent) }
-                                        viewModel.dismissUpdate()
-                                    }) { Text(stringResource(R.string.update_open)) }
+                                        scope.launch {
+                                            val apk = runCatching {
+                                                withContext(Dispatchers.IO) {
+                                                    val file = File(ctx.cacheDir, "update_${System.currentTimeMillis()}.apk")
+                                                    val conn = (java.net.URL(info.url).openConnection() as java.net.HttpURLConnection).apply {
+                                                        instanceFollowRedirects = true
+                                                        connectTimeout = 15000
+                                                        readTimeout = 15000
+                                                        addRequestProperty("User-Agent", "opencode-inspire")
+                                                    }
+                                                    conn.inputStream.use { input ->
+                                                        file.outputStream().use { output -> input.copyTo(output) }
+                                                    }
+                                                    conn.disconnect()
+                                                    file
+                                                }
+                                            }.getOrNull()
+                                            viewModel.dismissUpdate()
+                                            if (apk != null && apk.exists() && apk.length() > 0L) {
+                                                val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", apk)
+                                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                                    setDataAndType(uri, "application/vnd.android.package-archive")
+                                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                }
+                                                runCatching { ctx.startActivity(intent) }
+                                            } else {
+                                                viewModel.showUpdateMessage(ctx.getString(R.string.update_download_failed))
+                                            }
+                                        }
+                                    }) { Text(stringResource(R.string.update_download)) }
                                 },
                                 dismissButton = {
                                     TextButton(onClick = viewModel::dismissUpdate) { Text(stringResource(R.string.update_later)) }

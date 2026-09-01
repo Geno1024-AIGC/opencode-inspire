@@ -106,6 +106,8 @@
     <string name="update_available_title">Update available</string>
     <string name="update_available_body">A newer version (%1$s) is available. Current: %2$s</string>
     <string name="update_open">Open</string>
+    <string name="update_download">Download &amp; install</string>
+    <string name="update_download_failed">Update download failed</string>
     <string name="update_later">Later</string>
     <string name="ok">OK</string>
 

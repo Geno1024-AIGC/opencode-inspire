@@ -370,7 +370,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val rel = Updater.releaseFor(releases, _channel.value)
                 val current = BuildConfig.VERSION_NAME
                 if (rel != null && Updater.isNewer(rel.tagName, current)) {
-                    _updateInfo.value = UpdateInfo(version = rel.tagName, url = rel.htmlUrl)
+                    _updateInfo.value = UpdateInfo(version = rel.tagName, url = rel.apkUrl ?: rel.htmlUrl)
                 } else {
                     _updateInfo.value = null
                     if (notifyLatest) _updateMessage.value = getAppString(R.string.update_latest)
@@ -389,6 +389,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissUpdateMessage() {
         _updateMessage.value = null
+    }
+
+    fun showUpdateMessage(message: String) {
+        _updateMessage.value = message
     }
 
     fun setUserBubbleColor(color: Long) {

@@ -11,6 +11,7 @@ data class ReleaseInfo(
     val tagName: String,
     val prerelease: Boolean,
     val htmlUrl: String,
+    val apkUrl: String? = null,
     val publishedAt: String? = null,
 )
 
@@ -34,10 +35,19 @@ object Updater {
                 val arr = JSONArray(resp.body!!.string())
                 List(arr.length()) { i ->
                     val o = arr.getJSONObject(i)
+                    val assets = o.optJSONArray("assets")
+                    val apkUrl = if (assets != null) {
+                        (0 until assets.length())
+                            .map { j -> assets.getJSONObject(j) }
+                            .firstOrNull { it.optString("name").endsWith(".apk") }
+                            ?.optString("browser_download_url")
+                            ?.takeIf { it.isNotEmpty() }
+                    } else null
                     ReleaseInfo(
                         tagName = o.optString("tag_name"),
                         prerelease = o.optBoolean("prerelease"),
                         htmlUrl = o.optString("html_url"),
+                        apkUrl = apkUrl,
                         publishedAt = o.optString("published_at").takeIf { it.isNotEmpty() },
                     )
                 }
