@@ -41,6 +41,7 @@ import com.example.opencodeclient.ui.formatBytes
 import com.example.opencodeclient.ui.formatEta
 import com.example.opencodeclient.ui.formatSpeed
 import com.example.opencodeclient.ui.theme.OpenCodeTheme
+import com.example.opencodeclient.ui.theme.ThemePreset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -85,6 +86,8 @@ class MainActivity : ComponentActivity() {
             val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
             val updateMessage by viewModel.updateMessage.collectAsStateWithLifecycle()
             val themePref by viewModel.theme.collectAsStateWithLifecycle()
+            val themePresetPref by viewModel.themePreset.collectAsStateWithLifecycle()
+            val customThemeColorsPref by viewModel.customThemeColors.collectAsStateWithLifecycle()
             val langPref by viewModel.language.collectAsStateWithLifecycle()
             val darkTheme = when (themePref) {
                 "light" -> false
@@ -107,7 +110,16 @@ class MainActivity : ComponentActivity() {
             }
 
             CompositionLocalProvider(LocalConfiguration provides appConfig) {
-                OpenCodeTheme(darkTheme = darkTheme) {
+                val preset = try {
+                    ThemePreset.entries.first { it.id == themePresetPref }
+                } catch (_: Exception) { ThemePreset.DEFAULT }
+                val customColors = try {
+                    runCatching {
+                        kotlinx.serialization.json.Json.decodeFromString<Map<String, kotlinx.serialization.json.JsonPrimitive>>(customThemeColorsPref)
+                            .mapValues { it.value.content.toLongOrNull() ?: 0L }
+                    }.getOrNull() ?: emptyMap()
+                } catch (_: Exception) { emptyMap() }
+                OpenCodeTheme(darkTheme = darkTheme, preset = preset, customColors = customColors) {
                     Surface(color = MaterialTheme.colorScheme.background) {
                         OpenCodeApp(viewModel)
 
