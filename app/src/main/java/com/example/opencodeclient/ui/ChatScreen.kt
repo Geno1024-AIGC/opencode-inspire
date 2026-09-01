@@ -160,14 +160,6 @@ fun ChatScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                             val elapsed = sessionElapsed
-                             if (elapsed != null) {
-                                 Text(
-                                    stringResource(R.string.session_elapsed, elapsed / 1000.0),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
                             if (activeSession != null && models.isNotEmpty()) {
                                 ModelSwitcher(
                                     models = models,
@@ -237,6 +229,7 @@ fun ChatScreen(
                         deltaTokens = if (msg.cumulativeTokens > 0) {
                             if (prevCumulative != null) (msg.cumulativeTokens - prevCumulative).coerceAtLeast(0L) else msg.cumulativeTokens
                         } else null,
+                        sessionElapsed = if (index == 0) sessionElapsed else null,
                         userColor = userBubbleColor,
                         assistantColor = assistantBubbleColor,
                     )
@@ -707,6 +700,7 @@ private fun MessageBubble(
     assistantColor: Long = -1L,
     cumulativeTokens: Long? = null,
     deltaTokens: Long? = null,
+    sessionElapsed: Long? = null,
 ) {
     if (msg.role == "system") {
         SystemNotice(msg.text)
@@ -786,6 +780,17 @@ private fun MessageBubble(
                 )
             }
         }
+        if (sessionElapsed != null) {
+            Text(
+                stringResource(R.string.session_elapsed, sessionElapsed / 1000.0),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.align(
+                    if (isUser) Alignment.End else Alignment.Start
+                ).padding(top = 2.dp),
+            )
+        }
     }
 }
 
@@ -800,9 +805,9 @@ private fun MessageMeta(
         if (!msg.model.isNullOrBlank()) add(msg.model)
         if (cumulativeTokens != null) {
             if (deltaTokens != null && deltaTokens > 0) {
-                add("cum $cumulativeTokens (+$deltaTokens)")
+                add("$cumulativeTokens (+$deltaTokens)")
             } else {
-                add("cum $cumulativeTokens")
+                add("$cumulativeTokens")
             }
         } else {
             val tokens = msg.tokens
@@ -826,8 +831,9 @@ private fun MessageMeta(
 }
 
 private fun formatMillis(millis: Long): String {
-    val cal = java.util.Calendar.getInstance().apply { timeInMillis = millis }
-    return "%02d:%02d".format(cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
+    return java.time.Instant.ofEpochMilli(millis)
+        .atZone(java.time.ZoneId.systemDefault())
+        .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
 }
 
 @Composable
