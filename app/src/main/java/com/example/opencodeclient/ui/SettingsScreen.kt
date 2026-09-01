@@ -112,7 +112,7 @@ fun SettingsScreen(
                 checked = shortTokens,
                 onCheckedChange = viewModel::setShortTokens,
             )
-            SectionLabel(R.string.settings_language)
+            SectionLabel(R.string.settings_language, small = true)
             DropdownSetting(
                 listOf(
                     "system" to stringResource(R.string.lang_system),
@@ -126,7 +126,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             SectionLabel(R.string.settings_appearance)
-            SectionLabel(R.string.settings_theme)
+            SectionLabel(R.string.settings_theme, small = true)
             RadioSetting(
                 listOf(
                     "system" to stringResource(R.string.theme_system),
@@ -137,7 +137,7 @@ fun SettingsScreen(
                 onSelect = viewModel::setTheme,
             )
 
-            SectionLabel(R.string.settings_bubbles)
+            SectionLabel(R.string.settings_bubbles, small = true)
             var picking by remember { mutableStateOf<String?>(null) }
             ColorPreviewRow(
                 title = stringResource(R.string.settings_my_bubbles),
@@ -233,12 +233,12 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SectionLabel(resId: Int) {
+private fun SectionLabel(resId: Int, small: Boolean = false) {
     Text(
         stringResource(resId),
-        style = MaterialTheme.typography.titleSmall,
+        style = if (small) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(top = 8.dp),
+        modifier = Modifier.padding(top = if (small) 4.dp else 8.dp),
     )
 }
 
