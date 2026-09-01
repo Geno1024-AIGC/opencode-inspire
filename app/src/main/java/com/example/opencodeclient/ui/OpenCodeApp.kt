@@ -391,14 +391,7 @@ fun formatTokens(count: Long, short: Boolean = true): String = when {
     else -> count.toString()
 }
 
-fun formatBytes(bytes: Long): String {
-    if (bytes < 1024L) return "$bytes B"
-    val kb = bytes / 1024.0
-    if (kb < 1024) return "%.1f KB".format(kb)
-    val mb = kb / 1024
-    if (mb < 1024) return "%.1f MB".format(mb)
-    return "%.2f GB".format(mb / 1024)
-}
+fun formatBytes(bytes: Long): String = bytes.toString()
 
 fun formatSpeed(bytesPerSec: Long): String = formatBytes(bytesPerSec) + "/s"
 
