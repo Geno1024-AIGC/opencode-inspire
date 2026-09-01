@@ -253,12 +253,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val detail = if (total > 0L) {
             context.getString(
                 R.string.download_progress_detail,
+                "$progress%",
                 formatBytes(downloaded),
                 formatBytes(total),
                 formatSpeed(speed),
             )
         } else {
-            context.getString(R.string.download_percent, progress.coerceAtLeast(0))
+            context.getString(R.string.download_progress_unknown,
+                "$progress%",
+                formatBytes(downloaded),
+                formatSpeed(speed))
         }
         val builder = android.app.Notification.Builder(context, "download")
             .setSmallIcon(android.R.drawable.stat_sys_download)
