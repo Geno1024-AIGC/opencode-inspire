@@ -308,7 +308,7 @@ fun ChatScreen(
 
      if (userScrolledAway) {
          FloatingActionButton(
-             onClick = { coroutineScope.launch { listState.scrollToItem(messages.size - 1) } },
+             onClick = { coroutineScope.launch { listState.scrollToItem(0) } },
              modifier = Modifier
                  .align(Alignment.BottomEnd)
                  .padding(16.dp),
