@@ -250,6 +250,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun showDownloadProgress(downloaded: Long, total: Long, speed: Long = 0L) {
         val context = getApplication<Application>()
         val progress = if (total > 0L) (downloaded * 100L / total).toInt().coerceIn(0, 100) else -1
+        val eta = if (total > 0L && speed > 0L && downloaded < total) {
+            context.getString(R.string.download_eta, formatEta((total - downloaded) / speed))
+        } else ""
         val detail = if (total > 0L) {
             context.getString(
                 R.string.download_progress_detail,
@@ -264,10 +267,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 formatBytes(downloaded),
                 formatSpeed(speed))
         }
+        val fullText = if (eta.isNotEmpty()) "$detail · $eta" else detail
         val builder = android.app.Notification.Builder(context, "download")
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(context.getString(R.string.download_title))
-            .setContentText(detail)
+            .setContentText(fullText)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
         if (total > 0L) {
