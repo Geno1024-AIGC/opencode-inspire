@@ -12,12 +12,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerValue
@@ -43,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -292,7 +289,7 @@ private fun ExpandableProject(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary)
+            Icon(painterResource(R.drawable.ic_folder), null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.padding(horizontal = 4.dp))
             Column(
                 modifier = Modifier.weight(1f),
@@ -312,7 +309,7 @@ private fun ExpandableProject(
                     )
                 }
             }
-            Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null)
+            Icon(if (expanded) painterResource(R.drawable.ic_expand_less) else painterResource(R.drawable.ic_expand_more), null)
         }
         if (expanded) {
             project.sessions.forEach { s ->
@@ -357,7 +354,7 @@ private fun SessionRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            Icons.AutoMirrored.Filled.Message,
+            painterResource(R.drawable.ic_message),
             null,
             tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(end = 8.dp),
@@ -514,7 +511,7 @@ private fun AddProjectDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 TextButton(onClick = { showBrowser = true }) {
-                    Icon(Icons.Filled.Folder, null, modifier = Modifier.size(18.dp))
+                    Icon(painterResource(R.drawable.ic_folder), null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.padding(horizontal = 4.dp))
                     Text(stringResource(R.string.add_project_browse))
                 }
@@ -597,7 +594,7 @@ private fun ServerFolderBrowser(
                                     .padding(vertical = 10.dp, horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(painterResource(R.drawable.ic_folder), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(Modifier.padding(horizontal = 4.dp))
                                 Text("..", style = MaterialTheme.typography.bodyMedium)
                             }
@@ -613,7 +610,7 @@ private fun ServerFolderBrowser(
                                 .padding(vertical = 10.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Filled.Folder, null, tint = MaterialTheme.colorScheme.primary)
+            Icon(painterResource(R.drawable.ic_folder), null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.padding(horizontal = 4.dp))
                             Text(node.name, style = MaterialTheme.typography.bodyMedium)
                         }

@@ -25,15 +25,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Card
@@ -48,6 +44,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.ui.res.painterResource
+import com.example.opencodeclient.R
+import com.example.opencodeclient.data.Message
+import com.example.opencodeclient.data.Session
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.AlertDialog
@@ -81,7 +81,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-import com.example.opencodeclient.R
 import com.example.opencodeclient.data.FileNode
 import com.example.opencodeclient.data.ModelInfo
 import com.example.opencodeclient.data.QuestionRequest
@@ -189,7 +188,7 @@ fun ChatScreen(
                     actions = {
                         if (activeSession != null) {
                             IconButton(onClick = { showFiles = true }) {
-                                Icon(Icons.Filled.Folder, stringResource(R.string.files_title))
+                                Icon(painterResource(R.drawable.ic_folder), stringResource(R.string.files_title))
                             }
                             SessionActionsMenu(
                                 onRename = { title -> viewModel.renameSession(title) },
@@ -201,7 +200,7 @@ fun ChatScreen(
                         }
                         if (sending) {
                             IconButton(onClick = { viewModel.abort() }) {
-                                Icon(Icons.Filled.Stop, stringResource(R.string.chat_abort))
+                                Icon(painterResource(R.drawable.ic_stop), stringResource(R.string.chat_abort))
                             }
                         }
                     },
@@ -210,7 +209,7 @@ fun ChatScreen(
             floatingActionButton = {
                 if (sending) {
                     FloatingActionButton(onClick = { viewModel.abort() }) {
-                    Icon(Icons.Filled.Stop, stringResource(R.string.chat_abort))
+                    Icon(painterResource(R.drawable.ic_stop), stringResource(R.string.chat_abort))
                 }
             }
         },
@@ -781,7 +780,7 @@ private fun MessageBubble(
         ) {
             if (!isUser && msg.parts.isNotEmpty()) {
                 Icon(
-                    Icons.Filled.Build,
+                    painterResource(R.drawable.ic_build),
                     contentDescription = stringResource(R.string.chat_agent),
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -932,7 +931,7 @@ private fun ToolPart(part: PartUi) {
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(
-                Icons.Filled.Build,
+                painterResource(R.drawable.ic_build),
                 null,
                 Modifier.height(14.dp).width(14.dp),
                 tint = MaterialTheme.colorScheme.tertiary,
@@ -1410,7 +1409,7 @@ private fun FileBrowserSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(Icons.Filled.Folder, null, Modifier.height(18.dp).width(18.dp), tint = MaterialTheme.colorScheme.tertiary)
+                        Icon(painterResource(R.drawable.ic_folder), null, Modifier.height(18.dp).width(18.dp), tint = MaterialTheme.colorScheme.tertiary)
                         Text(stringResource(R.string.files_up), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
@@ -1440,7 +1439,7 @@ private fun FileBrowserSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(
-                        if (node.type == "directory") Icons.Filled.Folder else Icons.Filled.InsertDriveFile,
+                        if (node.type == "directory") painterResource(R.drawable.ic_folder) else painterResource(R.drawable.ic_insert_drive_file),
                         null,
                         Modifier.height(18.dp).width(18.dp),
                         tint = if (node.type == "directory") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
