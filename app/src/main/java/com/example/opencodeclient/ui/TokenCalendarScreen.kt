@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
 import java.time.DayOfWeek
@@ -210,18 +211,22 @@ private fun CalendarDayCell(
         inMonth && tokens > 0L -> MaterialTheme.colorScheme.primary.copy(alpha = (0.12f + 0.55f * intensity).toFloat().coerceIn(0.12f, 0.67f))
         else -> Color.Transparent
     }
-    Box(
+    Column(
         modifier = modifier
             .aspectRatio(1f)
             .padding(2.dp)
             .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier)
-            .background(bg, CircleShape)
+            .background(
+                if (inMonth || isToday) bg else Color.Transparent,
+                CircleShape,
+            )
             .clickable(enabled = inMonth, onClick = onClick),
-        contentAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             date.dayOfMonth.toString(),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.labelMedium,
             color = when {
                 !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 isToday -> MaterialTheme.colorScheme.onPrimary
@@ -230,5 +235,20 @@ private fun CalendarDayCell(
             },
             fontWeight = if (isToday || tokens > 0L || selected) FontWeight.Bold else FontWeight.Normal,
         )
+        if (inMonth && tokens > 0L) {
+            Text(
+                formatTokensCompact(tokens),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                color = if (isToday) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                maxLines = 1,
+            )
+        }
     }
+}
+
+private fun formatTokensCompact(n: Long): String = when {
+    n >= 1_000_000 -> ((n / 1_000_000f).let { if (it % 1f == 0f) it.toInt().toString() else "%.1f".format(it) }) + "m"
+    n >= 1_000 -> ((n / 1_000f).let { if (it % 1f == 0f) it.toInt().toString() else "%.1f".format(it) }) + "k"
+    else -> n.toString()
 }
