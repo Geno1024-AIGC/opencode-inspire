@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,18 +56,21 @@ sealed class Screen {
     data object Connect : Screen()
     data object Main : Screen()
     data object Settings : Screen()
+    data object Calendar : Screen()
 
     val key: String
         get() = when (this) {
             Connect -> "connect"
             Main -> "main"
             Settings -> "settings"
+            Calendar -> "calendar"
         }
 
     companion object {
         fun fromKey(key: String): Screen = when (key) {
             "main" -> Main
             "settings" -> Settings
+            "calendar" -> Calendar
             else -> Connect
         }
     }
@@ -84,23 +88,38 @@ fun OpenCodeApp(viewModel: MainViewModel) {
         }
     }
 
+    val saveableStateHolder = rememberSaveableStateHolder()
+
     when (screen) {
-        is Screen.Connect -> ConnectScreen(
-            viewModel = viewModel,
-            onConnected = { screenKey = Screen.Main.key },
-        )
-        is Screen.Main -> MainScreen(
-            viewModel = viewModel,
-            onDisconnect = {
-                viewModel.reset()
-                screenKey = Screen.Connect.key
-            },
-            onOpenSettings = { screenKey = Screen.Settings.key },
-        )
-        is Screen.Settings -> SettingsScreen(
-            viewModel = viewModel,
-            onBack = { screenKey = Screen.Main.key },
-        )
+        is Screen.Connect -> saveableStateHolder.SaveableStateProvider(Screen.Connect.key) {
+            ConnectScreen(
+                viewModel = viewModel,
+                onConnected = { screenKey = Screen.Main.key },
+            )
+        }
+        is Screen.Main -> saveableStateHolder.SaveableStateProvider(Screen.Main.key) {
+            MainScreen(
+                viewModel = viewModel,
+                onDisconnect = {
+                    viewModel.reset()
+                    screenKey = Screen.Connect.key
+                },
+                onOpenSettings = { screenKey = Screen.Settings.key },
+            )
+        }
+        is Screen.Settings -> saveableStateHolder.SaveableStateProvider(Screen.Settings.key) {
+            SettingsScreen(
+                viewModel = viewModel,
+                onBack = { screenKey = Screen.Main.key },
+                onOpenCalendar = { screenKey = Screen.Calendar.key },
+            )
+        }
+        is Screen.Calendar -> saveableStateHolder.SaveableStateProvider(Screen.Calendar.key) {
+            TokenCalendarScreen(
+                viewModel = viewModel,
+                onBack = { screenKey = Screen.Settings.key },
+            )
+        }
     }
 }
 
