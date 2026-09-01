@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
@@ -72,7 +74,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -118,11 +119,13 @@ fun ChatScreen(
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
+    val collapsedMessageIds by viewModel.collapsedMessageIds.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     var input by rememberSaveable { mutableStateOf("") }
     var showFiles by rememberSaveable { mutableStateOf(false) }
     var userScrolledAway by remember { mutableStateOf(false) }
+    var rawMessage by remember { mutableStateOf<ChatMessage?>(null) }
 
     LaunchedEffect(listState) {
         snapshotFlow {
@@ -250,6 +253,9 @@ fun ChatScreen(
                         responseTime = responseTime,
                         userColor = userBubbleColor,
                         assistantColor = assistantBubbleColor,
+                        collapsed = msg.id in collapsedMessageIds,
+                        onToggleCollapse = { viewModel.toggleMessageCollapsed(msg.id) },
+                        onShowRaw = { rawMessage = msg },
                     )
                 }
             }
@@ -365,6 +371,63 @@ fun ChatScreen(
              viewModel.replyPermission(permission, reply)
          }
      }
+
+    rawMessage?.let { msg ->
+        RawMessageDialog(msg = msg, onDismiss = { rawMessage = null })
+    }
+    }
+}
+
+@Composable
+private fun RawMessageDialog(
+    msg: ChatMessage,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.message_raw_title)) },
+        text = {
+            SelectionContainer {
+                Text(
+                    buildRawMessageText(msg),
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+        },
+    )
+}
+
+private fun buildRawMessageText(msg: ChatMessage): String = buildString {
+    appendLine("id: ${msg.id}")
+    appendLine("role: ${msg.role}")
+    if (!msg.model.isNullOrBlank()) appendLine("model: ${msg.model}")
+    if (msg.time > 0) appendLine("time: ${msg.time}")
+    msg.tokens?.let { t ->
+        appendLine("tokens: input=${t.input} output=${t.output} reasoning=${t.reasoning} total=${t.total}")
+    }
+    if (!msg.reasoning.isNullOrBlank()) {
+        appendLine("--- reasoning ---")
+        appendLine(msg.reasoning)
+    }
+    if (msg.text.isNotBlank()) {
+        appendLine("--- text ---")
+        appendLine(msg.text)
+    }
+    appendLine("--- parts (${msg.parts.size}) ---")
+    msg.parts.forEachIndexed { i, p ->
+        appendLine("[$i] type=${p.type}")
+        if (p.text != null) appendLine("    text=${p.text}")
+        if (p.tool != null) appendLine("    tool=${p.tool}")
+        if (p.toolTitle != null) appendLine("    toolTitle=${p.toolTitle}")
+        if (p.toolState != null) appendLine("    toolState=${p.toolState}")
+        if (p.toolInput != null) appendLine("    toolInput=${p.toolInput}")
+        if (p.toolOutput != null) appendLine("    toolOutput=${p.toolOutput}")
     }
 }
 
@@ -684,6 +747,9 @@ private fun MessageBubble(
     deltaTokens: Long? = null,
     sessionElapsed: Long? = null,
     responseTime: Long? = null,
+    collapsed: Boolean = false,
+    onToggleCollapse: () -> Unit = {},
+    onShowRaw: () -> Unit = {},
 ) {
     if (msg.role == "system") {
         SystemNotice(msg.text)
@@ -736,32 +802,44 @@ private fun MessageBubble(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
             ) {
-                if (!isUser && msg.reasoning != null) {
-                    ReasoningBlock(msg.reasoning)
-                    if (msg.text.isNotBlank()) Spacer(Modifier.height(8.dp))
-                }
-                val tools = msg.parts.filter { it.type == "tool" }
-                if (!isUser && tools.isNotEmpty()) {
-                    tools.forEach { ToolPart(it) }
-                    if (msg.text.isNotBlank()) Spacer(Modifier.height(8.dp))
-                }
-                if (msg.text.isNotBlank()) {
-                    if (isUser) {
-                        SelectionContainer {
-                            Text(
-                                msg.text.trim(),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = onBackground,
-                            )
+                if (collapsed) {
+                    Text(
+                        stringResource(R.string.message_collapsed),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        modifier = Modifier.padding(vertical = 2.dp),
+                    )
+                } else {
+                    if (!isUser && msg.reasoning != null) {
+                        ReasoningBlock(msg.reasoning)
+                        if (msg.text.isNotBlank()) Spacer(Modifier.height(8.dp))
+                    }
+                    val tools = msg.parts.filter { it.type == "tool" }
+                    if (!isUser && tools.isNotEmpty()) {
+                        tools.forEach { ToolPart(it) }
+                        if (msg.text.isNotBlank()) Spacer(Modifier.height(8.dp))
+                    }
+                    if (msg.text.isNotBlank()) {
+                        if (isUser) {
+                            SelectionContainer {
+                                Text(
+                                    msg.text.trim(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = onBackground,
+                                )
+                            }
+                        } else {
+                            MarkdownMessage(msg.text.trim(), color = onBackground)
                         }
-                    } else {
-                        MarkdownMessage(msg.text.trim(), color = onBackground)
                     }
                 }
                 MessageMeta(
                     msg = msg,
                     cumulativeTokens = cumulativeTokens,
                     deltaTokens = deltaTokens,
+                    collapsed = collapsed,
+                    onToggleCollapse = onToggleCollapse,
+                    onShowRaw = onShowRaw,
                 )
             }
         }
@@ -793,6 +871,9 @@ private fun MessageMeta(
     msg: ChatMessage,
     cumulativeTokens: Long? = null,
     deltaTokens: Long? = null,
+    collapsed: Boolean = false,
+    onToggleCollapse: () -> Unit = {},
+    onShowRaw: () -> Unit = {},
 ) {
     val time = msg.time
     val parts = buildList {
@@ -813,15 +894,38 @@ private fun MessageMeta(
         }
         if (time > 0) add(formatMillis(time))
     }
-    if (parts.isEmpty()) return
-    Text(
-        parts.joinToString(" · "),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-        fontFamily = MonoFontFamily,
-        textAlign = TextAlign.End,
+    Row(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            parts.joinToString(" · "),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            fontFamily = MonoFontFamily,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(
+            onClick = onToggleCollapse,
+            modifier = Modifier.size(28.dp),
+        ) {
+            Icon(
+                painterResource(if (collapsed) R.drawable.ic_expand_more else R.drawable.ic_expand_less),
+                contentDescription = stringResource(R.string.message_collapse_toggle),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            )
+        }
+        IconButton(
+            onClick = onShowRaw,
+            modifier = Modifier.size(28.dp),
+        ) {
+            Icon(
+                Icons.Filled.Info,
+                contentDescription = stringResource(R.string.message_raw),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            )
+        }
+    }
 }
 
 private fun formatMillis(millis: Long): String {

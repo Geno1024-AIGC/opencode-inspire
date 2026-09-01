@@ -65,6 +65,10 @@
     <string name="chat_abort">Abort</string>
     <string name="chat_refresh">Refresh</string>
     <string name="chat_agent">agent</string>
+    <string name="message_collapse_toggle">Collapse/expand message</string>
+    <string name="message_collapsed">Message collapsed</string>
+    <string name="message_raw">View raw message</string>
+    <string name="message_raw_title">Raw message</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
