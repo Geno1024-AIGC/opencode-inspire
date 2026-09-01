@@ -56,6 +56,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -76,6 +77,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 import com.example.opencodeclient.R
@@ -134,7 +137,7 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(
+     LaunchedEffect(
         messages.size,
         sending,
         userScrolledAway,
@@ -143,6 +146,20 @@ fun ChatScreen(
             listState.scrollToItem(0)
         }
      }
+
+    var liveElapsed by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(sending) {
+        if (sending) {
+            val start = System.currentTimeMillis()
+            liveElapsed = 0L
+            while (isActive) {
+                delay(1000)
+                liveElapsed = System.currentTimeMillis() - start
+            }
+        } else {
+            liveElapsed = 0L
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -220,7 +237,9 @@ fun ChatScreen(
                 val reversedMessages = messages.asReversed()
                 itemsIndexed(reversedMessages, key = { idx, item -> item.id }) { index, msg ->
                     val prevCumulative = if (index + 1 < reversedMessages.size) reversedMessages[index + 1].cumulativeTokens else null
-                    val responseTime = if (msg.role == "assistant" && msg.time > 0L) {
+                    val responseTime = if (sending && index == 0 && msg.role == "assistant") {
+                        liveElapsed
+                    } else if (msg.role == "assistant" && msg.time > 0L) {
                         val precedingUserTime = (index + 1 until reversedMessages.size)
                             .firstOrNull { reversedMessages[it].role == "user" && reversedMessages[it].time > 0L }
                             ?.let { reversedMessages[it].time }
