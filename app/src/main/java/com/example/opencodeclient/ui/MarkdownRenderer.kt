@@ -319,21 +319,22 @@ fun MarkdownMessage(content: String) {
 @Composable
 private fun TableRenderer(table: MdTable) {
     val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    val colCount = (listOf(table.headers.size) + table.rows.map { it.size }).maxOrNull()?.coerceAtLeast(1) ?: 1
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .horizontalScroll(rememberScrollState())
+            .background(borderColor)
+            .padding(1.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .background(borderColor)
-                .padding(1.dp)
-        ) {
-            for (header in table.headers) {
+        // Header row
+        Row(modifier = Modifier.fillMaxWidth()) {
+            for ((i, header) in table.headers.withIndex()) {
                 Box(
                     modifier = Modifier
+                        .weight(1f)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
@@ -343,16 +344,23 @@ private fun TableRenderer(table: MdTable) {
                     )
                 }
             }
+            // fill missing columns
+            repeat(colCount - table.headers.size) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
         }
+        // Data rows
         for (row in table.rows) {
-            Row(
-                modifier = Modifier
-                    .background(borderColor)
-                    .padding(1.dp)
-            ) {
+            Row(modifier = Modifier.fillMaxWidth()) {
                 for (cell in row) {
                     Box(
                         modifier = Modifier
+                            .weight(1f)
                             .background(MaterialTheme.colorScheme.surface)
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
@@ -361,6 +369,15 @@ private fun TableRenderer(table: MdTable) {
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
+                }
+                // fill missing columns
+                repeat(colCount - row.size) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
                 }
             }
         }
