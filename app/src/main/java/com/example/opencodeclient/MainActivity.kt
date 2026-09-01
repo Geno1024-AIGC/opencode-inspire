@@ -9,6 +9,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -194,31 +196,26 @@ class MainActivity : ComponentActivity() {
                                 title = { Text(stringResource(R.string.download_title)) },
                                 text = {
                                     val pct = downloadPercent
-                                    Text(
-                                        if (pct >= 0) stringResource(R.string.download_percent, pct) else "",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontFamily = FontFamily.Monospace,
-                                        modifier = Modifier.padding(bottom = 4.dp),
-                                    )
-                                    if (downloadTotal > 0L) {
-                                        Text(
-                                            stringResource(R.string.download_progress_detail,
-                                                formatBytes(downloadDone),
-                                                formatBytes(downloadTotal),
-                                                formatSpeed(downloadSpeed)),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontFamily = FontFamily.Monospace,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(bottom = 8.dp),
-                                        )
-                                    }
-                                    if (pct >= 0) {
-                                        LinearProgressIndicator(
-                                            progress = { pct / 100f },
-                                            modifier = Modifier.fillMaxWidth(),
-                                        )
-                                    } else {
-                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        if (downloadTotal > 0L) {
+                                            Text(
+                                                stringResource(R.string.download_progress_detail,
+                                                    formatBytes(downloadDone),
+                                                    formatBytes(downloadTotal),
+                                                    formatSpeed(downloadSpeed)),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontFamily = FontFamily.Monospace,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        if (pct >= 0) {
+                                            LinearProgressIndicator(
+                                                progress = { pct / 100f },
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        } else {
+                                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                        }
                                     }
                                 },
                                 confirmButton = {},
