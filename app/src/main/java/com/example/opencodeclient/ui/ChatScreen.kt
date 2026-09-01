@@ -539,7 +539,7 @@ private fun SendingIndicator() {
 }
 
 @Composable
-private fun MarkdownMessage(content: String) {
+private fun MarkdownMessage(content: String, color: Color = Color.Unspecified) {
     val t = MaterialTheme.typography
     val codeStyle = t.bodyMedium.copy(fontFamily = FontFamily.Monospace)
     val typography: MarkdownTypography = DefaultMarkdownTypography(
@@ -565,12 +565,28 @@ private fun MarkdownMessage(content: String) {
             CopyableCode(blockCode(model.content, model.node))
         },
     )
-    Markdown(
-        content = content,
-        typography = typography,
-        components = components,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    if (color != Color.Unspecified) {
+        androidx.compose.foundation.layout.BoxWithConstraints(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.material3.LocalContentColor provides color
+            ) {
+                Markdown(
+                    content = content,
+                    typography = typography,
+                    components = components,
+                )
+            }
+        }
+    } else {
+        Markdown(
+            content = content,
+            typography = typography,
+            components = components,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 private fun fenceCode(content: String, node: org.intellij.markdown.ast.ASTNode): String =
@@ -775,7 +791,7 @@ private fun MessageBubble(
                             color = onBackground,
                         )
                     } else {
-                        MarkdownMessage(msg.text.trim())
+                        MarkdownMessage(msg.text.trim(), color = onBackground)
                     }
                 }
                 MessageMeta(
