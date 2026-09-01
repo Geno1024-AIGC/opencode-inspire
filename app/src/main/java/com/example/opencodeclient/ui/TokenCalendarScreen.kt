@@ -66,8 +66,9 @@ fun TokenCalendarScreen(
 
     val total = history.values.sum()
     val locale = Locale.getDefault()
+    val today = LocalDate.now()
     var shownMonth by remember { mutableStateOf(YearMonth.now()) }
-    var selected by remember { mutableStateOf<LocalDate?>(null) }
+    var selected by remember { mutableStateOf<LocalDate?>(today) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -147,6 +148,7 @@ private fun CalendarGrid(
     onSelect: (LocalDate) -> Unit,
     locale: Locale,
 ) {
+    val today = LocalDate.now()
     val firstDayOfWeek = WeekFields.of(locale).firstDayOfWeek.value
     val first = shownMonth.atDay(1)
     val leading = (first.dayOfWeek.value - firstDayOfWeek + 7) % 7
@@ -181,6 +183,7 @@ private fun CalendarGrid(
                         inMonth = inMonth,
                         tokens = tokens,
                         selected = date == selected,
+                        isToday = date == today,
                         intensity = if (tokens > 0L) tokens.toDouble() / monthMax else 0.0,
                         onClick = { onSelect(date) },
                         modifier = Modifier.weight(1f),
@@ -197,14 +200,15 @@ private fun CalendarDayCell(
     inMonth: Boolean,
     tokens: Long,
     selected: Boolean,
+    isToday: Boolean,
     intensity: Double,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val bg = if (inMonth && tokens > 0L) {
-        MaterialTheme.colorScheme.primary.copy(alpha = (0.12f + 0.55f * intensity).toFloat().coerceIn(0.12f, 0.67f))
-    } else {
-        Color.Transparent
+    val bg = when {
+        isToday -> MaterialTheme.colorScheme.primary
+        inMonth && tokens > 0L -> MaterialTheme.colorScheme.primary.copy(alpha = (0.12f + 0.55f * intensity).toFloat().coerceIn(0.12f, 0.67f))
+        else -> Color.Transparent
     }
     Box(
         modifier = modifier
@@ -220,10 +224,11 @@ private fun CalendarDayCell(
             style = MaterialTheme.typography.bodySmall,
             color = when {
                 !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                isToday -> MaterialTheme.colorScheme.onPrimary
                 tokens > 0L || selected -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
-            fontWeight = if (tokens > 0L || selected) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (isToday || tokens > 0L || selected) FontWeight.Bold else FontWeight.Normal,
         )
     }
 }
