@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.ui.MainViewModel
 import com.example.opencodeclient.ui.OpenCodeApp
 import com.example.opencodeclient.ui.formatBytes
+import com.example.opencodeclient.ui.formatEta
 import com.example.opencodeclient.ui.formatSpeed
 import com.example.opencodeclient.ui.theme.OpenCodeTheme
 import kotlinx.coroutines.Dispatchers
@@ -222,6 +223,15 @@ class MainActivity : ComponentActivity() {
                                             fontFamily = FontFamily.Monospace,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
+                                        if (downloadTotal > 0L && downloadSpeed > 0L && downloadDone < downloadTotal) {
+                                            val eta = (downloadTotal - downloadDone) / downloadSpeed
+                                            Text(
+                                                stringResource(R.string.download_eta, formatEta(eta)),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontFamily = FontFamily.Monospace,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
                                         if (pct >= 0) {
                                             LinearProgressIndicator(
                                                 progress = { pct / 100f },
