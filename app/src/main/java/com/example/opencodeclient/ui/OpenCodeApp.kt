@@ -555,13 +555,13 @@ private fun ServerFolderBrowser(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var currentPath by rememberSaveable { mutableStateOf("") }
+    var currentPath by rememberSaveable { mutableStateOf("/") }
     var entries by remember { mutableStateOf(emptyList<com.example.opencodeclient.data.FileNode>()) }
     var loading by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentPath) {
         loading = true
-        entries = viewModel.listServerFiles(currentPath.ifBlank { null })
+        entries = viewModel.listServerFiles(currentPath)
         loading = false
     }
 
@@ -571,7 +571,7 @@ private fun ServerFolderBrowser(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                currentPath.ifBlank { "/" },
+                currentPath,
                 style = MaterialTheme.typography.bodyMedium,
                 fontFamily = FontFamily.Monospace,
                 maxLines = 1,
@@ -585,13 +585,14 @@ private fun ServerFolderBrowser(
                 Text(stringResource(R.string.add_project_browse_empty), style = MaterialTheme.typography.bodySmall)
             } else {
                 LazyColumn {
-                    if (currentPath.isNotBlank()) {
+                    if (currentPath != "/") {
                         item {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        currentPath = currentPath.trimEnd('/').substringBeforeLast('/')
+                                        val parent = currentPath.trimEnd('/').substringBeforeLast('/')
+                                        currentPath = parent.ifBlank { "/" }
                                     }
                                     .padding(vertical = 10.dp, horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -607,7 +608,7 @@ private fun ServerFolderBrowser(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    currentPath = node.path.ifBlank { "$currentPath/${node.name}".trimStart('/') }
+                                    currentPath = node.path.ifBlank { "${currentPath.trimEnd('/')}/${node.name}" }
                                 }
                                 .padding(vertical = 10.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
