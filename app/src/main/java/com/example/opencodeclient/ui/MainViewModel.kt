@@ -121,6 +121,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
+    private val _collapsedMessageIds = MutableStateFlow<Set<String>>(emptySet())
+    val collapsedMessageIds: StateFlow<Set<String>> = _collapsedMessageIds.asStateFlow()
+
     private val _todos = MutableStateFlow<List<TodoUi>>(emptyList())
     val todos: StateFlow<List<TodoUi>> = _todos.asStateFlow()
 
@@ -729,6 +732,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _currentModelId.value = s.model?.id
         settings.setLastSessionId(s.id)
         loadMessages()
+    }
+
+    fun toggleMessageCollapsed(id: String?) {
+        if (id == null) return
+        val current = _collapsedMessageIds.value
+        _collapsedMessageIds.value = if (id in current) current - id else current + id
     }
 
     private fun buildText(parts: List<Part>): String =

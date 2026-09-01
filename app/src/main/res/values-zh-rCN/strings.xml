@@ -65,6 +65,10 @@
     <string name="chat_abort">中止</string>
     <string name="chat_refresh">刷新</string>
     <string name="chat_agent">代理</string>
+    <string name="message_collapse_toggle">折叠/展开消息</string>
+    <string name="message_collapsed">消息已折叠</string>
+    <string name="message_raw">查看原始消息</string>
+    <string name="message_raw_title">原始消息</string>
 
     <!-- Settings -->
     <string name="settings_title">设置</string>
