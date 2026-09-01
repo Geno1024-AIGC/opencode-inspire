@@ -134,7 +134,6 @@ private fun parseMarkdown(text: String): List<Any> {
             line.trimStart().startsWith("|") && i + 1 < lines.size && lines[i + 1].trimStart().startsWith("|") -> {
                 val headers = line.split("|").map { it.trim() }.filter { it.isNotEmpty() }
                 i++
-                val separator = lines[i]
                 i++
                 val rows = mutableListOf<List<String>>()
                 while (i < lines.size && lines[i].trimStart().startsWith("|")) {
@@ -150,12 +149,28 @@ private fun parseMarkdown(text: String): List<Any> {
             line.startsWith("#### ") -> result.add(MdLine("h4", line.removePrefix("#### ")))
             line.startsWith("##### ") -> result.add(MdLine("h5", line.removePrefix("##### ")))
             line.startsWith("###### ") -> result.add(MdLine("h6", line.removePrefix("###### ")))
-            line.startsWith("- ") || line.startsWith("* ") -> result.add(MdLine("bullet", line.substring(2)))
-            line.matches(Regex("^\\d+\\.\\s.*")) -> {
-                val content = line.replace(Regex("^\\d+\\.\\s"), "")
-                result.add(MdLine("ordered", content))
+            line.matches(Regex("^\\s*[-*]\\s\\[x\\]\\s.*")) -> {
+                val indent = line.length - line.trimStart().length
+                val content = line.trimStart().removePrefix("- ").removePrefix("* ").removePrefix("[x] ")
+                result.add(MdLine("task_checked", content, indent / 2))
+            }
+            line.matches(Regex("^\\s*[-*]\\s\\[ \\]\\s.*")) -> {
+                val indent = line.length - line.trimStart().length
+                val content = line.trimStart().removePrefix("- ").removePrefix("* ").removePrefix("[ ] ")
+                result.add(MdLine("task_unchecked", content, indent / 2))
+            }
+            line.matches(Regex("^\\s*[-*]\\s.*")) -> {
+                val indent = line.length - line.trimStart().length
+                val content = line.trimStart().removePrefix("- ").removePrefix("* ")
+                result.add(MdLine("bullet", content, indent / 2))
+            }
+            line.matches(Regex("^\\s*\\d+\\.\\s.*")) -> {
+                val indent = line.length - line.trimStart().length
+                val content = line.trimStart().replace(Regex("^\\d+\\.\\s"), "")
+                result.add(MdLine("ordered", content, indent / 2))
             }
             line.startsWith("> ") -> result.add(MdLine("quote", line.removePrefix("> ")))
+            line.matches(Regex("^\\s*[-*_]{3,}\\s*$")) -> result.add(MdLine("hr", ""))
             line.isBlank() -> result.add(MdLine("blank", ""))
             else -> result.add(MdLine("text", line))
         }
@@ -176,86 +191,114 @@ fun MarkdownMessage(content: String) {
             for (item in items) {
                 when (item) {
                     is MdTable -> TableRenderer(item)
-                    is MdLine -> when (item.type) {
-                        "h1" -> Text(
-                            parseInline(item.content, MaterialTheme.colorScheme.primary),
-                            style = MaterialTheme.typography.headlineLarge,
-                            modifier = Modifier.padding(vertical = 8.dp),
-                        )
-                        "h2" -> Text(
-                            parseInline(item.content, MaterialTheme.colorScheme.primary),
-                            style = MaterialTheme.typography.headlineMedium,
-                            modifier = Modifier.padding(vertical = 6.dp),
-                        )
-                        "h3" -> Text(
-                            parseInline(item.content, MaterialTheme.colorScheme.primary),
-                            style = MaterialTheme.typography.headlineSmall,
-                            modifier = Modifier.padding(vertical = 4.dp),
-                        )
-                        "h4" -> Text(
-                            parseInline(item.content, MaterialTheme.colorScheme.primary),
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(vertical = 4.dp),
-                        )
-                        "h5" -> Text(
-                            parseInline(item.content, MaterialTheme.colorScheme.primary),
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(vertical = 2.dp),
-                        )
-                        "h6" -> Text(
-                            parseInline(item.content, MaterialTheme.colorScheme.primary),
-                            style = MaterialTheme.typography.titleSmall,
-                            modifier = Modifier.padding(vertical = 2.dp),
-                        )
-                        "bullet" -> Text(
-                            buildAnnotatedString {
-                                append("•  ")
-                                append(parseInline(item.content, MaterialTheme.colorScheme.primary))
-                            },
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
-                        )
-                        "ordered" -> Text(
-                            parseInline(item.content, MaterialTheme.colorScheme.primary),
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
-                        )
-                        "quote" -> Text(
-                            parseInline(item.content, MaterialTheme.colorScheme.primary),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier
-                                .padding(start = 16.dp, top = 2.dp, bottom = 2.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                    RoundedCornerShape(4.dp)
-                                )
-                                .padding(8.dp),
-                        )
-                        "code" -> Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                    RoundedCornerShape(8.dp)
-                                )
-                                .padding(12.dp)
-                        ) {
-                            Text(
-                                item.content,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 13.sp,
-                                ),
-                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    is MdLine -> {
+                        val indent = (item.level * 16).dp
+                        when (item.type) {
+                            "h1" -> Text(
+                                parseInline(item.content, MaterialTheme.colorScheme.primary),
+                                style = MaterialTheme.typography.headlineLarge,
+                                modifier = Modifier.padding(vertical = 8.dp),
                             )
+                            "h2" -> Text(
+                                parseInline(item.content, MaterialTheme.colorScheme.primary),
+                                style = MaterialTheme.typography.headlineMedium,
+                                modifier = Modifier.padding(vertical = 6.dp),
+                            )
+                            "h3" -> Text(
+                                parseInline(item.content, MaterialTheme.colorScheme.primary),
+                                style = MaterialTheme.typography.headlineSmall,
+                                modifier = Modifier.padding(vertical = 4.dp),
+                            )
+                            "h4" -> Text(
+                                parseInline(item.content, MaterialTheme.colorScheme.primary),
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.padding(vertical = 4.dp),
+                            )
+                            "h5" -> Text(
+                                parseInline(item.content, MaterialTheme.colorScheme.primary),
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(vertical = 2.dp),
+                            )
+                            "h6" -> Text(
+                                parseInline(item.content, MaterialTheme.colorScheme.primary),
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(vertical = 2.dp),
+                            )
+                            "bullet" -> Text(
+                                buildAnnotatedString {
+                                    append("•  ")
+                                    append(parseInline(item.content, MaterialTheme.colorScheme.primary))
+                                },
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                            )
+                            "ordered" -> Text(
+                                parseInline(item.content, MaterialTheme.colorScheme.primary),
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                            )
+                            "task_checked" -> Text(
+                                buildAnnotatedString {
+                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                                        append("☑  ")
+                                    }
+                                    append(parseInline(item.content, MaterialTheme.colorScheme.primary))
+                                },
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                            )
+                            "task_unchecked" -> Text(
+                                buildAnnotatedString {
+                                    append("☐  ")
+                                    append(parseInline(item.content, MaterialTheme.colorScheme.primary))
+                                },
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                            )
+                            "quote" -> Text(
+                                parseInline(item.content, MaterialTheme.colorScheme.primary),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .padding(start = 16.dp, top = 2.dp, bottom = 2.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                        RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(8.dp),
+                            )
+                            "code" -> Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(12.dp)
+                            ) {
+                                Text(
+                                    item.content,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 13.sp,
+                                    ),
+                                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                )
+                            }
+                            "hr" -> Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                                    .height(1.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant)
+                            )
+                            "text" -> Text(
+                                parseInline(item.content, MaterialTheme.colorScheme.primary),
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(vertical = 2.dp),
+                            )
+                            "blank" -> {}
                         }
-                        "text" -> Text(
-                            parseInline(item.content, MaterialTheme.colorScheme.primary),
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(vertical = 2.dp),
-                        )
-                        "blank" -> {}
                     }
                 }
             }

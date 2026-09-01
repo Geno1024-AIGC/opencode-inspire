@@ -1004,7 +1004,33 @@ private fun summarizeInput(tool: String, o: JsonObject): String {
     val query = o["query"]?.jsonPrimitive?.contentOrNull
     if (query != null) return query
     val file = o["file"]?.jsonPrimitive?.contentOrNull ?: o["filePath"]?.jsonPrimitive?.contentOrNull
-    if (file != null) return file
+    if (file != null) {
+        return when (tool) {
+            "read" -> {
+                val offset = o["offset"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                val limit = o["limit"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+                buildString {
+                    append(file)
+                    if (offset != null) append(":$offset")
+                    if (limit != null) append(" (${limit} lines)")
+                }
+            }
+            "edit" -> {
+                val old = o["oldString"]?.jsonPrimitive?.contentOrNull ?: ""
+                val new = o["newString"]?.jsonPrimitive?.contentOrNull ?: ""
+                buildString {
+                    append(file)
+                    if (old.isNotBlank()) append("\n- ${old.take(80)}${if (old.length > 80) "..." else ""}")
+                    if (new.isNotBlank()) append("\n+ ${new.take(80)}${if (new.length > 80) "..." else ""}")
+                }
+            }
+            "write" -> {
+                val content = o["content"]?.jsonPrimitive?.contentOrNull ?: ""
+                "$file (${content.length} chars)"
+            }
+            else -> file
+        }
+    }
     val url = o["url"]?.jsonPrimitive?.contentOrNull
     if (url != null) return url
     val path = o["path"]?.jsonPrimitive?.contentOrNull
@@ -1026,7 +1052,7 @@ private fun bashDetails(inputObj: JsonObject?, trimmed: String, raw: String, lab
 private fun readDetails(tool: String, trimmed: String, raw: String): ToolDetails {
     return ToolDetails(
         outputText = summarizeText(trimmed),
-        note = "(content length ${trimmed.length} chars)",
+        note = "${trimmed.length} chars",
     )
 }
 
@@ -1035,7 +1061,6 @@ private fun fileEditDetails(tool: String, inputObj: JsonObject?, trimmed: String
         ?: inputObj?.get("filePath")?.jsonPrimitive?.contentOrNull
         ?: inputObj?.get("path")?.jsonPrimitive?.contentOrNull
     return ToolDetails(
-        inputSummary = inputObj?.let { prettyJson(it) } ?: "",
         outputPrefix = if (file != null) "${labels.edited} $file" else null,
         outputText = summarizeText(trimmed),
     )
