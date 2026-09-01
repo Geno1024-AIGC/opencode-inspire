@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
@@ -746,11 +747,13 @@ private fun MessageBubble(
                 }
                 if (msg.text.isNotBlank()) {
                     if (isUser) {
-                        Text(
-                            msg.text.trim(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = onBackground,
-                        )
+                        SelectionContainer {
+                            Text(
+                                msg.text.trim(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = onBackground,
+                            )
+                        }
                     } else {
                         MarkdownMessage(msg.text.trim(), color = onBackground)
                     }
@@ -1081,17 +1084,31 @@ private fun fileEditDetails(tool: String, inputObj: JsonObject?, trimmed: String
 
 private fun webSearchDetails(trimmed: String): ToolDetails {
     val rows = mutableListOf<Pair<String, String>>()
+    var extraNote: String? = null
     val elems = runCatching { Json.parseToJsonElement(trimmed) }.getOrNull()
     if (elems is JsonArray) {
-        elems.forEachIndexed { i, el ->
-            val title = (el as? JsonObject)?.get("title")?.jsonPrimitive?.contentOrNull
-            val url = (el as? JsonObject)?.get("url")?.jsonPrimitive?.contentOrNull
+        elems.take(8).forEachIndexed { i, el ->
+            val obj = el as? JsonObject
+            val title = obj?.get("title")?.jsonPrimitive?.contentOrNull
+            val url = obj?.get("url")?.jsonPrimitive?.contentOrNull
+            val snippet = obj?.get("snippet")?.jsonPrimitive?.contentOrNull
+                ?: obj?.get("excerpt")?.jsonPrimitive?.contentOrNull
+                ?: obj?.get("description")?.jsonPrimitive?.contentOrNull
             if (title != null || url != null) {
-                rows.add("#${i + 1}" to (title ?: url ?: ""))
+                val display = buildString {
+                    append(title ?: url ?: "")
+                    if (snippet != null && snippet.isNotBlank()) {
+                        append("\n")
+                        append(snippet.take(120))
+                        if (snippet.length > 120) append("…")
+                    }
+                }
+                rows.add("#${i + 1}" to display)
             }
         }
+        if (elems.size > 8) extraNote = "+${elems.size - 8} more results"
     }
-    return if (rows.isNotEmpty()) ToolDetails(outputRows = rows)
+    return if (rows.isNotEmpty()) ToolDetails(outputRows = rows, note = extraNote)
     else ToolDetails(outputText = summarizeText(trimmed))
 }
 
@@ -1156,13 +1173,15 @@ private fun ReasoningBlock(reasoning: String) {
                 fontWeight = FontWeight.Bold,
             )
         }
-        Text(
-            reasoning.trim(),
-            style = MaterialTheme.typography.bodySmall,
-            fontStyle = FontStyle.Italic,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontFamily = FontFamily.Monospace,
-        )
+        SelectionContainer {
+            Text(
+                reasoning.trim(),
+                style = MaterialTheme.typography.bodySmall,
+                fontStyle = FontStyle.Italic,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
     }
 }
 
