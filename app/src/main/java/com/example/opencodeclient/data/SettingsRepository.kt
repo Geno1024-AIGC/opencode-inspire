@@ -25,6 +25,8 @@ class SettingsRepository(private val context: Context) {
         val SERVERS = stringPreferencesKey("servers")
         val SHORT_TOKENS = booleanPreferencesKey("short_tokens")
         val THEME = stringPreferencesKey("theme")
+        val THEME_PRESET = stringPreferencesKey("theme_preset")
+        val CUSTOM_THEME_COLORS = stringPreferencesKey("custom_theme_colors")
         val LANGUAGE = stringPreferencesKey("language")
         val CHANNEL = stringPreferencesKey("channel")
         val USER_BUBBLE_COLOR = longPreferencesKey("user_bubble_color")
@@ -49,6 +51,8 @@ class SettingsRepository(private val context: Context) {
 
     val shortTokens: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHORT_TOKENS] ?: true }
     val theme: Flow<String> = context.dataStore.data.map { it[Keys.THEME] ?: "system" }
+    val themePreset: Flow<String> = context.dataStore.data.map { it[Keys.THEME_PRESET] ?: "default" }
+    val customThemeColors: Flow<String> = context.dataStore.data.map { it[Keys.CUSTOM_THEME_COLORS] ?: "{}" }
     val language: Flow<String> = context.dataStore.data.map { it[Keys.LANGUAGE] ?: "system" }
     val channel: Flow<String> = context.dataStore.data.map { it[Keys.CHANNEL] ?: "release" }
     val userBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.USER_BUBBLE_COLOR] ?: -1L }
@@ -60,6 +64,14 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setTheme(value: String) {
         context.dataStore.edit { it[Keys.THEME] = value }
+    }
+
+    suspend fun setThemePreset(value: String) {
+        context.dataStore.edit { it[Keys.THEME_PRESET] = value }
+    }
+
+    suspend fun setCustomThemeColors(json: String) {
+        context.dataStore.edit { it[Keys.CUSTOM_THEME_COLORS] = json }
     }
 
     suspend fun setLanguage(value: String) {
