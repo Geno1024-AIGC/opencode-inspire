@@ -325,7 +325,6 @@ private fun TableRenderer(table: MdTable) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .horizontalScroll(rememberScrollState())
             .background(borderColor)
             .padding(1.dp)
     ) {
