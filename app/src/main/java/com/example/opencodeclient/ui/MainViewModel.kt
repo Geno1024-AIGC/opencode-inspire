@@ -672,6 +672,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun listServerFiles(path: String? = null): List<com.example.opencodeclient.data.FileNode> {
+        val c = client ?: return emptyList()
+        return try {
+            withContext(Dispatchers.IO) { c.listFiles(path) }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
     private fun selectProjectByWorktree(worktree: String) {
         _projects.value.firstOrNull { it.worktree == worktree }?.let {
             _selectedProjectId.value = it.id
