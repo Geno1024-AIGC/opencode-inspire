@@ -3,7 +3,9 @@ package com.example.opencodeclient.ui
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -163,6 +165,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _commands = MutableStateFlow<List<Command>>(emptyList())
     val commands: StateFlow<List<Command>> = _commands.asStateFlow()
 
+    private val _downloadPercent = MutableStateFlow(-1)
+    val downloadPercent: StateFlow<Int> = _downloadPercent.asStateFlow()
+    private val _downloadDone = MutableStateFlow(0L)
+    val downloadDone: StateFlow<Long> = _downloadDone.asStateFlow()
+    private val _downloadTotal = MutableStateFlow(0L)
+    val downloadTotal: StateFlow<Long> = _downloadTotal.asStateFlow()
+    private val _downloadSpeed = MutableStateFlow(0L)
+    val downloadSpeed: StateFlow<Long> = _downloadSpeed.asStateFlow()
+
     private val _models = MutableStateFlow<List<ModelInfo>>(emptyList())
     val models: StateFlow<List<ModelInfo>> = _models.asStateFlow()
 
@@ -262,6 +273,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun showDownloadProgress(downloaded: Long, total: Long, speed: Long = 0L) {
         val context = getApplication<Application>()
         val progress = if (total > 0L) (downloaded * 100L / total).toInt().coerceIn(0, 100) else -1
+        _downloadPercent.value = progress
+        _downloadDone.value = downloaded
+        _downloadTotal.value = total
+        _downloadSpeed.value = speed
         val eta = if (total > 0L && speed > 0L && downloaded < total) {
             context.getString(R.string.download_eta, formatEta((total - downloaded) / speed))
         } else ""
@@ -280,12 +295,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 formatSpeed(speed))
         }
         val fullText = if (eta.isNotEmpty()) "$detail · $eta" else detail
+
+        val contentIntent = PendingIntent.getActivity(
+            context, 0,
+            Intent(context, com.example.opencodeclient.MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val cancelIntent = PendingIntent.getBroadcast(
+            context, 0,
+            Intent(context, com.example.opencodeclient.DownloadCancelReceiver::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
         val builder = android.app.Notification.Builder(context, "download")
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(context.getString(R.string.download_title))
             .setContentText(fullText)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
+            .setContentIntent(contentIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, context.getString(R.string.cancel), cancelIntent)
         if (total > 0L) {
             builder.setProgress(100, progress, false)
         } else {
@@ -297,6 +326,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         } catch (_: Exception) {
         }
+    }
+
+    fun dismissDownload() {
+        _downloadPercent.value = -1
+        _downloadDone.value = 0L
+        _downloadTotal.value = 0L
+        _downloadSpeed.value = 0L
+        cancelDownloadNotification()
     }
 
     fun cancelDownloadNotification() {
