@@ -9,19 +9,26 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.ui.MainViewModel
@@ -99,6 +106,7 @@ class MainActivity : ComponentActivity() {
 
                         val ctx = androidx.compose.ui.platform.LocalContext.current
                         val scope = rememberCoroutineScope()
+                        var downloadPercent by remember { mutableIntStateOf(-1) }
                         updateInfo?.let { info ->
                             AlertDialog(
                                 onDismissRequest = viewModel::dismissUpdate,
@@ -108,6 +116,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 confirmButton = {
                                     TextButton(onClick = {
+                                        downloadPercent = 0
                                         scope.launch {
                                             val apk = runCatching {
                                                 withContext(Dispatchers.IO) {
@@ -118,14 +127,29 @@ class MainActivity : ComponentActivity() {
                                                         readTimeout = 15000
                                                         addRequestProperty("User-Agent", "opencode-inspire")
                                                     }
+                                                    val total = conn.contentLength.toLong().coerceAtLeast(0L)
+                                                    var downloaded = 0L
+                                                    val buf = ByteArray(8192)
                                                     conn.inputStream.use { input ->
-                                                        file.outputStream().use { output -> input.copyTo(output) }
+                                                        file.outputStream().use { output ->
+                                                            var n: Int
+                                                            while (input.read(buf).also { n = it } != -1) {
+                                                                output.write(buf, 0, n)
+                                                                downloaded += n
+                                                                withContext(Dispatchers.Main) {
+                                                                    downloadPercent = if (total > 0L) (downloaded * 100L / total).toInt().coerceIn(0, 100) else -1
+                                                                }
+                                                                viewModel.showDownloadProgress(downloaded, total)
+                                                            }
+                                                        }
                                                     }
                                                     conn.disconnect()
                                                     file
                                                 }
                                             }.getOrNull()
+                                            downloadPercent = -1
                                             viewModel.dismissUpdate()
+                                            viewModel.cancelDownloadNotification()
                                             if (apk != null && apk.exists() && apk.length() > 0L) {
                                                 val uri = androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", apk)
                                                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
@@ -143,6 +167,29 @@ class MainActivity : ComponentActivity() {
                                 dismissButton = {
                                     TextButton(onClick = viewModel::dismissUpdate) { Text(stringResource(R.string.update_later)) }
                                 },
+                            )
+                        }
+                        if (downloadPercent >= 0) {
+                            AlertDialog(
+                                onDismissRequest = {},
+                                title = { Text(stringResource(R.string.download_title)) },
+                                text = {
+                                    val pct = downloadPercent
+                                    Text(
+                                        if (pct >= 0) stringResource(R.string.download_percent, pct) else "",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                    )
+                                    if (pct >= 0) {
+                                        LinearProgressIndicator(
+                                            progress = { pct / 100f },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    } else {
+                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    }
+                                },
+                                confirmButton = {},
                             )
                         }
                         updateMessage?.let { message ->

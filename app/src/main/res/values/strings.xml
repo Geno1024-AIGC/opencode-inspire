@@ -115,6 +115,8 @@
     <string name="update_open">Open</string>
     <string name="update_download">Download &amp; install</string>
     <string name="update_download_failed">Update download failed</string>
+    <string name="download_title">Downloading update…</string>
+    <string name="download_percent">%1$d%%</string>
     <string name="update_later">Later</string>
     <string name="ok">OK</string>
 

@@ -115,6 +115,8 @@
     <string name="update_open">打开</string>
     <string name="update_download">下载并安装</string>
     <string name="update_download_failed">更新下载失败</string>
+    <string name="download_title">正在下载更新…</string>
+    <string name="download_percent">%1$d%%</string>
     <string name="update_later">稍后</string>
     <string name="ok">确定</string>
 
