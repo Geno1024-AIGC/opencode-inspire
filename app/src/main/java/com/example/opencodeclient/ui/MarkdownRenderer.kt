@@ -13,18 +13,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,90 +39,152 @@ import androidx.compose.ui.unit.sp
 private data class MdSpan(val start: Int, val end: Int, val style: SpanStyle?)
 private data class MdLine(val type: String, val content: String, val level: Int = 0)
 private data class MdTable(val headers: List<String>, val rows: List<List<String>>)
+private data class MdInline(val annotated: AnnotatedString, val codes: List<String>)
 
-private fun parseInline(text: String): AnnotatedString = parseInlineInternal(text)
+private val InlineCodePadH = 4.dp
+private val InlineCodePadV = 1.5.dp
 
-private fun parseInline(text: String, linkColor: androidx.compose.ui.graphics.Color): AnnotatedString = parseInlineInternal(text, linkColor)
+@Composable
+private fun InlineMarkdownText(
+    content: String,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+    linkColor: androidx.compose.ui.graphics.Color? = null,
+    prefix: String? = null,
+) {
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val parsed = remember(content, linkColor, style) { parseInlineInternal(content, linkColor) }
+    val chipStyle = style.copy(fontFamily = MonoFontFamily)
+    val inlineContent = remember(parsed.codes, chipStyle) {
+        val pxPerSp = density.density * density.fontScale
+        parsed.codes.mapIndexed { idx, code ->
+            with(density) {
+                val m = measurer.measure(code, chipStyle)
+                val wPx = (m.size.width + (InlineCodePadH * 2).toPx()) / pxPerSp
+                val hPx = (m.size.height + (InlineCodePadV * 2).toPx()) / pxPerSp
+                "code-$idx" to InlineTextContent(
+                    placeholder = Placeholder(
+                        width = wPx.sp,
+                        height = hPx.sp,
+                        placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter,
+                    ),
+                ) { InlineCodeChip(code, chipStyle) }
+            }
+        }.toMap()
+    }
+    val annotated = if (prefix != null) {
+        buildAnnotatedString {
+            append(prefix)
+            append(parsed.annotated)
+        }
+    } else {
+        parsed.annotated
+    }
+    Text(
+        annotated,
+        style = style,
+        modifier = modifier,
+        inlineContent = inlineContent,
+    )
+}
 
-private fun parseInlineInternal(text: String, linkColor: androidx.compose.ui.graphics.Color? = null): AnnotatedString {
-    return buildAnnotatedString {
-        var i = 0
-        while (i < text.length) {
-            when {
-                text.startsWith("**", i) || text.startsWith("__", i) -> {
-                    val close = text.indexOf(if (text[i] == '*') "**" else "__", i + 2)
-                    if (close > 0) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                            append(text.substring(i + 2, close))
-                        }
-                        i = close + 2
-                    } else {
-                        append(text[i]); i++
+@Composable
+private fun InlineCodeChip(code: String, style: TextStyle) {
+    Text(
+        code,
+        style = style,
+        modifier = Modifier
+            .padding(horizontal = InlineCodePadH, vertical = InlineCodePadV)
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                RoundedCornerShape(3.dp),
+            ),
+    )
+}
+
+private fun parseInline(text: String): MdInline = parseInlineInternal(text)
+
+private fun parseInline(text: String, linkColor: androidx.compose.ui.graphics.Color): MdInline =
+    parseInlineInternal(text, linkColor)
+
+private fun parseInlineInternal(text: String, linkColor: androidx.compose.ui.graphics.Color? = null): MdInline {
+    val builder = AnnotatedString.Builder()
+    val codes = mutableListOf<String>()
+    var i = 0
+    var codeIndex = 0
+    while (i < text.length) {
+        when {
+            text.startsWith("**", i) || text.startsWith("__", i) -> {
+                val close = text.indexOf(if (text[i] == '*') "**" else "__", i + 2)
+                if (close > 0) {
+                    builder.withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(text.substring(i + 2, close))
                     }
+                    i = close + 2
+                } else {
+                    builder.append(text[i]); i++
                 }
-                text.startsWith("*", i) && (i + 1 < text.length && text[i + 1] != '*') -> {
-                    val close = text.indexOf("*", i + 1)
-                    if (close > 0 && close > i + 1) {
-                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                            append(text.substring(i + 1, close))
-                        }
-                        i = close + 1
-                    } else {
-                        append(text[i]); i++
+            }
+            text.startsWith("*", i) && (i + 1 < text.length && text[i + 1] != '*') -> {
+                val close = text.indexOf("*", i + 1)
+                if (close > 0 && close > i + 1) {
+                    builder.withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                        append(text.substring(i + 1, close))
                     }
+                    i = close + 1
+                } else {
+                    builder.append(text[i]); i++
                 }
-                text.startsWith("_", i) && (i + 1 < text.length && text[i + 1] != '_') -> {
-                    val close = text.indexOf("_", i + 1)
-                    if (close > 0 && close > i + 1) {
-                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                            append(text.substring(i + 1, close))
-                        }
-                        i = close + 1
-                    } else {
-                        append(text[i]); i++
+            }
+            text.startsWith("_", i) && (i + 1 < text.length && text[i + 1] != '_') -> {
+                val close = text.indexOf("_", i + 1)
+                if (close > 0 && close > i + 1) {
+                    builder.withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                        append(text.substring(i + 1, close))
                     }
+                    i = close + 1
+                } else {
+                    builder.append(text[i]); i++
                 }
-                text.startsWith("`", i) -> {
-                    val close = text.indexOf("`", i + 1)
-                    if (close > 0) {
-                        withStyle(
-                            SpanStyle(
-                                fontFamily = MonoFontFamily,
-                                background = androidx.compose.ui.graphics.Color(0x22000000),
-                            )
-                        ) {
-                            append(text.substring(i + 1, close))
-                        }
-                        i = close + 1
-                    } else {
-                        append(text[i]); i++
-                    }
+            }
+            text.startsWith("`", i) -> {
+                val close = text.indexOf("`", i + 1)
+                if (close > 0) {
+                    val code = text.substring(i + 1, close)
+                    codes.add(code)
+                    builder.appendInlineContent("code-$codeIndex", code)
+                    codeIndex++
+                    i = close + 1
+                } else {
+                    builder.append(text[i]); i++
                 }
-                text.startsWith("[", i) -> {
-                    val closeBracket = text.indexOf("]", i)
-                    val openParen = if (closeBracket > 0) text.indexOf("(", closeBracket) else -1
-                    val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
-                    if (closeBracket > 0 && openParen == closeBracket + 1 && closeParen > openParen) {
-                        val linkText = text.substring(i + 1, closeBracket)
-                        val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
-                        if (color != androidx.compose.ui.graphics.Color.Unspecified) {
-                            withStyle(SpanStyle(color = color)) {
-                                append(linkText)
-                            }
-                        } else {
+            }
+            text.startsWith("[", i) -> {
+                val closeBracket = text.indexOf("]", i)
+                val openParen = if (closeBracket > 0) text.indexOf("(", closeBracket) else -1
+                val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
+                if (closeBracket > 0 && openParen == closeBracket + 1 && closeParen > openParen) {
+                    val linkText = text.substring(i + 1, closeBracket)
+                    val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
+                    if (color != androidx.compose.ui.graphics.Color.Unspecified) {
+                        builder.withStyle(SpanStyle(color = color)) {
                             append(linkText)
                         }
-                        i = closeParen + 1
                     } else {
-                        append(text[i]); i++
+                        builder.append(linkText)
                     }
+                    i = closeParen + 1
+                } else {
+                    builder.append(text[i]); i++
                 }
-                else -> {
-                    append(text[i]); i++
-                }
+            }
+            else -> {
+                builder.append(text[i]); i++
             }
         }
     }
+    return MdInline(builder.toAnnotatedString(), codes)
 }
 
 private fun parseMarkdown(text: String): List<Any> {
@@ -204,77 +273,80 @@ fun MarkdownMessage(content: String) {
                     is MdLine -> {
                         val indent = (item.level * 16).dp
                         when (item.type) {
-                            "h1" -> Text(
-                                parseInline(item.content, MaterialTheme.colorScheme.primary),
-                                style = MaterialTheme.typography.headlineLarge,
-                                modifier = Modifier.padding(vertical = 8.dp),
+                            "h1" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.headlineLarge,
+                                Modifier.padding(vertical = 8.dp),
+                                MaterialTheme.colorScheme.primary,
                             )
-                            "h2" -> Text(
-                                parseInline(item.content, MaterialTheme.colorScheme.primary),
-                                style = MaterialTheme.typography.headlineMedium,
-                                modifier = Modifier.padding(vertical = 6.dp),
+                            "h2" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.headlineMedium,
+                                Modifier.padding(vertical = 6.dp),
+                                MaterialTheme.colorScheme.primary,
                             )
-                            "h3" -> Text(
-                                parseInline(item.content, MaterialTheme.colorScheme.primary),
-                                style = MaterialTheme.typography.headlineSmall,
-                                modifier = Modifier.padding(vertical = 4.dp),
+                            "h3" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.headlineSmall,
+                                Modifier.padding(vertical = 4.dp),
+                                MaterialTheme.colorScheme.primary,
                             )
-                            "h4" -> Text(
-                                parseInline(item.content, MaterialTheme.colorScheme.primary),
-                                style = MaterialTheme.typography.titleLarge,
-                                modifier = Modifier.padding(vertical = 4.dp),
+                            "h4" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.titleLarge,
+                                Modifier.padding(vertical = 4.dp),
+                                MaterialTheme.colorScheme.primary,
                             )
-                            "h5" -> Text(
-                                parseInline(item.content, MaterialTheme.colorScheme.primary),
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(vertical = 2.dp),
+                            "h5" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.titleMedium,
+                                Modifier.padding(vertical = 2.dp),
+                                MaterialTheme.colorScheme.primary,
                             )
-                            "h6" -> Text(
-                                parseInline(item.content, MaterialTheme.colorScheme.primary),
-                                style = MaterialTheme.typography.titleSmall,
-                                modifier = Modifier.padding(vertical = 2.dp),
+                            "h6" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.titleSmall,
+                                Modifier.padding(vertical = 2.dp),
+                                MaterialTheme.colorScheme.primary,
                             )
-                            "bullet" -> Text(
-                                buildAnnotatedString {
-                                    append("•  ")
-                                    append(parseInline(item.content, MaterialTheme.colorScheme.primary))
-                                },
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                            "bullet" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.bodyLarge,
+                                Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                                MaterialTheme.colorScheme.primary,
+                                prefix = "•  ",
                             )
-                            "ordered" -> Text(
-                                parseInline(item.content, MaterialTheme.colorScheme.primary),
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                            "ordered" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.bodyLarge,
+                                Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                                MaterialTheme.colorScheme.primary,
                             )
-                            "task_checked" -> Text(
-                                buildAnnotatedString {
-                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                        append("☑  ")
-                                    }
-                                    append(parseInline(item.content, MaterialTheme.colorScheme.primary))
-                                },
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                            "task_checked" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.bodyLarge,
+                                Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                                MaterialTheme.colorScheme.primary,
+                                prefix = "☑  ",
                             )
-                            "task_unchecked" -> Text(
-                                buildAnnotatedString {
-                                    append("☐  ")
-                                    append(parseInline(item.content, MaterialTheme.colorScheme.primary))
-                                },
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                            "task_unchecked" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.bodyLarge,
+                                Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
+                                MaterialTheme.colorScheme.primary,
+                                prefix = "☐  ",
                             )
-                            "quote" -> Text(
-                                parseInline(item.content, MaterialTheme.colorScheme.primary),
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier
+                            "quote" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.bodyMedium,
+                                Modifier
                                     .padding(start = 16.dp, top = 2.dp, bottom = 2.dp)
                                     .background(
                                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                                         RoundedCornerShape(4.dp)
                                     )
                                     .padding(8.dp),
+                                MaterialTheme.colorScheme.primary,
                             )
                             "code" -> Box(
                                 modifier = Modifier
@@ -302,10 +374,11 @@ fun MarkdownMessage(content: String) {
                                     .height(1.dp)
                                     .background(MaterialTheme.colorScheme.outlineVariant)
                             )
-                            "text" -> Text(
-                                parseInline(item.content, MaterialTheme.colorScheme.primary),
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(vertical = 2.dp),
+                            "text" -> InlineMarkdownText(
+                                item.content,
+                                MaterialTheme.typography.bodyLarge,
+                                Modifier.padding(vertical = 2.dp),
+                                MaterialTheme.colorScheme.primary,
                             )
                             "blank" -> {}
                         }
@@ -337,9 +410,10 @@ private fun TableRenderer(table: MdTable) {
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text(
-                        parseInline(header, MaterialTheme.colorScheme.primary),
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    InlineMarkdownText(
+                        header,
+                        MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        linkColor = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -363,9 +437,10 @@ private fun TableRenderer(table: MdTable) {
                             .background(MaterialTheme.colorScheme.surface)
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text(
-                            parseInline(cell, MaterialTheme.colorScheme.primary),
-                            style = MaterialTheme.typography.bodyMedium,
+                        InlineMarkdownText(
+                            cell,
+                            MaterialTheme.typography.bodyMedium,
+                            linkColor = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
