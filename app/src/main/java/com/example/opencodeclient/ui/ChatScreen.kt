@@ -220,6 +220,12 @@ fun ChatScreen(
                 val reversedMessages = messages.asReversed()
                 itemsIndexed(reversedMessages, key = { idx, item -> item.id }) { index, msg ->
                     val prevCumulative = if (index + 1 < reversedMessages.size) reversedMessages[index + 1].cumulativeTokens else null
+                    val responseTime = if (msg.role == "assistant" && msg.time > 0L) {
+                        val precedingUserTime = (index + 1 until reversedMessages.size)
+                            .firstOrNull { reversedMessages[it].role == "user" && reversedMessages[it].time > 0L }
+                            ?.let { reversedMessages[it].time }
+                        if (precedingUserTime != null && msg.time > precedingUserTime) msg.time - precedingUserTime else null
+                    } else null
                     MessageBubble(
                         msg = msg,
                         cumulativeTokens = if (msg.cumulativeTokens > 0) msg.cumulativeTokens else null,
@@ -227,6 +233,7 @@ fun ChatScreen(
                             if (prevCumulative != null) (msg.cumulativeTokens - prevCumulative).coerceAtLeast(0L) else msg.cumulativeTokens
                         } else null,
                         sessionElapsed = if (index == 0) sessionElapsed else null,
+                        responseTime = responseTime,
                         userColor = userBubbleColor,
                         assistantColor = assistantBubbleColor,
                     )
@@ -698,6 +705,7 @@ private fun MessageBubble(
     cumulativeTokens: Long? = null,
     deltaTokens: Long? = null,
     sessionElapsed: Long? = null,
+    responseTime: Long? = null,
 ) {
     if (msg.role == "system") {
         SystemNotice(msg.text)
@@ -786,6 +794,15 @@ private fun MessageBubble(
                 modifier = Modifier.align(
                     if (isUser) Alignment.End else Alignment.Start
                 ).padding(top = 2.dp),
+            )
+        }
+        if (responseTime != null && responseTime > 0L) {
+            Text(
+                stringResource(R.string.session_elapsed, responseTime / 1000.0),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.align(Alignment.Start).padding(top = 2.dp),
             )
         }
     }
