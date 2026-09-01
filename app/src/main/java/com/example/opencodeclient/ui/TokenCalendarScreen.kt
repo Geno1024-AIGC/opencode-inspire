@@ -1,17 +1,23 @@
 package com.example.opencodeclient.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -23,16 +29,27 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.time.temporal.WeekFields
+import java.util.Locale
+
+const val CALENDAR_DAYS = 6 * 7
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,7 +65,9 @@ fun TokenCalendarScreen(
     }
 
     val total = history.values.sum()
-    val sorted = history.entries.sortedByDescending { it.key }
+    val locale = Locale.getDefault()
+    var shownMonth by remember { mutableStateOf(YearMonth.now()) }
+    var selected by remember { mutableStateOf<LocalDate?>(null) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -75,28 +94,97 @@ fun TokenCalendarScreen(
             ) {
                 Text(stringResource(R.string.calendar_total, total), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
-            HorizontalDivider()
-            if (sorted.isEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Spacer(Modifier.padding(top = 24.dp))
-                    Text(
-                        stringResource(R.string.calendar_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { shownMonth = shownMonth.minusMonths(1); selected = null }) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                Text(
+                    shownMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                IconButton(onClick = { shownMonth = shownMonth.plusMonths(1); selected = null }) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            CalendarGrid(
+                history = history,
+                shownMonth = shownMonth,
+                selected = selected,
+                onSelect = { selected = it },
+                locale = locale,
+            )
+            HorizontalDivider()
+            val selDate = selected
+            val detailText = if (selDate == null) {
+                stringResource(R.string.calendar_empty)
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(sorted, key = { it.key }) { (date, tokens) ->
-                        CalendarRow(date, tokens)
-                    }
+                val d = selDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale))
+                val selTokens = history[selDate.toString()] ?: 0L
+                if (selTokens > 0L) "$d · ${stringResource(R.string.calendar_day_tokens, selTokens)}" else d
+            }
+            Text(
+                detailText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarGrid(
+    history: Map<String, Long>,
+    shownMonth: YearMonth,
+    selected: LocalDate?,
+    onSelect: (LocalDate) -> Unit,
+    locale: Locale,
+) {
+    val firstDayOfWeek = WeekFields.of(locale).firstDayOfWeek.value
+    val first = shownMonth.atDay(1)
+    val leading = (first.dayOfWeek.value - firstDayOfWeek + 7) % 7
+    val gridStart = first.minusDays(leading.toLong())
+
+    val monthTokens = history
+        .filterKeys { runCatching { LocalDate.parse(it).let { d -> d.year == shownMonth.year && d.month == shownMonth.month } }.getOrDefault(false) }
+        .values
+    val monthMax = (monthTokens.maxOrNull() ?: 0L).coerceAtLeast(1L)
+
+    val startDow = DayOfWeek.of(firstDayOfWeek)
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            repeat(7) { i ->
+                Text(
+                    startDow.plus(i.toLong()).getDisplayName(TextStyle.SHORT, locale),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f).padding(vertical = 4.dp),
+                )
+            }
+        }
+        for (r in 0 until 6) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                for (c in 0 until 7) {
+                    val date = gridStart.plusDays((r * 7 + c).toLong())
+                    val inMonth = date.month == first.month && date.year == first.year
+                    val tokens = history[date.toString()] ?: 0L
+                    CalendarDayCell(
+                        date = date,
+                        inMonth = inMonth,
+                        tokens = tokens,
+                        selected = date == selected,
+                        intensity = if (tokens > 0L) tokens.toDouble() / monthMax else 0.0,
+                        onClick = { onSelect(date) },
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
@@ -104,28 +192,38 @@ fun TokenCalendarScreen(
 }
 
 @Composable
-private fun CalendarRow(dateKey: String, tokens: Long) {
-    val date = runCatching { LocalDate.parse(dateKey) }.getOrNull()
-    val display = date?.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)")) ?: dateKey
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun CalendarDayCell(
+    date: LocalDate,
+    inMonth: Boolean,
+    tokens: Long,
+    selected: Boolean,
+    intensity: Double,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val bg = if (inMonth && tokens > 0L) {
+        MaterialTheme.colorScheme.primary.copy(alpha = (0.12f + 0.55f * intensity).toFloat().coerceIn(0.12f, 0.67f))
+    } else {
+        Color.Transparent
+    }
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .padding(2.dp)
+            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier)
+            .background(bg, CircleShape)
+            .clickable(enabled = inMonth, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
-            display,
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            tokens.toString(),
-            style = MaterialTheme.typography.bodyLarge,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Medium,
+            date.dayOfMonth.toString(),
+            style = MaterialTheme.typography.bodySmall,
+            color = when {
+                !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                tokens > 0L || selected -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            fontWeight = if (tokens > 0L || selected) FontWeight.Bold else FontWeight.Normal,
         )
     }
 }
