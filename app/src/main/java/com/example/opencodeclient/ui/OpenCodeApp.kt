@@ -377,14 +377,9 @@ fun formatTokens(count: Long, short: Boolean = true): String = when {
     else -> count.toString()
 }
 
-fun formatBytes(bytes: Long): String = when {
-    bytes >= 1024L * 1024 * 1024 -> "%.2f GB".format(bytes / (1024.0 * 1024 * 1024))
-    bytes >= 1024L * 1024 -> "%.1f MB".format(bytes / (1024.0 * 1024))
-    bytes >= 1024L -> "%.1f KB".format(bytes / 1024.0)
-    else -> "$bytes B"
-}
+fun formatBytes(bytes: Long): String = bytes.toString()
 
-fun formatSpeed(bytesPerSec: Long): String = formatBytes(bytesPerSec) + "/s"
+fun formatSpeed(bytesPerSec: Long): String = bytesPerSec.toString()
 
 @Composable
 private fun ServersDialog(
