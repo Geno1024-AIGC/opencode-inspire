@@ -31,6 +31,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Read build number
+        id: buildnum
+        run: echo "build=$(git show HEAD:build_count.txt | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --no-daemon
 
@@ -46,9 +50,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          COMMIT_COUNT=$(git rev-list --count HEAD)
           SHORT_SHA=$(git rev-parse --short=8 HEAD)
-          TAG="0.1.${{ github.run_number }}.$COMMIT_COUNT.$SHORT_SHA"
+          BUILD="${{ steps.buildnum.outputs.build }}"
+          TAG="0.1.${{ github.run_number }}.$BUILD.$SHORT_SHA"
           APK="app/build/outputs/apk/debug/app-debug.apk"
           # Delete any previous canary prereleases so only the latest remains
           gh release list --limit 100 --json tagName,isPrerelease \
