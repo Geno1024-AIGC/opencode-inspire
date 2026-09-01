@@ -305,7 +305,7 @@ private fun ExpandableProject(
                         project.worktree,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = MonoFontFamily,
                     )
                 }
             }
@@ -570,7 +570,7 @@ private fun ServerFolderBrowser(
             Text(
                 currentPath,
                 style = MaterialTheme.typography.bodyMedium,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = MonoFontFamily,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
