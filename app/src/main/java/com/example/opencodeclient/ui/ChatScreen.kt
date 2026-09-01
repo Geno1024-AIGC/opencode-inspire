@@ -85,11 +85,6 @@ import com.example.opencodeclient.data.FileNode
 import com.example.opencodeclient.data.ModelInfo
 import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.Tokens
-import com.mikepenz.markdown.compose.components.MarkdownComponentModel
-import com.mikepenz.markdown.compose.components.markdownComponents
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.model.DefaultMarkdownTypography
-import com.mikepenz.markdown.model.MarkdownTypography
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -558,69 +553,17 @@ private fun SendingIndicator() {
 
 @Composable
 private fun MarkdownMessage(content: String, color: Color = Color.Unspecified) {
-    val t = MaterialTheme.typography
-    val codeStyle = t.bodyMedium.copy(fontFamily = FontFamily.Monospace)
-    val typography: MarkdownTypography = DefaultMarkdownTypography(
-        text = t.bodyLarge,
-        code = codeStyle,
-        h1 = t.headlineLarge,
-        h2 = t.headlineMedium,
-        h3 = t.headlineSmall,
-        h4 = t.titleLarge,
-        h5 = t.titleMedium,
-        h6 = t.titleSmall,
-        quote = t.bodyMedium,
-        paragraph = t.bodyLarge,
-        ordered = t.bodyLarge,
-        bullet = t.bodyLarge,
-        list = t.bodyLarge,
-    )
-    val components = markdownComponents(
-        codeFence = { model ->
-            CopyableCode(fenceCode(model.content, model.node))
-        },
-        codeBlock = { model ->
-            CopyableCode(blockCode(model.content, model.node))
-        },
-    )
     if (color != Color.Unspecified) {
-        androidx.compose.foundation.layout.BoxWithConstraints(
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.material3.LocalContentColor provides color
             ) {
-                Markdown(
-                    content = content,
-                    typography = typography,
-                    components = components,
-                )
+                com.example.opencodeclient.ui.MarkdownMessage(content)
             }
         }
     } else {
-        Markdown(
-            content = content,
-            typography = typography,
-            components = components,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        com.example.opencodeclient.ui.MarkdownMessage(content)
     }
-}
-
-private fun fenceCode(content: String, node: org.intellij.markdown.ast.ASTNode): String =
-    if (node.children.size >= 3) {
-        val start = node.children[2].startOffset
-        val end = node.children[node.children.size - 2].endOffset
-        content.substring(start, end).replaceIndent()
-    } else {
-        content
-    }
-
-private fun blockCode(content: String, node: org.intellij.markdown.ast.ASTNode): String {
-    if (node.children.isEmpty()) return content
-    val start = node.children[0].startOffset
-    val end = node.children[node.children.size - 1].endOffset
-    return content.substring(start, end).replaceIndent()
 }
 
 @Composable
