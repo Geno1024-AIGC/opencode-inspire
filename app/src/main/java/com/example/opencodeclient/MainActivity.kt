@@ -197,13 +197,22 @@ class MainActivity : ComponentActivity() {
                                 text = {
                                     val pct = downloadPercent
                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        if (pct >= 0) {
+                                            Text(
+                                                stringResource(R.string.download_percent, pct),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontFamily = FontFamily.Monospace,
+                                            )
+                                        }
                                         val detail = if (downloadTotal > 0L) {
                                             stringResource(R.string.download_progress_detail,
+                                                if (pct >= 0) "$pct%" else "",
                                                 formatBytes(downloadDone),
                                                 formatBytes(downloadTotal),
                                                 formatSpeed(downloadSpeed))
                                         } else {
                                             stringResource(R.string.download_progress_unknown,
+                                                if (pct >= 0) "$pct%" else "",
                                                 formatBytes(downloadDone),
                                                 formatSpeed(downloadSpeed))
                                         }
