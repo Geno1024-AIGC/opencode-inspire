@@ -6,11 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -485,16 +482,6 @@ private fun AddProjectDialog(
 ) {
     var directory by rememberSaveable { mutableStateOf("") }
     val workspaceState by viewModel.workspaceState.collectAsStateWithLifecycle()
-    val folderPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree(),
-    ) { uri ->
-        if (uri != null) {
-            val path = uri.path
-            if (!path.isNullOrBlank()) {
-                directory = path
-            }
-        }
-    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -505,26 +492,14 @@ private fun AddProjectDialog(
                     stringResource(R.string.add_project_hint),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedTextField(
-                        value = directory,
-                        onValueChange = { directory = it },
-                        label = { Text(stringResource(R.string.directory_label)) },
-                        placeholder = { Text(stringResource(R.string.directory_hint)) },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = { folderPickerLauncher.launch(null) }) {
-                        Icon(
-                            Icons.Filled.Folder,
-                            contentDescription = stringResource(R.string.add_project_browse),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
+                OutlinedTextField(
+                    value = directory,
+                    onValueChange = { directory = it },
+                    label = { Text(stringResource(R.string.directory_label)) },
+                    placeholder = { Text(stringResource(R.string.directory_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 if (workspaceState is UiState.Loading) {
                     Text(
                         (workspaceState as UiState.Loading).message,

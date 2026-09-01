@@ -751,8 +751,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
          viewModelScope.launch {
-            _sending.value = false
-            loadMessages()
+            if (sessionBusy[sid] != true) {
+                _sending.value = false
+                loadMessages()
+            }
             rollSessionStats(c, sid)
         }
     }
