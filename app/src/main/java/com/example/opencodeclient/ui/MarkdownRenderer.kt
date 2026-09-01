@@ -171,76 +171,76 @@ private fun parseMarkdown(text: String): List<Any> {
 fun MarkdownMessage(content: String) {
     val items = remember(content) { parseMarkdown(content) }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        for (item in items) {
-            when (item) {
-                is MdTable -> TableRenderer(item)
-                is MdLine -> when (item.type) {
-                    "h1" -> Text(
-                        parseInline(item.content, MaterialTheme.colorScheme.primary),
-                        style = MaterialTheme.typography.headlineLarge,
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
-                    "h2" -> Text(
-                        parseInline(item.content, MaterialTheme.colorScheme.primary),
-                        style = MaterialTheme.typography.headlineMedium,
-                        modifier = Modifier.padding(vertical = 6.dp),
-                    )
-                    "h3" -> Text(
-                        parseInline(item.content, MaterialTheme.colorScheme.primary),
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    )
-                    "h4" -> Text(
-                        parseInline(item.content, MaterialTheme.colorScheme.primary),
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    )
-                    "h5" -> Text(
-                        parseInline(item.content, MaterialTheme.colorScheme.primary),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 2.dp),
-                    )
-                    "h6" -> Text(
-                        parseInline(item.content, MaterialTheme.colorScheme.primary),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(vertical = 2.dp),
-                    )
-                    "bullet" -> Text(
-                        buildAnnotatedString {
-                            append("•  ")
-                            append(parseInline(item.content, MaterialTheme.colorScheme.primary))
-                        },
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
-                    )
-                    "ordered" -> Text(
-                        parseInline(item.content, MaterialTheme.colorScheme.primary),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
-                    )
-                    "quote" -> Text(
-                        parseInline(item.content, MaterialTheme.colorScheme.primary),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .padding(start = 16.dp, top = 2.dp, bottom = 2.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                RoundedCornerShape(4.dp)
-                            )
-                            .padding(8.dp),
-                    )
-                    "code" -> Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                RoundedCornerShape(8.dp)
-                            )
-                            .padding(12.dp)
-                    ) {
-                        SelectionContainer {
+    SelectionContainer {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            for (item in items) {
+                when (item) {
+                    is MdTable -> TableRenderer(item)
+                    is MdLine -> when (item.type) {
+                        "h1" -> Text(
+                            parseInline(item.content, MaterialTheme.colorScheme.primary),
+                            style = MaterialTheme.typography.headlineLarge,
+                            modifier = Modifier.padding(vertical = 8.dp),
+                        )
+                        "h2" -> Text(
+                            parseInline(item.content, MaterialTheme.colorScheme.primary),
+                            style = MaterialTheme.typography.headlineMedium,
+                            modifier = Modifier.padding(vertical = 6.dp),
+                        )
+                        "h3" -> Text(
+                            parseInline(item.content, MaterialTheme.colorScheme.primary),
+                            style = MaterialTheme.typography.headlineSmall,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                        "h4" -> Text(
+                            parseInline(item.content, MaterialTheme.colorScheme.primary),
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                        "h5" -> Text(
+                            parseInline(item.content, MaterialTheme.colorScheme.primary),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(vertical = 2.dp),
+                        )
+                        "h6" -> Text(
+                            parseInline(item.content, MaterialTheme.colorScheme.primary),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(vertical = 2.dp),
+                        )
+                        "bullet" -> Text(
+                            buildAnnotatedString {
+                                append("•  ")
+                                append(parseInline(item.content, MaterialTheme.colorScheme.primary))
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
+                        )
+                        "ordered" -> Text(
+                            parseInline(item.content, MaterialTheme.colorScheme.primary),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
+                        )
+                        "quote" -> Text(
+                            parseInline(item.content, MaterialTheme.colorScheme.primary),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier
+                                .padding(start = 16.dp, top = 2.dp, bottom = 2.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(8.dp),
+                        )
+                        "code" -> Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(12.dp)
+                        ) {
                             Text(
                                 item.content,
                                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -250,13 +250,13 @@ fun MarkdownMessage(content: String) {
                                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                             )
                         }
+                        "text" -> Text(
+                            parseInline(item.content, MaterialTheme.colorScheme.primary),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(vertical = 2.dp),
+                        )
+                        "blank" -> {}
                     }
-                    "text" -> Text(
-                        parseInline(item.content, MaterialTheme.colorScheme.primary),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(vertical = 2.dp),
-                    )
-                    "blank" -> {}
                 }
             }
         }
