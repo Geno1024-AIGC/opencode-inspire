@@ -38,6 +38,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -105,129 +106,166 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SectionLabel(R.string.settings_general)
-            SettingSwitchRow(
-                title = stringResource(R.string.settings_compact_tokens),
-                subtitle = stringResource(R.string.settings_compact_tokens_sub),
-                checked = shortTokens,
-                onCheckedChange = viewModel::setShortTokens,
-            )
-            SectionLabel(R.string.settings_language, small = true)
-            DropdownSetting(
-                listOf(
-                    "system" to stringResource(R.string.lang_system),
-                    "en" to stringResource(R.string.lang_english),
-                    "zh" to stringResource(R.string.lang_chinese),
-                ),
-                selected = language,
-                onSelect = viewModel::setLanguage,
-            )
-
-            HorizontalDivider()
-
-            SectionLabel(R.string.settings_appearance)
-            SectionLabel(R.string.settings_theme, small = true)
-            RadioSetting(
-                listOf(
-                    "system" to stringResource(R.string.theme_system),
-                    "light" to stringResource(R.string.theme_light),
-                    "dark" to stringResource(R.string.theme_dark),
-                ),
-                selected = theme,
-                onSelect = viewModel::setTheme,
-            )
-
-            SectionLabel(R.string.settings_bubbles, small = true)
-            var picking by remember { mutableStateOf<String?>(null) }
-            ColorPreviewRow(
-                title = stringResource(R.string.settings_my_bubbles),
-                color = userBubbleColor,
-                onClick = { picking = "user" },
-            )
-            ColorPreviewRow(
-                title = stringResource(R.string.settings_assistant_bubbles),
-                color = assistantBubbleColor,
-                onClick = { picking = "assistant" },
-            )
-
-            HorizontalDivider()
-
-            SectionLabel(R.string.settings_updates)
-            DropdownSetting(
-                listOf(
-                    "release" to stringResource(R.string.channel_release),
-                    "canary" to stringResource(R.string.channel_canary),
-                ),
-                selected = channel,
-                onSelect = viewModel::setChannel,
-            )
-            Row(
+            // ── General ──
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.check_updates), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        stringResource(R.string.check_updates_sub),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel(R.string.settings_general)
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_compact_tokens),
+                        subtitle = stringResource(R.string.settings_compact_tokens_sub),
+                        checked = shortTokens,
+                        onCheckedChange = viewModel::setShortTokens,
+                    )
+                    SectionLabel(R.string.settings_language, small = true)
+                    DropdownSetting(
+                        listOf(
+                            "system" to stringResource(R.string.lang_system),
+                            "en" to stringResource(R.string.lang_english),
+                            "zh" to stringResource(R.string.lang_chinese),
+                        ),
+                        selected = language,
+                        onSelect = viewModel::setLanguage,
                     )
                 }
-                TextButton(
-                    onClick = { viewModel.checkForUpdates() },
-                    enabled = !checkingUpdate,
-                ) {
-                    Text(if (checkingUpdate) stringResource(R.string.checking_updates) else stringResource(R.string.check_now))
+            }
+
+            // ── Appearance ──
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel(R.string.settings_appearance)
+                    SectionLabel(R.string.settings_theme, small = true)
+                    RadioSetting(
+                        listOf(
+                            "system" to stringResource(R.string.theme_system),
+                            "light" to stringResource(R.string.theme_light),
+                            "dark" to stringResource(R.string.theme_dark),
+                        ),
+                        selected = theme,
+                        onSelect = viewModel::setTheme,
+                    )
+
+                    SectionLabel(R.string.settings_bubbles, small = true)
+                    var picking by remember { mutableStateOf<String?>(null) }
+                    ColorPreviewRow(
+                        title = stringResource(R.string.settings_my_bubbles),
+                        color = userBubbleColor,
+                        onClick = { picking = "user" },
+                    )
+                    ColorPreviewRow(
+                        title = stringResource(R.string.settings_assistant_bubbles),
+                        color = assistantBubbleColor,
+                        onClick = { picking = "assistant" },
+                    )
+
+                    val target = picking
+                    if (target != null) {
+                        ColorPickerDialog(
+                            title = stringResource(if (target == "user") R.string.color_your_title else R.string.color_assistant_title),
+                            initial = if (target == "user") userBubbleColor else assistantBubbleColor,
+                            onPick = { c ->
+                                if (target == "user") viewModel.setUserBubbleColor(c) else viewModel.setAssistantBubbleColor(c)
+                                picking = null
+                            },
+                            onDismiss = { picking = null },
+                        )
+                    }
                 }
             }
 
-            HorizontalDivider()
-
-            SectionLabel(R.string.settings_token_history)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onOpenCalendar)
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            // ── Updates ──
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_token_history), style = MaterialTheme.typography.bodyLarge)
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel(R.string.settings_updates)
+                    DropdownSetting(
+                        listOf(
+                            "release" to stringResource(R.string.channel_release),
+                            "canary" to stringResource(R.string.channel_canary),
+                        ),
+                        selected = channel,
+                        onSelect = viewModel::setChannel,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.check_updates), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(R.string.check_updates_sub),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        TextButton(
+                            onClick = { viewModel.checkForUpdates() },
+                            enabled = !checkingUpdate,
+                        ) {
+                            Text(if (checkingUpdate) stringResource(R.string.checking_updates) else stringResource(R.string.check_now))
+                        }
+                    }
+                    val msg = updateMessage
+                    if (!msg.isNullOrBlank()) {
+                        Text(
+                            msg,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (updateInfo != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Text(
-                        stringResource(R.string.settings_token_history_sub),
-                        style = MaterialTheme.typography.bodySmall,
+                        "v${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.Monospace,
                     )
                 }
-                Text(
-                    stringResource(R.string.color_edit),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelLarge,
-                )
             }
 
-            Spacer(Modifier.size(32.dp))
-
-            Text(
-                "v${BuildConfig.VERSION_NAME}",                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
-
-            val target = picking
-            if (target != null) {
-                ColorPickerDialog(
-                    title = stringResource(if (target == "user") R.string.color_your_title else R.string.color_assistant_title),
-                    initial = if (target == "user") userBubbleColor else assistantBubbleColor,
-                    onPick = { c ->
-                        if (target == "user") viewModel.setUserBubbleColor(c) else viewModel.setAssistantBubbleColor(c)
-                        picking = null
-                    },
-                    onDismiss = { picking = null },
-                )
+            // ── Token History ──
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    SectionLabel(R.string.settings_token_history)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onOpenCalendar)
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_token_history), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(R.string.settings_token_history_sub),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.color_edit),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
             }
+
+            Spacer(Modifier.size(16.dp))
         }
     }
 }
