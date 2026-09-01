@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,6 +60,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
+import com.example.opencodeclient.ui.theme.ThemePreset
+import com.example.opencodeclient.ui.theme.PresetDarkSchemes
+import kotlinx.serialization.builtins.serializer
 
 private val presetColors = listOf(
     0xFFFB8C00L, 0xFFF44A6AL, 0xFFEC407AL, 0xFFE91E63L,
@@ -79,6 +83,8 @@ fun SettingsScreen(
 
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
+    val themePreset by viewModel.themePreset.collectAsStateWithLifecycle()
+    val customThemeColorsJson by viewModel.customThemeColors.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
     val channel by viewModel.channel.collectAsStateWithLifecycle()
     val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
@@ -151,6 +157,97 @@ fun SettingsScreen(
                         selected = theme,
                         onSelect = viewModel::setTheme,
                     )
+
+                    SectionLabel(R.string.settings_theme_preset, small = true)
+                    val presetOptions = listOf(
+                        "default" to stringResource(R.string.theme_preset_default),
+                        "github" to stringResource(R.string.theme_preset_github),
+                        "tokyo_night" to stringResource(R.string.theme_preset_tokyo_night),
+                        "dracula" to stringResource(R.string.theme_preset_dracula),
+                        "nord" to stringResource(R.string.theme_preset_nord),
+                        "custom" to stringResource(R.string.theme_preset_custom),
+                    )
+                    DropdownSetting(
+                        presetOptions,
+                        selected = themePreset,
+                        onSelect = viewModel::setThemePreset,
+                    )
+
+                    if (themePreset == "custom") {
+                        val customColors = try {
+                            runCatching {
+                                kotlinx.serialization.json.Json.decodeFromString<Map<String, kotlinx.serialization.json.JsonPrimitive>>(customThemeColorsJson)
+                                    .mapValues { it.value.content.toLongOrNull() ?: 0L }
+                            }.getOrNull() ?: emptyMap()
+                        } catch (_: Exception) { emptyMap() }
+
+                        fun updateCustomColor(key: String, value: Long) {
+                            val updated = customColors.toMutableMap()
+                            updated[key] = value
+                            val json = kotlinx.serialization.json.Json.encodeToString(
+                                kotlinx.serialization.builtins.MapSerializer(
+                                    String.serializer(),
+                                    Long.serializer(),
+                                ),
+                                updated,
+                            )
+                            viewModel.setCustomThemeColors(json)
+                        }
+
+                        val isDark = theme == "dark" || (theme == "system" && isSystemInDarkTheme())
+                        val basePreset = PresetDarkSchemes[ThemePreset.DEFAULT]!!
+                        val colorKeys = listOf(
+                            "primary" to R.string.theme_custom_primary,
+                            "background" to R.string.theme_custom_background,
+                            "surface" to R.string.theme_custom_surface,
+                            "onBackground" to R.string.theme_custom_on_background,
+                            "onSurface" to R.string.theme_custom_on_surface,
+                            "surfaceVariant" to R.string.theme_custom_surface_variant,
+                            "onSurfaceVariant" to R.string.theme_custom_on_surface_variant,
+                        )
+                        var customPicking by remember { mutableStateOf<String?>(null) }
+                        colorKeys.forEach { (key, resId) ->
+                            val currentColor = customColors[key]
+                            ColorPreviewRow(
+                                title = stringResource(resId),
+                                color = currentColor ?: -1L,
+                                onClick = { customPicking = key },
+                            )
+                        }
+                        if (customPicking != null) {
+                            val key = customPicking!!
+                            val defaultColor = when (key) {
+                                "primary" -> if (isDark) 0xFF7AA2F7 else 0xFF1F6FEB
+                                "background" -> if (isDark) 0xFF0D1117 else 0xFFFFFFFF
+                                "surface" -> if (isDark) 0xFF161B22 else 0xFFF6F8FA
+                                "onBackground" -> if (isDark) 0xFFC9D1D9 else 0xFF1F2328
+                                "onSurface" -> if (isDark) 0xFFC9D1D9 else 0xFF1F2328
+                                "surfaceVariant" -> if (isDark) 0xFF21262D else 0xFFE8ECEF
+                                "onSurfaceVariant" -> if (isDark) 0xFF8B949E else 0xFF636C76
+                                else -> 0xFFFFFFFF
+                            }
+                            ColorPickerDialog(
+                                title = stringResource(
+                                    when (key) {
+                                        "primary" -> R.string.theme_custom_primary
+                                        "background" -> R.string.theme_custom_background
+                                        "surface" -> R.string.theme_custom_surface
+                                        "onBackground" -> R.string.theme_custom_on_background
+                                        "onSurface" -> R.string.theme_custom_on_surface
+                                        "surfaceVariant" -> R.string.theme_custom_surface_variant
+                                        "onSurfaceVariant" -> R.string.theme_custom_on_surface_variant
+                                        else -> R.string.theme_custom_primary
+                                    }
+                                ),
+                                initial = customColors[key] ?: defaultColor,
+                                onPick = { c ->
+                                    updateCustomColor(key, c)
+                                    customPicking = null
+                                },
+                                onDismiss = { customPicking = null },
+                            )
+                        }
+                    }
 
                     SectionLabel(R.string.settings_bubbles, small = true)
                     var picking by remember { mutableStateOf<String?>(null) }
