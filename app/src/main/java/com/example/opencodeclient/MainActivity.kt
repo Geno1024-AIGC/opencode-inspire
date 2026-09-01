@@ -197,17 +197,22 @@ class MainActivity : ComponentActivity() {
                                 text = {
                                     val pct = downloadPercent
                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        if (downloadTotal > 0L) {
-                                            Text(
-                                                stringResource(R.string.download_progress_detail,
-                                                    formatBytes(downloadDone),
-                                                    formatBytes(downloadTotal),
-                                                    formatSpeed(downloadSpeed)),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontFamily = FontFamily.Monospace,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
+                                        val detail = if (downloadTotal > 0L) {
+                                            stringResource(R.string.download_progress_detail,
+                                                formatBytes(downloadDone),
+                                                formatBytes(downloadTotal),
+                                                formatSpeed(downloadSpeed))
+                                        } else {
+                                            stringResource(R.string.download_progress_unknown,
+                                                formatBytes(downloadDone),
+                                                formatSpeed(downloadSpeed))
                                         }
+                                        Text(
+                                            detail,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
                                         if (pct >= 0) {
                                             LinearProgressIndicator(
                                                 progress = { pct / 100f },
