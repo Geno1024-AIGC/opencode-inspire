@@ -13,6 +13,7 @@ import com.example.opencodeclient.BuildConfig
 import com.example.opencodeclient.R
 import java.util.Locale
 import com.example.opencodeclient.data.Command
+import com.example.opencodeclient.data.Message
 import com.example.opencodeclient.data.ModelInfo
 import com.example.opencodeclient.data.OpenCodeClient
 import com.example.opencodeclient.data.Part
@@ -977,28 +978,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun exportChatAsMarkdown() {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
         val messages = _messages.value
-        val sb = StringBuilder()
-        for (msg in messages) {
-            val role = when (msg.role) {
-                "user" -> "**User**"
-                "assistant" -> "**Assistant**"
-                "tool" -> "**Tool: ${msg.parts.firstOrNull()?.tool ?: "unknown"}**"
-                else -> "**${msg.role}**"
-            }
-            sb.appendLine("$role\n")
-            sb.appendLine(msg.text)
-            if (msg.reasoning != null) {
-                sb.appendLine("\n> Reasoning: ${msg.reasoning}")
-            }
-            for (part in msg.parts) {
-                if (part.tool != null && part.toolOutput != null) {
-                    sb.appendLine("\n> Tool `${part.tool}` output:\n> ```\n> ${part.toolOutput.replace("\n", "\n> ")}\n> ```")
+        viewModelScope.launch {
+            val sb = StringBuilder()
+            try {
+                val all = withContext(Dispatchers.IO) { c.sessionMessagesAll(sid) }
+                if (all.isNotEmpty()) {
+                    all.forEach { (msg, parts) ->
+                        appendV2Export(sb, msg, parts)
+                    }
+                } else {
+                    messages.forEach { msg -> appendChatExport(sb, msg) }
                 }
+            } catch (_: Exception) {
+                messages.forEach { msg -> appendChatExport(sb, msg) }
             }
-            sb.appendLine("\n---\n")
+            _exportMarkdown.value = sb.toString()
         }
-        _exportMarkdown.value = sb.toString()
+    }
+
+    private fun appendChatExport(sb: StringBuilder, msg: ChatMessage) {
+        val role = when (msg.role) {
+            "user" -> "**User**"
+            "assistant" -> "**Assistant**"
+            "tool" -> "**Tool: ${msg.parts.firstOrNull()?.tool ?: "unknown"}**"
+            else -> "**${msg.role}**"
+        }
+        sb.appendLine("$role\n")
+        sb.appendLine(msg.text)
+        if (msg.reasoning != null) {
+            sb.appendLine("\n> Reasoning: ${msg.reasoning}")
+        }
+        for (part in msg.parts) {
+            if (part.tool != null && part.toolOutput != null) {
+                sb.appendLine("\n> Tool `${part.tool}` output:\n> ```\n> ${part.toolOutput.replace("\n", "\n> ")}\n> ```")
+            }
+        }
+        sb.appendLine("\n---\n")
+    }
+
+    private fun appendV2Export(sb: StringBuilder, msg: Message, parts: List<Part>) {
+        val role = msg.role ?: "unknown"
+        val roleLabel = when (role) {
+            "user" -> "**User**"
+            "assistant" -> "**Assistant**"
+            else -> "**$role**"
+        }
+        sb.appendLine("$roleLabel\n")
+        val text = parts.filter { it.type == "text" }.joinToString("") { it.text ?: "" }
+        if (text.isNotBlank()) sb.appendLine(text)
+        val reasoning = parts.filter { it.type == "reasoning" }.mapNotNull { it.text }.joinToString("\n")
+        if (reasoning.isNotBlank()) sb.appendLine("\n> Reasoning: $reasoning")
+        for (part in parts) {
+            if (part.type == "tool" && part.state?.output != null) {
+                sb.appendLine("\n> Tool `${part.tool}` output:\n> ```\n> ${part.state.output.replace("\n", "\n> ")}\n> ```")
+            }
+        }
+        sb.appendLine("\n---\n")
     }
 
     fun clearExportMarkdown() {

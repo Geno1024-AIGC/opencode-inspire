@@ -11,11 +11,13 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -193,6 +195,112 @@ class OpenCodeClient(
             else json.decodeFromString(ListSerializer(SessionInfo.serializer()), text)
                 .map { it.info to it.parts }
         }
+
+    suspend fun sessionMessagesAll(sessionId: String): List<Pair<Message, List<Part>>> {
+        val result = mutableListOf<Pair<Message, List<Part>>>()
+        var cursor: String? = null
+        do {
+            val query = StringBuilder("limit=200&order=asc")
+            if (cursor != null) query.append("&cursor=").append(cursor)
+            val text = execute("GET", "/api/session/$sessionId/message?$query") { it }
+            if (text.isBlank()) break
+            var pageCursor: String? = null
+            runCatching {
+                val root = json.decodeFromString<JsonObject>(text)
+                val items = root["items"]?.jsonArray ?: root["data"]?.jsonArray
+                if (items != null) {
+                    for (el in items) {
+                        val obj = el.jsonObject
+                        parseSessionMessageV2(obj)?.let { result.add(it) }
+                    }
+                }
+                val cursorNext = root["cursor"]?.jsonObject?.get("next")
+                pageCursor = cursorNext?.let { if (it is JsonPrimitive && it.isString) it.contentOrNull else null }
+            }
+            cursor = pageCursor
+        } while (!cursor.isNullOrBlank())
+        return result
+    }
+
+    private fun parseSessionMessageV2(obj: JsonObject): Pair<Message, List<Part>>? {
+        val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: return null
+        val type = obj["type"]?.jsonPrimitive?.contentOrNull ?: return null
+        val role = when (type) {
+            "user", "compaction", "shell", "synthetic" -> "user"
+            else -> "assistant"
+        }
+        val time = obj["time"]?.jsonObject?.get("created")?.let {
+            if (it is JsonPrimitive && it.isString) it.contentOrNull?.toLongOrNull() ?: it.contentOrNull?.toBigDecimalOrNull()?.toLong()
+            else (it as? JsonPrimitive)?.toString()?.trim('"')?.toLongOrNull()
+        }
+
+        val parts = mutableListOf<Part>()
+        if (type == "user") {
+            val text = obj["text"]?.jsonPrimitive?.contentOrNull ?: ""
+            if (text.isNotBlank()) parts.add(Part(type = "text", text = text))
+        } else {
+            val content = obj["content"]?.jsonArray
+            if (content != null) {
+                val textBuilder = StringBuilder()
+                for (c in content) {
+                    val co = c.jsonObject
+                    val ctype = co["type"]?.jsonPrimitive?.contentOrNull
+                    when (ctype) {
+                        "text" -> {
+                            val t = co["text"]?.jsonPrimitive?.contentOrNull ?: ""
+                            if (t.isNotBlank()) textBuilder.append(t)
+                        }
+                        "reasoning" -> {
+                            val t = co["text"]?.jsonPrimitive?.contentOrNull ?: ""
+                            if (t.isNotBlank()) parts.add(Part(type = "reasoning", text = t))
+                        }
+                        "tool" -> {
+                            parts.add(Part(
+                                type = "tool",
+                                tool = co["tool"]?.jsonPrimitive?.contentOrNull,
+                                title = co["title"]?.jsonPrimitive?.contentOrNull,
+                                callID = co["callID"]?.jsonPrimitive?.contentOrNull,
+                                state = co["state"]?.let { st ->
+                                    ToolState(
+                                        status = st.jsonObject["status"]?.jsonPrimitive?.contentOrNull,
+                                        output = st.jsonObject["output"]?.jsonPrimitive?.contentOrNull,
+                                        input = st.jsonObject["input"],
+                                    )
+                                },
+                            ))
+                        }
+                    }
+                }
+                if (textBuilder.isNotEmpty()) {
+                    parts.add(Part(type = "text", text = textBuilder.toString()))
+                }
+            }
+        }
+
+        val model = obj["model"]?.jsonObject?.get("id")?.jsonPrimitive?.contentOrNull
+        val tokens = obj["tokens"]?.let { t ->
+            fun long(v: JsonElement?): Long? = v?.let {
+                if (it is JsonPrimitive) it.contentOrNull?.toLongOrNull()
+                    ?: it.toString().trim('"').toLongOrNull()
+                else null
+            }
+            Tokens(
+                total = long(t.jsonObject["total"]),
+                input = long(t.jsonObject["input"]) ?: 0L,
+                output = long(t.jsonObject["output"]) ?: 0L,
+                reasoning = long(t.jsonObject["reasoning"]) ?: 0L,
+            )
+        }
+
+        val msg = Message(
+            id = id,
+            role = role,
+            modelID = model,
+            tokens = tokens,
+            time = if (time != null) MessageTime(created = time) else null,
+        )
+        return msg to parts.filter { it.type == "reasoning" || it.type == "tool" || it.type == "text" }
+    }
 
     suspend fun commands(directory: String? = null): List<Command> =
         execute("GET", "/command${queryOf(mapOf("directory" to directory))}") { text ->
