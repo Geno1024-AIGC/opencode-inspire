@@ -95,7 +95,7 @@ private fun InlineCodeChip(code: String, style: TextStyle) {
         style = style,
         modifier = Modifier
             .background(
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                 RoundedCornerShape(3.dp),
             )
             .padding(horizontal = InlineCodePad, vertical = InlineCodePad),
