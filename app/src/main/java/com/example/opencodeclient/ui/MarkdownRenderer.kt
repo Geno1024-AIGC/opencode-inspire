@@ -49,16 +49,15 @@ private val InlineCodePadH = 3.dp
 private val InlineCodePadV = 1.dp
 
 private fun highlightCode(code: String, colorScheme: androidx.compose.material3.ColorScheme): AnnotatedString {
-    val keyword = listOf(
-        "fun", "val", "var", "if", "else", "when", "for", "while", "return", "class", "object",
-        "interface", "import", "package", "try", "catch", "finally", "throw", "null", "true",
-        "false", "this", "super", "suspend", "override", "private", "public", "internal",
-        "protected", "data", "sealed", "enum", "typealias", "in", "is", "as", "do", "break",
-        "continue", "companion", "init", "constructor", "by", "open", "abstract", "lateinit",
-        "const", "extern", "static", "def", "ifdef", "include", "using", "namespace", "new",
-        "public", "void", "int", "bool", "double", "float", "char", "string", "let", "const",
-        "async", "await", "yield", "from", "import", "def", "lambda", "with", "fn", "match",
-        "struct", "impl", "trait", "Self", "let",
+    val keyword = setOf(
+        "abstract", "as", "async", "await", "break", "by", "catch", "class", "companion",
+        "const", "constructor", "continue", "data", "def", "do", "else", "enum", "extern",
+        "false", "finally", "float", "for", "fn", "from", "fun", "if", "impl", "import",
+        "in", "init", "include", "int", "interface", "internal", "is", "lambda", "lateinit",
+        "let", "match", "namespace", "new", "null", "object", "open", "override", "package",
+        "private", "protected", "public", "return", "sealed", "Self", "static", "string",
+        "struct", "super", "suspend", "this", "throw", "trait", "true", "try", "typealias",
+        "using", "val", "var", "void", "when", "while", "with", "yield",
     )
     val stringColor = colorScheme.tertiary
     val keywordColor = colorScheme.primary
