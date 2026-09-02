@@ -5,14 +5,19 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import java.io.File
 
-private val systemDroidSansMono: File? = File("/system/fonts/DroidSansMono.ttf")
-    .takeIf { it.exists() }
+private val MonoFontCandidates = listOf(
+    "/system/fonts/CutiveMono.ttf",
+    "/system/fonts/DroidSansMono.ttf",
+)
 
-val MonoFontFamily: FontFamily = if (systemDroidSansMono != null) {
-    FontFamily(
-        Font(systemDroidSansMono, weight = FontWeight.Normal),
-        Font(systemDroidSansMono, weight = FontWeight.Bold),
-    )
-} else {
-    FontFamily.Monospace
-}
+val MonoFontFamily: FontFamily = MonoFontCandidates
+    .asSequence()
+    .map { File(it) }
+    .firstOrNull { it.exists() }
+    ?.let { file ->
+        FontFamily(
+            Font(file, weight = FontWeight.Normal),
+            Font(file, weight = FontWeight.Bold),
+        )
+    }
+    ?: FontFamily.Monospace
