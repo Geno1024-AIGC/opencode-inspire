@@ -27,6 +27,7 @@ import com.example.opencodeclient.data.Updater
 import com.example.opencodeclient.data.promptTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -994,15 +995,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val c = client ?: return
         eventJob?.cancel()
         eventJob = viewModelScope.launch {
-            while (true) {
-                try {
-                    c.eventStream().collect { raw -> handleEvent(raw) }
-                } catch (_: Exception) {
-                    // stream ended, retry
+            coroutineScope {
+                launch {
+                    while (true) {
+                        refreshPendingPermissions()
+                        delay(4000)
+                    }
                 }
-                delay(2000)
+                while (true) {
+                    try {
+                        c.eventStream().collect { raw -> handleEvent(raw) }
+                    } catch (_: Exception) {
+                        // stream ended, retry
+                    }
+                    delay(2000)
+                }
             }
         }
+    }
+
+    private suspend fun refreshPendingPermissions() {
+        val c = client ?: return
+        val dir = _activeSession.value?.directory
+        val fetched = runCatching {
+            withContext(Dispatchers.IO) { c.pendingPermissions(dir) }
+        }.getOrNull() ?: return
+        _pendingPermissions.value = (_pendingPermissions.value + fetched).distinctBy { it.id }
     }
 
     private fun handleEvent(raw: String) {
