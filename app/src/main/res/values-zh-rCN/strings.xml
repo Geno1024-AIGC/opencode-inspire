@@ -194,6 +194,7 @@
     <string name="session_delete">删除会话</string>
     <string name="session_delete_confirm">删除此会话及其所有消息？</string>
     <string name="session_delete_title">删除会话</string>
+    <string name="export_chat">导出为 Markdown</string>
     <string name="rename_title">重命名会话</string>
     <string name="rename_placeholder">新标题</string>
     <string name="save">保存</string>

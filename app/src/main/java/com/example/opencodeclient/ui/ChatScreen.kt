@@ -1,5 +1,6 @@
 package com.example.opencodeclient.ui
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -68,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -121,8 +123,10 @@ fun ChatScreen(
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
     val collapsedMessageIds by viewModel.collapsedMessageIds.collectAsStateWithLifecycle()
+    val exportMarkdown by viewModel.exportMarkdown.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     var input by rememberSaveable { mutableStateOf("") }
     var showFiles by rememberSaveable { mutableStateOf(false) }
     var userScrolledAway by remember { mutableStateOf(false) }
@@ -145,6 +149,25 @@ fun ChatScreen(
             listState.scrollToItem(0)
         }
      }
+
+    LaunchedEffect(exportMarkdown) {
+        exportMarkdown?.let { markdown ->
+            val file = java.io.File(context.cacheDir, "chat_export.md")
+            file.writeText(markdown)
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/markdown"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, "导出对话"))
+            viewModel.clearExportMarkdown()
+        }
+    }
 
     var liveElapsed by remember { mutableLongStateOf(0L) }
     LaunchedEffect(sending) {
@@ -193,6 +216,7 @@ fun ChatScreen(
                             SessionActionsMenu(
                                 onRename = { title -> viewModel.renameSession(title) },
                                 onDelete = { viewModel.deleteSession() },
+                                onExport = { viewModel.exportChatAsMarkdown() },
                             )
                         }
                         IconButton(onClick = { viewModel.refreshSession() }) {
@@ -1472,6 +1496,7 @@ private fun ModelSwitcher(
 private fun SessionActionsMenu(
     onRename: (String) -> Unit,
     onDelete: () -> Unit,
+    onExport: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
@@ -1494,6 +1519,13 @@ private fun SessionActionsMenu(
                 onClick = {
                     menuOpen = false
                     showDelete = true
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.export_chat)) },
+                onClick = {
+                    menuOpen = false
+                    onExport()
                 },
             )
         }

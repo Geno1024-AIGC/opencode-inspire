@@ -164,6 +164,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val servers: StateFlow<List<ServerProfile>> = _servers.asStateFlow()
 
     private val _pendingQuestions = MutableStateFlow<List<QuestionRequest>>(emptyList())
+    private val _exportMarkdown = MutableStateFlow<String?>(null)
+    val exportMarkdown = _exportMarkdown.asStateFlow()
     val pendingQuestions: StateFlow<List<QuestionRequest>> = _pendingQuestions.asStateFlow()
 
     private val _commands = MutableStateFlow<List<Command>>(emptyList())
@@ -934,6 +936,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.send_failed))
                 }
         }
+    }
+
+    fun exportChatAsMarkdown() {
+        val messages = _messages.value
+        val sb = StringBuilder()
+        for (msg in messages) {
+            val role = when (msg.role) {
+                "user" -> "**User**"
+                "assistant" -> "**Assistant**"
+                "tool" -> "**Tool: ${msg.parts.firstOrNull()?.tool ?: "unknown"}**"
+                else -> "**${msg.role}**"
+            }
+            sb.appendLine("$role\n")
+            sb.appendLine(msg.text)
+            if (msg.reasoning != null) {
+                sb.appendLine("\n> Reasoning: ${msg.reasoning}")
+            }
+            for (part in msg.parts) {
+                if (part.tool != null && part.toolOutput != null) {
+                    sb.appendLine("\n> Tool `${part.tool}` output:\n> ```\n> ${part.toolOutput.replace("\n", "\n> ")}\n> ```")
+                }
+            }
+            sb.appendLine("\n---\n")
+        }
+        _exportMarkdown.value = sb.toString()
+    }
+
+    fun clearExportMarkdown() {
+        _exportMarkdown.value = null
     }
 
     suspend fun listFiles(path: String): List<com.example.opencodeclient.data.FileNode> {
