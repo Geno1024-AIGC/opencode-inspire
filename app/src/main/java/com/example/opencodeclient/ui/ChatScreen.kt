@@ -1,5 +1,7 @@
 package com.example.opencodeclient.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -136,6 +138,18 @@ fun ChatScreen(
     var previewUrl by remember { mutableStateOf<String?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchActive by rememberSaveable { mutableStateOf(false) }
+    var attachedFile by remember { mutableStateOf<android.net.Uri?>(null) }
+    val attachLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> attachedFile = uri }
+    val selectedFileName = attachedFile?.let { uri ->
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        val name = cursor?.use {
+            val idx = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (idx >= 0 && it.moveToFirst()) it.getString(idx) else null
+        }
+        name ?: uri.lastPathSegment
+    }
 
     LaunchedEffect(listState) {
         snapshotFlow {
@@ -330,6 +344,32 @@ fun ChatScreen(
                 Box(modifier = Modifier.weight(1f)) {
                     val trimmed = input.trimStart()
                     val showCommands = input.startsWith("/") && !trimmed.contains(" ")
+                    if (attachedFile != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = "📎 " + (selectedFileName ?: ""),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                text = "✕",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .clickable { attachedFile = null }
+                                    .padding(horizontal = 4.dp),
+                            )
+                        }
+                    }
                     OutlinedTextField(
                         value = input,
                         onValueChange = { input = it },
@@ -375,11 +415,33 @@ fun ChatScreen(
                     }
                 }
                 IconButton(
+                    onClick = { attachLauncher.launch("*/*") },
+                    modifier = Modifier.padding(bottom = 4.dp),
+                ) {
+                    Icon(
+                        painterResource(R.drawable.ic_insert_drive_file),
+                        contentDescription = stringResource(R.string.attach_file),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(
                     onClick = {
-                        viewModel.send(input.trim())
-                         input = ""
+                        val uri = attachedFile
+                        if (uri != null) {
+                            val content = runCatching {
+                                context.contentResolver.openInputStream(uri)?.use {
+                                    it.readBytes().decodeToString()
+                                }.orEmpty()
+                            }.getOrDefault("")
+                            val name = selectedFileName ?: "attachment"
+                            viewModel.sendWithFile(input.trim(), name, content)
+                        } else {
+                            viewModel.send(input.trim())
+                        }
+                        attachedFile = null
+                        input = ""
                      },
-                     enabled = input.isNotBlank(),
+                     enabled = input.isNotBlank() || attachedFile != null,
                      modifier = Modifier.padding(bottom = 4.dp),
                  ) {
                      Icon(Icons.AutoMirrored.Filled.Send, "Send")

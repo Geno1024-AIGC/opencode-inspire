@@ -198,6 +198,7 @@
     <string name="search">搜索对话</string>
     <string name="regenerate">重新生成</string>
     <string name="open_in_browser">在浏览器打开</string>
+    <string name="attach_file">附加文件</string>
     <string name="rename_title">重命名会话</string>
     <string name="rename_placeholder">新标题</string>
     <string name="save">保存</string>
