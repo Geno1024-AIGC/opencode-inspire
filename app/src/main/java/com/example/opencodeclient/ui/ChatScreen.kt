@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Card
@@ -131,6 +132,8 @@ fun ChatScreen(
     var showFiles by rememberSaveable { mutableStateOf(false) }
     var userScrolledAway by remember { mutableStateOf(false) }
     var rawMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var searchActive by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(listState) {
         snapshotFlow {
@@ -210,6 +213,9 @@ fun ChatScreen(
                     },
                     actions = {
                         if (activeSession != null) {
+                            IconButton(onClick = { searchActive = !searchActive }) {
+                                Icon(Icons.Filled.Search, stringResource(R.string.search))
+                            }
                             IconButton(onClick = { showFiles = true }) {
                                 Icon(painterResource(R.drawable.ic_folder), stringResource(R.string.files_title))
                             }
@@ -245,6 +251,17 @@ fun ChatScreen(
                 .imePadding(),
         ) {
             TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens)
+            if (searchActive) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    placeholder = { Text(stringResource(R.string.search)) },
+                    singleLine = true,
+                )
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -258,7 +275,16 @@ fun ChatScreen(
                     item(key = "sending") { SendingIndicator() }
                 }
                 val reversedMessages = messages.asReversed()
-                itemsIndexed(reversedMessages, key = { idx, item -> item.id }) { index, msg ->
+                val filteredMessages = if (searchActive && searchQuery.isNotBlank()) {
+                    reversedMessages.filter { msg ->
+                        msg.text.contains(searchQuery, ignoreCase = true) ||
+                        msg.reasoning?.contains(searchQuery, ignoreCase = true) == true ||
+                        msg.parts.any { it.toolOutput?.contains(searchQuery, ignoreCase = true) == true }
+                    }
+                } else {
+                    reversedMessages
+                }
+                itemsIndexed(filteredMessages, key = { idx, item -> item.id }) { index, msg ->
                     val prevCumulative = if (index + 1 < reversedMessages.size) reversedMessages[index + 1].cumulativeTokens else null
                     val responseTime = if (sending && index == 0 && msg.role == "assistant") {
                         liveElapsed
