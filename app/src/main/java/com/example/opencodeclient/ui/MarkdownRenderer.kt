@@ -154,9 +154,13 @@ private fun parseInlineInternal(text: String, linkColor: androidx.compose.ui.gra
                 val close = text.indexOf("`", i + 1)
                 if (close > 0) {
                     val code = text.substring(i + 1, close)
-                    codes.add(code)
-                    builder.appendInlineContent("code-$codeIndex", code)
-                    codeIndex++
+                    if (code.isNotEmpty()) {
+                        codes.add(code)
+                        builder.appendInlineContent("code-$codeIndex", code)
+                        codeIndex++
+                    } else {
+                        builder.append("`")
+                    }
                     i = close + 1
                 } else {
                     builder.append(text[i]); i++
