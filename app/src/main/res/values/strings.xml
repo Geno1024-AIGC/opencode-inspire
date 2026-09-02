@@ -126,6 +126,8 @@
     <string name="settings_updates">Updates</string>
     <string name="channel_release">Release</string>
     <string name="channel_canary">Canary</string>
+    <string name="settings_ghproxy">Mirror download (ghproxy)</string>
+    <string name="settings_ghproxy_sub">Route GitHub release APK downloads through a mainland mirror</string>
     <string name="check_updates">Check for updates</string>
     <string name="check_updates_sub">Check GitHub for a newer version</string>
     <string name="check_now">Check</string>

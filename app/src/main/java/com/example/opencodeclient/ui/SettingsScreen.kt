@@ -87,6 +87,7 @@ fun SettingsScreen(
     val customThemeColorsJson by viewModel.customThemeColors.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
     val channel by viewModel.channel.collectAsStateWithLifecycle()
+    val mirror by viewModel.mirror.collectAsStateWithLifecycle()
     val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
     val checkingUpdate by viewModel.checkingUpdate.collectAsStateWithLifecycle()
     val updateMessage by viewModel.updateMessage.collectAsStateWithLifecycle()
@@ -291,6 +292,12 @@ fun SettingsScreen(
                         ),
                         selected = channel,
                         onSelect = viewModel::setChannel,
+                    )
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_ghproxy),
+                        subtitle = stringResource(R.string.settings_ghproxy_sub),
+                        checked = mirror,
+                        onCheckedChange = viewModel::setMirror,
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),

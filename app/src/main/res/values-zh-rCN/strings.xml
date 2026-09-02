@@ -126,6 +126,8 @@
     <string name="settings_updates">更新</string>
     <string name="channel_release">正式版</string>
     <string name="channel_canary">Canary</string>
+    <string name="settings_ghproxy">镜像下载 (ghproxy)</string>
+    <string name="settings_ghproxy_sub">把 GitHub 发布的 APK 下载走大陆镜像</string>
     <string name="check_updates">检查更新</string>
     <string name="check_updates_sub">在 GitHub 上检查是否有新版本</string>
     <string name="check_now">检查</string>

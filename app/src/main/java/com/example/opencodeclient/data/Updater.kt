@@ -61,6 +61,11 @@ object Updater {
             else -> releases.firstOrNull { !it.prerelease }
         }
 
+    fun mirrorApkUrl(url: String, enabled: Boolean): String {
+        if (!enabled) return url
+        return if (url.startsWith("https://github.com/")) "https://ghproxy.net/$url" else url
+    }
+
     private fun versionTuple(v: String): Pair<Int, Int>? {
         val parts = v.removePrefix("v").trim().split(".")
         val pack = parts.getOrNull(2)?.toIntOrNull()

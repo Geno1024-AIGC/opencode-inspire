@@ -225,6 +225,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _channel = MutableStateFlow("release")
     val channel: StateFlow<String> = _channel.asStateFlow()
+    private val _mirror = MutableStateFlow(false)
+    val mirror: StateFlow<Boolean> = _mirror.asStateFlow()
 
     private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
     val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
@@ -271,6 +273,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.channel.collect { _channel.value = it }
+        }
+        viewModelScope.launch {
+            settings.mirror.collect { _mirror.value = it }
         }
         viewModelScope.launch {
             settings.userBubbleColor.collect { _userBubbleColor.value = it }
@@ -515,6 +520,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { settings.setChannel(value) }
     }
 
+    fun setMirror(enabled: Boolean) {
+        viewModelScope.launch { settings.setMirror(enabled) }
+    }
+
     fun checkForUpdates(notifyLatest: Boolean = true) {
         if (_checkingUpdate.value) return
         viewModelScope.launch {
@@ -524,7 +533,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val rel = Updater.releaseFor(releases, _channel.value)
                 val current = BuildConfig.VERSION_NAME
                 if (rel != null && Updater.isNewer(rel.tagName, current)) {
-                    _updateInfo.value = UpdateInfo(version = rel.tagName, url = rel.apkUrl ?: rel.htmlUrl)
+                    val baseUrl = rel.apkUrl ?: rel.htmlUrl
+                    _updateInfo.value = UpdateInfo(version = rel.tagName, url = Updater.mirrorApkUrl(baseUrl, _mirror.value))
                 } else {
                     _updateInfo.value = null
                     if (notifyLatest) _updateMessage.value = getAppString(R.string.update_latest)
