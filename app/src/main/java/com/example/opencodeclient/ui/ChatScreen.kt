@@ -601,6 +601,15 @@ private fun HistoryStatsDialog(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
+                    if (!stats.error.isNullOrBlank() && stats.error != "empty") {
+                        Text(
+                            stats.error,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 4,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         },

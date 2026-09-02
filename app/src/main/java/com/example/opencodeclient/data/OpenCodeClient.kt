@@ -200,7 +200,8 @@ class OpenCodeClient(
         val result = mutableListOf<Pair<Message, List<Part>>>()
         var cursor: String? = null
         do {
-            val query = StringBuilder("limit=200&order=asc")
+            val query = StringBuilder("limit=200")
+            if (cursor == null) query.append("&order=asc")
             if (cursor != null) query.append("&cursor=").append(cursor)
             val text = execute("GET", "/api/session/$sessionId/message?$query") { it }
             if (text.isBlank()) break
