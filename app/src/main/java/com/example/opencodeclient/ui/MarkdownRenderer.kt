@@ -16,18 +16,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -364,13 +367,32 @@ fun MarkdownMessage(content: String) {
                                     )
                                     .padding(12.dp)
                             ) {
+                                val clipboardManager = LocalClipboardManager.current
+                                Text(
+                                    text = "复制",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .background(
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                                            RoundedCornerShape(4.dp)
+                                        )
+                                        .clickable {
+                                            clipboardManager.setText(AnnotatedString(item.content))
+                                        }
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
                                 Text(
                                     item.content,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontFamily = MonoFontFamily,
                                         fontSize = 13.sp,
                                     ),
-                                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState())
+                                        .padding(end = 40.dp),
                                 )
                             }
                             "hr" -> Box(
