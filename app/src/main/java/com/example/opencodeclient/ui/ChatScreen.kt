@@ -71,6 +71,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -132,6 +133,7 @@ fun ChatScreen(
     var showFiles by rememberSaveable { mutableStateOf(false) }
     var userScrolledAway by remember { mutableStateOf(false) }
     var rawMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var previewUrl by remember { mutableStateOf<String?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchActive by rememberSaveable { mutableStateOf(false) }
 
@@ -308,6 +310,7 @@ fun ChatScreen(
                         onToggleCollapse = { viewModel.toggleMessageCollapsed(msg.id) },
                         onShowRaw = { rawMessage = msg },
                         onRegenerate = { viewModel.regenerate() },
+                        onOpenLink = { previewUrl = it },
                     )
                 }
             }
@@ -426,6 +429,10 @@ fun ChatScreen(
 
     rawMessage?.let { msg ->
         RawMessageDialog(msg = msg, onDismiss = { rawMessage = null })
+    }
+
+    previewUrl?.let { url ->
+        LinkPreviewSheet(url = url, onDismiss = { previewUrl = null })
     }
     }
 }
@@ -851,6 +858,7 @@ private fun MessageBubble(
     onToggleCollapse: () -> Unit = {},
     onShowRaw: () -> Unit = {},
     onRegenerate: () -> Unit = {},
+    onOpenLink: (String) -> Unit = {},
 ) {
     if (msg.role == "system") {
         SystemNotice(msg.text)
@@ -932,6 +940,22 @@ private fun MessageBubble(
                         } else {
                             MarkdownMessage(msg.text.trim(), color = onBackground)
                         }
+                    }
+                }
+                val links = extractMarkdownLinks(msg.text)
+                if (links.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    links.forEach { link ->
+                        Text(
+                            text = "🔗 " + (link.takeLast(48)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .clickable { onOpenLink(link) }
+                                .padding(vertical = 1.dp),
+                        )
                     }
                 }
                 MessageMeta(
@@ -1727,3 +1751,74 @@ private fun parentOf(path: String, root: String): String {
 
 private fun fileLabel(path: String): String =
     path.substringAfterLast('/').ifBlank { path }
+
+private fun extractMarkdownLinks(text: String): List<String> {
+    val markdown = Regex("""\[[^\]]*\]\(\s*(https?://[^\s)]+)\)""")
+    val rawUrls = Regex("""https?://[^\s<>()]+""")
+    val result = mutableListOf<String>()
+    markdown.findAll(text).forEach { m ->
+        m.groupValues.getOrNull(1)?.let { u ->
+            if (u.startsWith("http")) result.add(u.trimEnd(')', '.'))
+        }
+    }
+    rawUrls.findAll(text).forEach { m ->
+        val u = m.value.trimEnd(')', '.', '，', '。', ',', ';', ';', '"', ' ')
+        if (u.startsWith("http") && u !in result) result.add(u)
+    }
+    return result.distinct()
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LinkPreviewSheet(
+    url: String,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = url,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                TextButton(
+                    onClick = {
+                        runCatching {
+                            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                            context.startActivity(intent)
+                        }
+                    },
+                ) { Text(stringResource(R.string.open_in_browser)) }
+            }
+            AndroidView(
+                factory = { ctx ->
+                    android.webkit.WebView(ctx).apply {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        webViewClient = android.webkit.WebViewClient()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(500.dp),
+                update = { wv ->
+                    if (wv.url != url) wv.loadUrl(url)
+                },
+            )
+        }
+    }
+}
