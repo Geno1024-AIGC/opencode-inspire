@@ -41,8 +41,7 @@ private data class MdLine(val type: String, val content: String, val level: Int 
 private data class MdTable(val headers: List<String>, val rows: List<List<String>>)
 private data class MdInline(val annotated: AnnotatedString, val codes: List<String>)
 
-private val InlineCodePadH = 4.dp
-private val InlineCodePadV = 1.5.dp
+private val InlineCodePad = 3.dp
 
 @Composable
 private fun InlineMarkdownText(
@@ -61,8 +60,8 @@ private fun InlineMarkdownText(
         parsed.codes.mapIndexed { idx, code ->
             with(density) {
                 val m = measurer.measure(code, chipStyle)
-                val wPx = (m.size.width + (InlineCodePadH * 2).toPx()) / pxPerSp
-                val hPx = (m.size.height + (InlineCodePadV * 2).toPx()) / pxPerSp
+                val wPx = (m.size.width + (InlineCodePad * 2).toPx()) / pxPerSp
+                val hPx = (m.size.height + (InlineCodePad * 2).toPx()) / pxPerSp
                 "code-$idx" to InlineTextContent(
                     placeholder = Placeholder(
                         width = wPx.sp,
@@ -95,11 +94,11 @@ private fun InlineCodeChip(code: String, style: TextStyle) {
         code,
         style = style,
         modifier = Modifier
-            .padding(horizontal = InlineCodePadH, vertical = InlineCodePadV)
             .background(
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                 RoundedCornerShape(3.dp),
-            ),
+            )
+            .padding(horizontal = InlineCodePad, vertical = InlineCodePad),
     )
 }
 
