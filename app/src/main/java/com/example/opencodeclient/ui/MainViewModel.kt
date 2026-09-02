@@ -65,6 +65,13 @@ data class PartUi(
     val toolOutput: String? = null,
 )
 
+data class HistoryStats(
+    val totalElapsed: Long,
+    val messageCount: Long,
+    val firstUserText: String?,
+    val computed: Boolean,
+)
+
 data class TodoUi(
     val id: String,
     val content: String,
@@ -147,6 +154,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _sessionTotalElapsed = MutableStateFlow<Long?>(null)
     val sessionTotalElapsed: StateFlow<Long?> = _sessionTotalElapsed.asStateFlow()
+
+    private val _historyStats = MutableStateFlow<HistoryStats?>(null)
+    val historyStats: StateFlow<HistoryStats?> = _historyStats.asStateFlow()
 
     private val _tokenHistory = MutableStateFlow<Map<String, Long>>(emptyMap())
     val tokenHistory: StateFlow<Map<String, Long>> = _tokenHistory.asStateFlow()
@@ -1018,6 +1028,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun computeHistoryStats() {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        viewModelScope.launch {
+            val stats = withContext(Dispatchers.IO) {
+                runCatching {
+                    val all = c.sessionMessagesAll(sid)
+                    if (all.isEmpty()) {
+                        HistoryStats(totalElapsed = 0L, messageCount = 0L, firstUserText = null, computed = false)
+                    } else {
+                        var lastUser = 0L
+                        var total = 0L
+                        var firstUserText: String? = null
+                        for ((msg, parts) in all) {
+                            val time = serverTimeToMillis(msg.time?.created)
+                            if (msg.role == "user") {
+                                lastUser = time
+                                if (firstUserText == null) {
+                                    firstUserText = parts.firstOrNull { it.type == "text" }?.text
+                                        ?: msg.id
+                                }
+                            } else if (lastUser > 0L && time > lastUser) {
+                                total += time - lastUser
+                            }
+                        }
+                        HistoryStats(totalElapsed = total, messageCount = all.size.toLong(), firstUserText = firstUserText, computed = true)
+                    }
+                }.getOrElse {
+                    HistoryStats(totalElapsed = 0L, messageCount = 0L, firstUserText = null, computed = false)
+                }
+            }
+            _historyStats.value = stats
+        }
+    }
+
+    fun dismissHistoryStats() {
+        _historyStats.value = null
+    }
     private fun appendChatExport(sb: StringBuilder, msg: ChatMessage) {
         val role = when (msg.role) {
             "user" -> "**User**"

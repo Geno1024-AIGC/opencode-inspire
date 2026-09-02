@@ -129,6 +129,7 @@ fun ChatScreen(
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
     val collapsedMessageIds by viewModel.collapsedMessageIds.collectAsStateWithLifecycle()
     val exportMarkdown by viewModel.exportMarkdown.collectAsStateWithLifecycle()
+    val historyStats by viewModel.historyStats.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -240,6 +241,7 @@ fun ChatScreen(
                                 onRename = { title -> viewModel.renameSession(title) },
                                 onDelete = { viewModel.deleteSession() },
                                 onExport = { viewModel.exportChatAsMarkdown() },
+                                onHistoryStats = { viewModel.computeHistoryStats() },
                             )
                         }
                         IconButton(onClick = { viewModel.refreshSession() }) {
@@ -497,6 +499,13 @@ fun ChatScreen(
     previewUrl?.let { url ->
         LinkPreviewSheet(url = url, onDismiss = { previewUrl = null })
     }
+
+    historyStats?.let { stats ->
+        HistoryStatsDialog(
+            stats = stats,
+            onDismiss = { viewModel.dismissHistoryStats() },
+        )
+    }
     }
 }
 
@@ -551,6 +560,54 @@ private fun buildRawMessageText(msg: ChatMessage): String = buildString {
         if (p.toolInput != null) appendLine("    toolInput=${p.toolInput}")
         if (p.toolOutput != null) appendLine("    toolOutput=${p.toolOutput}")
     }
+}
+
+@Composable
+private fun HistoryStatsDialog(
+    stats: HistoryStats,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.history_stats_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (stats.computed) {
+                    Text(
+                        stringResource(R.string.history_stats_total, stats.totalElapsed / 1000.0),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontFamily = MonoFontFamily,
+                    )
+                    Text(
+                        stringResource(R.string.history_stats_messages, stats.messageCount),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (!stats.firstUserText.isNullOrBlank()) {
+                        Text(
+                            stringResource(R.string.history_stats_first),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            stats.firstUserText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    Text(
+                        stringResource(R.string.history_stats_unavailable),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
+        },
+    )
 }
 
 @Composable
@@ -1640,6 +1697,7 @@ private fun SessionActionsMenu(
     onRename: (String) -> Unit,
     onDelete: () -> Unit,
     onExport: () -> Unit,
+    onHistoryStats: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
@@ -1669,6 +1727,13 @@ private fun SessionActionsMenu(
                 onClick = {
                     menuOpen = false
                     onExport()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.history_stats)) },
+                onClick = {
+                    menuOpen = false
+                    onHistoryStats()
                 },
             )
         }
