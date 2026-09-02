@@ -177,6 +177,14 @@
     <string name="permission_allow_once">Allow once</string>
     <string name="permission_allow_always">Always allow</string>
     <string name="permission_deny">Deny</string>
+    <string name="permission_read_files">Read files</string>
+    <string name="permission_write_files">Write files</string>
+    <string name="permission_bash">Run a command</string>
+    <string name="permission_edit">Edit a file</string>
+    <string name="permission_webfetch">Access a web page</string>
+    <string name="permission_tool">Use a tool</string>
+    <string name="permission_paths">Targets</string>
+    <string name="permission_outside_project">Outside project</string>
 
     <!-- Model switcher -->
     <string name="model_label">Model</string>

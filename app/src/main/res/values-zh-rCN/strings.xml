@@ -177,6 +177,14 @@
     <string name="permission_allow_once">允许一次</string>
     <string name="permission_allow_always">始终允许</string>
     <string name="permission_deny">拒绝</string>
+    <string name="permission_read_files">读取文件</string>
+    <string name="permission_write_files">写入文件</string>
+    <string name="permission_bash">运行命令</string>
+    <string name="permission_edit">编辑文件</string>
+    <string name="permission_webfetch">访问网页</string>
+    <string name="permission_tool">执行工具</string>
+    <string name="permission_paths">目标</string>
+    <string name="permission_outside_project">项目目录之外</string>
 
     <!-- Model switcher -->
     <string name="model_label">模型</string>

@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
@@ -367,7 +368,7 @@ fun ChatScreen(
     }
 
      pendingPermissions.firstOrNull()?.let { permission ->
-         PermissionDialog(permission = permission) { reply ->
+         PermissionDialog(permission = permission, directory = activeSession?.directory) { reply ->
              viewModel.replyPermission(permission, reply)
          }
      }
@@ -434,26 +435,67 @@ private fun buildRawMessageText(msg: ChatMessage): String = buildString {
 @Composable
 private fun PermissionDialog(
     permission: com.example.opencodeclient.data.PermissionRequest,
+    directory: String?,
     onReply: (String) -> Unit,
 ) {
-    val resourceText = permission.patterns.joinToString(", ")
+    val typeLabel = when (permission.permission) {
+        "fileRead" -> stringResource(R.string.permission_read_files)
+        "fileWrite" -> stringResource(R.string.permission_write_files)
+        "bash", "subprocess" -> stringResource(R.string.permission_bash)
+        "edit" -> stringResource(R.string.permission_edit)
+        "webfetch" -> stringResource(R.string.permission_webfetch)
+        "tool", "mcp" -> stringResource(R.string.permission_tool)
+        else -> permission.permission
+    }
+    val paths = permission.patterns.map { it.trim() }.filter { it.isNotBlank() }
+    val outsideText = stringResource(R.string.permission_outside_project)
+    val pathsTitle = stringResource(R.string.permission_paths)
     AlertDialog(
         onDismissRequest = { onReply("reject") },
         title = { Text(stringResource(R.string.permission_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    permission.permission,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                if (resourceText.isNotBlank()) {
-                    Text(
-                        resourceText,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = MonoFontFamily,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.height(18.dp).width(18.dp),
                     )
+                    Spacer(Modifier.width(6.dp))
+                    Text(typeLabel, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                }
+                if (paths.isNotEmpty()) {
+                    Text(pathsTitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    paths.forEach { path ->
+                        val outside = isOutsideProjectDir(path, directory)
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Icon(
+                                Icons.Filled.Warning,
+                                contentDescription = null,
+                                tint = if (outside) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.height(14.dp).width(14.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                path,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = MonoFontFamily,
+                                color = if (outside) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (outside) {
+                            Text(
+                                outsideText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(start = 20.dp),
+                            )
+                        }
+                    }
                 }
                 permission.metadata?.takeIf { it.isNotEmpty() }?.entries?.take(5)?.forEach { (k, v) ->
                     SummaryRow(label = k, value = v, monospace = true)
@@ -470,6 +512,13 @@ private fun PermissionDialog(
             }
         },
     )
+}
+
+private fun isOutsideProjectDir(path: String, directory: String?): Boolean {
+    if (directory.isNullOrBlank()) return false
+    val p = path.trimEnd('/')
+    val d = directory.trimEnd('/')
+    return p != d && !p.startsWith("$d/")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
