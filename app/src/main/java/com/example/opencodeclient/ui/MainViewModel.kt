@@ -70,6 +70,7 @@ data class HistoryStats(
     val messageCount: Long,
     val firstUserText: String?,
     val computed: Boolean,
+    val error: String? = null,
 )
 
 data class TodoUi(
@@ -1036,7 +1037,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 runCatching {
                     val all = c.sessionMessagesAll(sid)
                     if (all.isEmpty()) {
-                        HistoryStats(totalElapsed = 0L, messageCount = 0L, firstUserText = null, computed = false)
+                        HistoryStats(totalElapsed = 0L, messageCount = 0L, firstUserText = null, computed = false, error = "empty")
                     } else {
                         var lastUser = 0L
                         var total = 0L
@@ -1055,8 +1056,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         HistoryStats(totalElapsed = total, messageCount = all.size.toLong(), firstUserText = firstUserText, computed = true)
                     }
-                }.getOrElse {
-                    HistoryStats(totalElapsed = 0L, messageCount = 0L, firstUserText = null, computed = false)
+                }.getOrElse { e ->
+                    HistoryStats(totalElapsed = 0L, messageCount = 0L, firstUserText = null, computed = false, error = e.message)
                 }
             }
             _historyStats.value = stats
