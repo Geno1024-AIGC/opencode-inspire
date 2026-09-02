@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -54,7 +55,8 @@ private fun InlineMarkdownText(
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
     val parsed = remember(content, linkColor, style) { parseInlineInternal(content, linkColor) }
-    val chipStyle = style.copy(fontFamily = MonoFontFamily)
+    val baseFontSize = if (style.fontSize != TextUnit.Unspecified) style.fontSize else 14.sp
+    val chipStyle = style.copy(fontFamily = MonoFontFamily, fontSize = baseFontSize * 0.85f)
     val inlineContent = remember(parsed.codes, chipStyle) {
         val pxPerSp = density.density * density.fontScale
         parsed.codes.mapIndexed { idx, code ->
