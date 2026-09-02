@@ -29,6 +29,7 @@ class SettingsRepository(private val context: Context) {
         val CUSTOM_THEME_COLORS = stringPreferencesKey("custom_theme_colors")
         val LANGUAGE = stringPreferencesKey("language")
         val CHANNEL = stringPreferencesKey("channel")
+        val MIRROR = booleanPreferencesKey("mirror")
         val USER_BUBBLE_COLOR = longPreferencesKey("user_bubble_color")
         val ASSIST_BUBBLE_COLOR = longPreferencesKey("assistant_bubble_color")
     }
@@ -55,6 +56,7 @@ class SettingsRepository(private val context: Context) {
     val customThemeColors: Flow<String> = context.dataStore.data.map { it[Keys.CUSTOM_THEME_COLORS] ?: "{}" }
     val language: Flow<String> = context.dataStore.data.map { it[Keys.LANGUAGE] ?: "system" }
     val channel: Flow<String> = context.dataStore.data.map { it[Keys.CHANNEL] ?: "release" }
+    val mirror: Flow<Boolean> = context.dataStore.data.map { it[Keys.MIRROR] ?: false }
     val userBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.USER_BUBBLE_COLOR] ?: -1L }
     val assistantBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.ASSIST_BUBBLE_COLOR] ?: -1L }
 
@@ -80,6 +82,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setChannel(value: String) {
         context.dataStore.edit { it[Keys.CHANNEL] = value }
+    }
+
+    suspend fun setMirror(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.MIRROR] = enabled }
     }
 
     suspend fun setUserBubbleColor(color: Long) {
