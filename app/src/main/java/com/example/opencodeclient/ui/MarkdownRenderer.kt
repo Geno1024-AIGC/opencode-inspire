@@ -48,6 +48,94 @@ private data class MdInline(val annotated: AnnotatedString, val codes: List<Stri
 private val InlineCodePadH = 3.dp
 private val InlineCodePadV = 1.dp
 
+private fun highlightCode(code: String, colorScheme: androidx.compose.material3.ColorScheme): AnnotatedString {
+    val keyword = listOf(
+        "fun", "val", "var", "if", "else", "when", "for", "while", "return", "class", "object",
+        "interface", "import", "package", "try", "catch", "finally", "throw", "null", "true",
+        "false", "this", "super", "suspend", "override", "private", "public", "internal",
+        "protected", "data", "sealed", "enum", "typealias", "in", "is", "as", "do", "break",
+        "continue", "companion", "init", "constructor", "by", "open", "abstract", "lateinit",
+        "const", "extern", "static", "def", "ifdef", "include", "using", "namespace", "new",
+        "public", "void", "int", "bool", "double", "float", "char", "string", "let", "const",
+        "async", "await", "yield", "from", "import", "def", "lambda", "with", "fn", "match",
+        "struct", "impl", "trait", "Self", "let",
+    )
+    val stringColor = colorScheme.tertiary
+    val keywordColor = colorScheme.primary
+    val commentColor = colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    val typeColor = colorScheme.secondary
+
+    val quotedSet = mutableSetOf<Char>()
+    val builder = AnnotatedString.Builder()
+
+    var i = 0
+    val n = code.length
+    while (i < n) {
+        val ch = code[i]
+        if (ch == '"' || ch == '\'') {
+            val quote = ch
+            val start = i
+            i++
+            while (i < n && code[i] != quote) {
+                if (code[i] == '\\' && i + 1 < n) i++ // skip escaped char
+                i++
+            }
+            i++ // closing quote (or end)
+            builder.withStyle(SpanStyle(color = stringColor)) {
+                append(code, start, i.coerceAtMost(n))
+            }
+        } else if (ch == '/' && i + 1 < n && (code[i+1] == '/' || code[i+1] == '*')) {
+            val start = i
+            val isBlock = code[i+1] == '*'
+            i += 2
+            if (isBlock) {
+                while (i + 1 < n && !(code[i] == '*' && code[i+1] == '/')) i++
+                i += 2
+            } else {
+                while (i < n && code[i] != '\n') i++
+            }
+            builder.withStyle(SpanStyle(color = commentColor)) {
+                append(code, start, i.coerceAtMost(n))
+            }
+        } else if (ch == '#' || ch == '@') {
+            val start = i
+            i++
+            while (i < n && (code[i].isLetterOrDigit() || code[i] == '_' || code[i] == '-')) i++
+            builder.withStyle(SpanStyle(color = typeColor)) {
+                append(code, start, i.coerceAtMost(n))
+            }
+        } else if (ch.isLetter() || ch == '_') {
+            val start = i
+            i++
+            while (i < n && (code[i].isLetterOrDigit() || code[i] == '_')) i++
+            val word = code.substring(start, i)
+            if (keyword.contains(word)) {
+                builder.withStyle(SpanStyle(color = keywordColor, fontWeight = FontWeight.Bold)) {
+                    append(word)
+                }
+            } else {
+                // Try to classify types (capitalized)
+                if (word.firstOrNull()?.isUpperCase() == true) {
+                    builder.withStyle(SpanStyle(color = typeColor)) { append(word) }
+                } else {
+                    builder.append(word)
+                }
+            }
+        } else if (ch.isDigit()) {
+            val start = i
+            i++
+            while (i < n && (code[i].isDigit() || code[i] == '.')) i++
+            builder.withStyle(SpanStyle(color = colorScheme.tertiary)) {
+                append(code, start, i.coerceAtMost(n))
+            }
+        } else {
+            builder.append(ch)
+            i++
+        }
+    }
+    return builder.toAnnotatedString()
+}
+
 @Composable
 private fun InlineMarkdownText(
     content: String,
@@ -384,7 +472,7 @@ fun MarkdownMessage(content: String) {
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                                 Text(
-                                    item.content,
+                                    highlightCode(item.content, MaterialTheme.colorScheme),
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontFamily = MonoFontFamily,
                                         fontSize = 13.sp,
