@@ -195,6 +195,7 @@
     <string name="session_delete_confirm">Delete this session and all its messages?</string>
     <string name="session_delete_title">Delete session</string>
     <string name="export_chat">Export as Markdown</string>
+    <string name="search">Search in conversation</string>
     <string name="rename_title">Rename session</string>
     <string name="rename_placeholder">New title</string>
     <string name="save">Save</string>
