@@ -595,6 +595,17 @@ private fun HistoryStatsDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                } else if (stats.fallbackSpanMs > 0L) {
+                    Text(
+                        stringResource(R.string.history_stats_fallback_title),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        stringResource(R.string.history_stats_fallback, stats.fallbackSpanMs / 1000.0),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = MonoFontFamily,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 } else {
                     Text(
                         stringResource(R.string.history_stats_unavailable),

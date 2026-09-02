@@ -22,6 +22,8 @@ import com.example.opencodeclient.data.Project
 import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
+import com.example.opencodeclient.data.SessionStatsRecord
+import com.example.opencodeclient.data.SessionStatsStore
 import com.example.opencodeclient.data.SettingsRepository
 import com.example.opencodeclient.data.Tokens
 import com.example.opencodeclient.data.Updater
@@ -71,6 +73,7 @@ data class HistoryStats(
     val firstUserText: String?,
     val computed: Boolean,
     val error: String? = null,
+    val fallbackSpanMs: Long = 0L,
 )
 
 data class TodoUi(
@@ -93,6 +96,7 @@ sealed interface UiState {
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = SettingsRepository(application)
+    private val statsStore = SessionStatsStore(application)
 
     private fun getAppString(resId: Int): String {
         val ctx = getApplication<Application>()
@@ -1035,26 +1039,52 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val stats = withContext(Dispatchers.IO) {
                 runCatching {
-                    val all = c.sessionMessagesAll(sid)
-                    if (all.isEmpty()) {
+                    val tail = c.sessionMessagesAll(sid)
+                    if (tail.isEmpty()) {
                         HistoryStats(totalElapsed = 0L, messageCount = 0L, firstUserText = null, computed = false, error = "empty")
                     } else {
-                        var lastUser = 0L
-                        var total = 0L
-                        var firstUserText: String? = null
-                        for ((msg, parts) in all) {
-                            val time = serverTimeToMillis(msg.time?.created)
-                            if (msg.role == "user") {
-                                lastUser = time
-                                if (firstUserText == null) {
-                                    firstUserText = parts.firstOrNull { it.type == "text" }?.text
-                                        ?: msg.id
+                        val existing = statsStore.record(sid)
+                        val anchorIndex = existing.anchorId?.let { a -> tail.indexOfFirst { it.first.id == a } } ?: -1
+                        if (existing.anchorId != null && anchorIndex < 0) {
+                            statsStore.save(sid, SessionStatsRecord())
+                            HistoryStats(
+                                totalElapsed = 0L, messageCount = 0L, firstUserText = null,
+                                computed = false, fallbackSpanMs = sessionSpanMs(),
+                            )
+                        } else {
+                            var total = existing.totalElapsed
+                            var count = existing.messageCount
+                            var lastUser = existing.lastUserTime
+                            var firstUserText = existing.firstUserText
+                            val startFrom = if (existing.anchorId == null) 0 else anchorIndex + 1
+                            for (i in startFrom until tail.size) {
+                                val (msg, parts) = tail[i]
+                                val time = serverTimeToMillis(msg.time?.created)
+                                if (msg.role == "user") {
+                                    lastUser = time
+                                    if (firstUserText == null) {
+                                        firstUserText = parts.firstOrNull { it.type == "text" }?.text
+                                            ?: msg.id
+                                    }
+                                } else if (lastUser > 0L && time > lastUser) {
+                                    total += time - lastUser
                                 }
-                            } else if (lastUser > 0L && time > lastUser) {
-                                total += time - lastUser
                             }
+                            val last = tail.last()
+                            val record = SessionStatsRecord(
+                                anchorId = last.first.id,
+                                anchorTime = serverTimeToMillis(last.first.time?.created),
+                                lastUserTime = lastUser,
+                                totalElapsed = total,
+                                messageCount = count + (tail.size - startFrom),
+                                firstUserText = firstUserText,
+                            )
+                            statsStore.save(sid, record)
+                            HistoryStats(
+                                totalElapsed = total, messageCount = record.messageCount,
+                                firstUserText = firstUserText, computed = true,
+                            )
                         }
-                        HistoryStats(totalElapsed = total, messageCount = all.size.toLong(), firstUserText = firstUserText, computed = true)
                     }
                 }.getOrElse { e ->
                     HistoryStats(totalElapsed = 0L, messageCount = 0L, firstUserText = null, computed = false, error = e.message)
@@ -1062,6 +1092,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             _historyStats.value = stats
         }
+    }
+
+    private fun sessionSpanMs(): Long {
+        val t = _activeSession.value?.time ?: return 0L
+        val created = serverTimeToMillis(t.created.takeIf { it > 0 })
+        val updated = serverTimeToMillis(t.updated)
+        return if (updated > created) updated - created else 0L
     }
 
     fun dismissHistoryStats() {
