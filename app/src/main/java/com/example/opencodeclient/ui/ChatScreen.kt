@@ -1364,19 +1364,39 @@ private fun TokenStatsBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Column(
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+            ) {
+                TokenStatLine(label = "out", value = output, short = shortTokens)
+                TokenStatLine(label = "in", value = input, short = shortTokens)
+            }
             Text(
-                "in ${formatTokens(input, shortTokens)} · out ${formatTokens(output, shortTokens)} · ${formatTokens(total, shortTokens)}",
-                style = MaterialTheme.typography.labelSmall,
+                formatTokens(total, shortTokens),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = MonoFontFamily,
             )
-            if (contextWindow > 0 && total > 0) {
-                Text(
-                    "${formatTokens(ctx, shortTokens)} / ${formatTokens(contextWindow, shortTokens)} (${(ratio * 100).toInt()}%)",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontFamily = MonoFontFamily,
-                )
+            if (contextWindow > 0 && (total > 0 || promptTokens > 0)) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    Text(
+                        "${formatTokens(ctx, shortTokens)} / ${formatTokens(contextWindow, shortTokens)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = MonoFontFamily,
+                        maxLines = 1,
+                    )
+                    Text(
+                        "${(ratio * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontFamily = MonoFontFamily,
+                    )
+                }
             }
         }
         if (contextWindow > 0 && total > 0) {
@@ -1387,6 +1407,27 @@ private fun TokenStatsBar(
                     .height(3.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun TokenStatLine(label: String, value: Long, short: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontFamily = MonoFontFamily,
+        )
+        Text(
+            formatTokens(value, short),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontFamily = MonoFontFamily,
+        )
     }
 }
 
