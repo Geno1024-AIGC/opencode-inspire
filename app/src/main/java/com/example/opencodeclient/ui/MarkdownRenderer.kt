@@ -10,11 +10,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.InlineTextContent
-import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.MaterialTheme
@@ -24,9 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.Placeholder
-import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -34,7 +28,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -43,10 +36,7 @@ import androidx.compose.ui.unit.sp
 private data class MdSpan(val start: Int, val end: Int, val style: SpanStyle?)
 private data class MdLine(val type: String, val content: String, val level: Int = 0)
 private data class MdTable(val headers: List<String>, val rows: List<List<String>>)
-private data class MdInline(val annotated: AnnotatedString, val codes: List<String>)
-
-private val InlineCodePadH = 3.dp
-private val InlineCodePadV = 1.dp
+private const val InlineCodeFontScale = 0.85f
 
 private fun highlightCode(code: String, colorScheme: androidx.compose.material3.ColorScheme): AnnotatedString {
     val keyword = setOf(
@@ -143,68 +133,37 @@ private fun InlineMarkdownText(
     linkColor: androidx.compose.ui.graphics.Color? = null,
     prefix: String? = null,
 ) {
-    val density = LocalDensity.current
-    val measurer = rememberTextMeasurer()
-    val parsed = remember(content, linkColor, style) { parseInlineInternal(content, linkColor) }
     val baseFontSize = if (style.fontSize != TextUnit.Unspecified) style.fontSize else 14.sp
-    val chipStyle = style.copy(fontFamily = MonoFontFamily, fontSize = baseFontSize * 0.85f)
-    val inlineContent = remember(parsed.codes, chipStyle) {
-        val pxPerSp = density.density * density.fontScale
-        parsed.codes.mapIndexed { idx, code ->
-            with(density) {
-                val m = measurer.measure(code, chipStyle)
-                val wPx = (m.size.width + (InlineCodePadH * 2).toPx()) / pxPerSp
-                val hPx = (m.size.height + (InlineCodePadV * 2).toPx()) / pxPerSp
-                "code-$idx" to InlineTextContent(
-                    placeholder = Placeholder(
-                        width = wPx.sp,
-                        height = hPx.sp,
-                        placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter,
-                    ),
-                ) { InlineCodeChip(code, chipStyle) }
+    val codeStyle = SpanStyle(
+        fontFamily = MonoFontFamily,
+        fontSize = baseFontSize * InlineCodeFontScale,
+        background = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+    )
+    val parsed = remember(content, linkColor, style, codeStyle) { parseInlineInternal(content, linkColor, codeStyle) }
+    val annotated = remember(parsed, prefix) {
+        if (prefix != null) {
+            buildAnnotatedString {
+                append(prefix)
+                append(parsed)
             }
-        }.toMap()
-    }
-    val annotated = if (prefix != null) {
-        buildAnnotatedString {
-            append(prefix)
-            append(parsed.annotated)
+        } else {
+            parsed
         }
-    } else {
-        parsed.annotated
     }
     Text(
         annotated,
         style = style,
         modifier = modifier,
-        inlineContent = inlineContent,
     )
 }
 
-@Composable
-private fun InlineCodeChip(code: String, style: TextStyle) {
-    Text(
-        code,
-        style = style,
-        modifier = Modifier
-            .background(
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                RoundedCornerShape(3.dp),
-            )
-            .padding(horizontal = InlineCodePadH, vertical = InlineCodePadV),
-    )
-}
-
-private fun parseInline(text: String): MdInline = parseInlineInternal(text)
-
-private fun parseInline(text: String, linkColor: androidx.compose.ui.graphics.Color): MdInline =
-    parseInlineInternal(text, linkColor)
-
-private fun parseInlineInternal(text: String, linkColor: androidx.compose.ui.graphics.Color? = null): MdInline {
+private fun parseInlineInternal(
+    text: String,
+    linkColor: androidx.compose.ui.graphics.Color? = null,
+    codeStyle: SpanStyle? = null,
+): AnnotatedString {
     val builder = AnnotatedString.Builder()
-    val codes = mutableListOf<String>()
     var i = 0
-    var codeIndex = 0
     while (i < text.length) {
         when {
             text.startsWith("**", i) || text.startsWith("__", i) -> {
@@ -245,9 +204,11 @@ private fun parseInlineInternal(text: String, linkColor: androidx.compose.ui.gra
                 if (close > 0) {
                     val code = text.substring(i + 1, close)
                     if (code.isNotEmpty()) {
-                        codes.add(code)
-                        builder.appendInlineContent("code-$codeIndex", code)
-                        codeIndex++
+                        if (codeStyle != null) {
+                            builder.withStyle(codeStyle) { append(code) }
+                        } else {
+                            builder.append(code)
+                        }
                     } else {
                         builder.append("`")
                     }
@@ -280,7 +241,7 @@ private fun parseInlineInternal(text: String, linkColor: androidx.compose.ui.gra
             }
         }
     }
-    return MdInline(builder.toAnnotatedString(), codes)
+    return builder.toAnnotatedString()
 }
 
 private fun parseMarkdown(text: String): List<Any> {
