@@ -860,6 +860,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         send(lastUserMessage.text)
     }
 
+    fun sendWithFile(text: String, fileName: String, content: String) {
+        if (text.isBlank() && content.isBlank()) return
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        val combined = buildString {
+            if (text.isNotBlank()) appendLine(text.trim())
+            appendLine("\n[File: $fileName]")
+            appendLine(content)
+        }
+        val prompt = if (text.isBlank()) "Read the attached file `$fileName` and respond." else text.trim()
+        viewModelScope.launch {
+            _sending.value = true
+            lastUserSendTime = System.currentTimeMillis()
+            _sessionElapsed.value = null
+            _messages.value = _messages.value + ChatMessage(
+                id = "user-${System.currentTimeMillis()}",
+                role = "user",
+                text = prompt,
+                time = System.currentTimeMillis(),
+            )
+            try {
+                withContext(Dispatchers.IO) { c.sendPromptAsync(sid, combined) }
+            } catch (e: Exception) {
+                _messages.value = _messages.value + ChatMessage(
+                    id = "err-${System.currentTimeMillis()}",
+                    role = "error",
+                    text = e.message ?: getAppString(R.string.send_failed),
+                )
+                _sending.value = false
+            }
+        }
+    }
+
     fun runCommand(command: Command) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
