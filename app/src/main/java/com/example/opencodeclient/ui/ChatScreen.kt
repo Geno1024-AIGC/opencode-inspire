@@ -307,6 +307,7 @@ fun ChatScreen(
                         collapsed = msg.id in collapsedMessageIds,
                         onToggleCollapse = { viewModel.toggleMessageCollapsed(msg.id) },
                         onShowRaw = { rawMessage = msg },
+                        onRegenerate = { viewModel.regenerate() },
                     )
                 }
             }
@@ -849,6 +850,7 @@ private fun MessageBubble(
     collapsed: Boolean = false,
     onToggleCollapse: () -> Unit = {},
     onShowRaw: () -> Unit = {},
+    onRegenerate: () -> Unit = {},
 ) {
     if (msg.role == "system") {
         SystemNotice(msg.text)
@@ -960,6 +962,17 @@ private fun MessageBubble(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                 fontFamily = MonoFontFamily,
                 modifier = Modifier.align(Alignment.Start).padding(top = 2.dp),
+            )
+        }
+        if (!isUser && !collapsed) {
+            Text(
+                text = stringResource(R.string.regenerate),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .clickable { onRegenerate() }
+                    .padding(top = 2.dp),
             )
         }
     }

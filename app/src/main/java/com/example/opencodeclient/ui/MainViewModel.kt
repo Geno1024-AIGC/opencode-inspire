@@ -855,6 +855,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun regenerate() {
+        val lastUserMessage = _messages.value.lastOrNull { it.role == "user" } ?: return
+        send(lastUserMessage.text)
+    }
+
     fun runCommand(command: Command) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
