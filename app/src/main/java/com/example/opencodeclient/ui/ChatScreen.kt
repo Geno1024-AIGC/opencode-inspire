@@ -1368,8 +1368,8 @@ private fun TokenStatsBar(
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(1.dp),
             ) {
-                TokenStatLine(label = "out", value = output, short = shortTokens)
                 TokenStatLine(label = "in", value = input, short = shortTokens)
+                TokenStatLine(label = "out", value = output, short = shortTokens)
             }
             Text(
                 formatTokens(total, shortTokens),
