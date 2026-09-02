@@ -198,21 +198,12 @@ class OpenCodeClient(
         }
 
     suspend fun sessionMessagesAll(sessionId: String): List<Pair<Message, List<Part>>> {
-        val result = mutableListOf<Pair<Message, List<Part>>>()
-        val pageSize = 200
-        var offset = 0
-        while (true) {
-            val text = execute("GET", "/session/$sessionId/message?limit=$pageSize&offset=$offset&order=asc") { it }
-            if (text.isBlank()) break
-            val page = runCatching {
-                json.decodeFromString<List<SessionInfo>>(text)
-            }.getOrElse { break }
-            if (page.isEmpty()) break
-            for (si in page) result.add(si.info to si.parts)
-            if (page.size < pageSize) break
-            offset += pageSize
-        }
-        return result
+        val text = execute("GET", "/session/$sessionId/message?limit=3500") { it }
+        if (text.isBlank()) return emptyList()
+        return runCatching {
+            json.decodeFromString<List<SessionInfo>>(text)
+                .map { it.info to it.parts }
+        }.getOrElse { emptyList() }
     }
 
     suspend fun commands(directory: String? = null): List<Command> =
