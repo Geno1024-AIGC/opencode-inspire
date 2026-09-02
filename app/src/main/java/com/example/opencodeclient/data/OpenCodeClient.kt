@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -225,56 +226,55 @@ class OpenCodeClient(
 
     private fun parseSessionMessageV2(obj: JsonObject): Pair<Message, List<Part>>? {
         val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: return null
-        val type = obj["type"]?.jsonPrimitive?.contentOrNull ?: return null
-        val role = when (type) {
-            "user", "compaction", "shell", "synthetic" -> "user"
+        val roleField = obj["role"]?.jsonPrimitive?.contentOrNull
+            ?: obj["type"]?.jsonPrimitive?.contentOrNull ?: return null
+        val role = when (roleField) {
+            "user", "compaction", "shell", "synthetic", "text" -> "user"
             else -> "assistant"
         }
-        val time = obj["time"]?.jsonObject?.get("created")?.let {
-            if (it is JsonPrimitive && it.isString) it.contentOrNull?.toLongOrNull() ?: it.contentOrNull?.toBigDecimalOrNull()?.toLong()
-            else (it as? JsonPrimitive)?.toString()?.trim('"')?.toLongOrNull()
-        }
+        val created = obj["time"]?.jsonObject?.get("created") ?: obj["time"]?.jsonObject?.get("start")
+        val time = created?.toLongSafe()
 
         val parts = mutableListOf<Part>()
-        if (type == "user") {
+        if (role == "user") {
             val text = obj["text"]?.jsonPrimitive?.contentOrNull ?: ""
             if (text.isNotBlank()) parts.add(Part(type = "text", text = text))
-        } else {
-            val content = obj["content"]?.jsonArray
-            if (content != null) {
-                val textBuilder = StringBuilder()
-                for (c in content) {
-                    val co = c.jsonObject
-                    val ctype = co["type"]?.jsonPrimitive?.contentOrNull
-                    when (ctype) {
-                        "text" -> {
-                            val t = co["text"]?.jsonPrimitive?.contentOrNull ?: ""
-                            if (t.isNotBlank()) textBuilder.append(t)
-                        }
-                        "reasoning" -> {
-                            val t = co["text"]?.jsonPrimitive?.contentOrNull ?: ""
-                            if (t.isNotBlank()) parts.add(Part(type = "reasoning", text = t))
-                        }
-                        "tool" -> {
-                            parts.add(Part(
-                                type = "tool",
-                                tool = co["tool"]?.jsonPrimitive?.contentOrNull,
-                                title = co["title"]?.jsonPrimitive?.contentOrNull,
-                                callID = co["callID"]?.jsonPrimitive?.contentOrNull,
-                                state = co["state"]?.let { st ->
-                                    ToolState(
-                                        status = st.jsonObject["status"]?.jsonPrimitive?.contentOrNull,
-                                        output = st.jsonObject["output"]?.jsonPrimitive?.contentOrNull,
-                                        input = st.jsonObject["input"],
-                                    )
-                                },
-                            ))
-                        }
+        }
+        val content = obj["content"] as? JsonArray
+        if (content != null) {
+            val textBuilder = StringBuilder()
+            for (c in content) {
+                val co = c.jsonObject
+                val ctype = co["type"]?.jsonPrimitive?.contentOrNull
+                when (ctype) {
+                    "text" -> {
+                        val t = co["text"]?.jsonPrimitive?.contentOrNull ?: ""
+                        if (t.isNotBlank()) textBuilder.append(t)
+                    }
+                    "reasoning" -> {
+                        val t = co["text"]?.jsonPrimitive?.contentOrNull ?: ""
+                        if (t.isNotBlank()) parts.add(Part(type = "reasoning", text = t))
+                    }
+                    "tool" -> {
+                        parts.add(Part(
+                            type = "tool",
+                            tool = co["tool"]?.jsonPrimitive?.contentOrNull,
+                            title = co["title"]?.jsonPrimitive?.contentOrNull,
+                            callID = co["callID"]?.jsonPrimitive?.contentOrNull,
+                            state = co["state"]?.let { st ->
+                                val so = st.jsonObject
+                                ToolState(
+                                    status = so["status"]?.jsonPrimitive?.contentOrNull,
+                                    output = so["output"]?.jsonPrimitive?.contentOrNull,
+                                    input = so["input"],
+                                )
+                            },
+                        ))
                     }
                 }
-                if (textBuilder.isNotEmpty()) {
-                    parts.add(Part(type = "text", text = textBuilder.toString()))
-                }
+            }
+            if (textBuilder.isNotEmpty()) {
+                parts.add(Part(type = "text", text = textBuilder.toString()))
             }
         }
 
@@ -301,6 +301,16 @@ class OpenCodeClient(
             time = if (time != null) MessageTime(created = time) else null,
         )
         return msg to parts.filter { it.type == "reasoning" || it.type == "tool" || it.type == "text" }
+    }
+
+    private fun JsonElement?.toLongSafe(): Long? = when (this) {
+        null -> null
+        is JsonPrimitive -> {
+            contentOrNull?.toLongOrNull()
+                ?: contentOrNull?.toDoubleOrNull()?.toLong()
+                ?: toString().trim('"').toDoubleOrNull()?.toLong()
+        }
+        else -> null
     }
 
     suspend fun commands(directory: String? = null): List<Command> =
