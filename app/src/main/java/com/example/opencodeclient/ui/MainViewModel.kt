@@ -145,6 +145,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _sessionElapsed = MutableStateFlow<Long?>(null)
     val sessionElapsed: StateFlow<Long?> = _sessionElapsed.asStateFlow()
 
+    private val _sessionTotalElapsed = MutableStateFlow<Long?>(null)
+    val sessionTotalElapsed: StateFlow<Long?> = _sessionTotalElapsed.asStateFlow()
+
     private val _tokenHistory = MutableStateFlow<Map<String, Long>>(emptyMap())
     val tokenHistory: StateFlow<Map<String, Long>> = _tokenHistory.asStateFlow()
 
@@ -418,6 +421,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _cumulativeTokens.value = 0L
                 lastUserSendTime = null
                 _sessionElapsed.value = null
+                _sessionTotalElapsed.value = null
                 _sending.value = false
                 settings.setServerUrl(serverUrl)
                 settings.setAuth(username, password)
@@ -800,6 +804,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 recomputeSessionElapsed()
+                recomputeSessionTotalElapsed()
             } catch (_: Exception) {
                 // ignore, keep current
             }
@@ -827,6 +832,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (m.time > last) last = m.time
         }
         _sessionElapsed.value = if (lastUser > 0L && last > lastUser) last - lastUser else null
+    }
+
+    private fun recomputeSessionTotalElapsed() {
+        var lastUser = 0L
+        var total = 0L
+        for (m in _messages.value) {
+            if (m.time <= 0L) continue
+            if (m.role == "user") {
+                lastUser = m.time
+            } else if (lastUser > 0L && m.time > lastUser) {
+                total += m.time - lastUser
+            }
+        }
+        _sessionTotalElapsed.value = if (total > 0L) total else null
     }
 
      fun send(text: String) {
@@ -1179,6 +1198,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         _sending.value = false
                         val elapsed = lastUserSendTime?.let { System.currentTimeMillis() - it }
                         if (elapsed != null && elapsed > 0) _sessionElapsed.value = elapsed
+                        recomputeSessionTotalElapsed()
                     }
                     if (wasBusy) notifySessionDone(sid, _sessionTokens.value?.total ?: 0L)
                 } else {

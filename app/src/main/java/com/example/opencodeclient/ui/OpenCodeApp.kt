@@ -185,6 +185,7 @@ private fun DrawerContent(
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val workspaceState by viewModel.workspaceState.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
+    val activeSessionTotalElapsed by viewModel.sessionTotalElapsed.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
 
     ModalDrawerSheet {
@@ -239,6 +240,7 @@ private fun DrawerContent(
                     ExpandableProject(
                         project = project,
                         activeSessionId = activeSession?.id,
+                        activeSessionTotalElapsed = activeSessionTotalElapsed,
                         shortTokens = shortTokens,
                         onOpenSession = { viewModel.openSession(it) },
                         onNewSession = { viewModel.newSession(project.worktree) },
@@ -276,6 +278,7 @@ private fun DrawerContent(
 private fun ExpandableProject(
     project: ProjectUi,
     activeSessionId: String?,
+    activeSessionTotalElapsed: Long? = null,
     shortTokens: Boolean = true,
     onOpenSession: (String) -> Unit,
     onNewSession: () -> Unit,
@@ -316,6 +319,7 @@ private fun ExpandableProject(
                 SessionRow(
                     s = s,
                     isActive = s.id == activeSessionId,
+                    totalElapsed = if (s.id == activeSessionId) activeSessionTotalElapsed else null,
                     shortTokens = shortTokens,
                     onClick = { onOpenSession(s.id) },
                 )
@@ -343,6 +347,7 @@ private fun ExpandableProject(
 private fun SessionRow(
     s: Session,
     isActive: Boolean,
+    totalElapsed: Long? = null,
     shortTokens: Boolean = true,
     onClick: () -> Unit,
 ) {
@@ -377,7 +382,24 @@ private fun SessionRow(
                 )
             }
         }
+        totalElapsed?.let { elapsed ->
+            if (elapsed > 0) {
+                Spacer(Modifier.padding(horizontal = 4.dp))
+                Text(
+                    formatElapsed(elapsed),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
     }
+}
+
+fun formatElapsed(ms: Long): String = when {
+    ms <= 0L -> ""
+    ms < 60_000L -> "%.1fs".format(ms / 1000.0)
+    ms < 3_600_000L -> "${ms / 60_000}m ${(ms % 60_000) / 1000}s"
+    else -> "${ms / 3_600_000}h ${(ms % 3_600_000) / 60_000}m"
 }
 
 fun formatTokens(count: Long, short: Boolean = true): String = when {

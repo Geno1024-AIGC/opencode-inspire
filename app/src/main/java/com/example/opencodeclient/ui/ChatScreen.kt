@@ -117,6 +117,7 @@ fun ChatScreen(
     val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
     val cumulativeTokens by viewModel.cumulativeTokens.collectAsStateWithLifecycle()
     val sessionElapsed by viewModel.sessionElapsed.collectAsStateWithLifecycle()
+    val sessionTotalElapsed by viewModel.sessionTotalElapsed.collectAsStateWithLifecycle()
     val pendingQuestions by viewModel.pendingQuestions.collectAsStateWithLifecycle()
     val todos by viewModel.todos.collectAsStateWithLifecycle()
     val commands by viewModel.commands.collectAsStateWithLifecycle()
@@ -266,7 +267,7 @@ fun ChatScreen(
                 .padding(padding)
                 .imePadding(),
         ) {
-            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens)
+            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens, totalElapsed = sessionTotalElapsed)
             if (searchActive) {
                 OutlinedTextField(
                     value = searchQuery,
@@ -1494,6 +1495,7 @@ private fun TokenStatsBar(
     promptTokens: Long,
     contextWindow: Long,
     shortTokens: Boolean,
+    totalElapsed: Long? = null,
 ) {
     if (tokens == null && contextWindow <= 0) return
     val input = tokens?.input ?: 0L
@@ -1555,6 +1557,22 @@ private fun TokenStatsBar(
                     .fillMaxWidth()
                     .height(3.dp),
             )
+        }
+        totalElapsed?.let { elapsed ->
+            if (elapsed > 0) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 2.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.session_total_elapsed, elapsed / 1000.0),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        fontFamily = MonoFontFamily,
+                    )
+                }
+            }
         }
     }
 }
