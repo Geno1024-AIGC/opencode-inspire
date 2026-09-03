@@ -206,6 +206,7 @@
     <string name="session_details_title">会话详情</string>
     <string name="session_details_title_label">标题</string>
     <string name="session_details_id">会话 ID</string>
+    <string name="session_details_created">创建时间</string>
     <string name="session_details_context">上下文窗口</string>
     <string name="session_details_tokens">Token</string>
     <string name="session_details_tokens_in">输入 %s</string>
