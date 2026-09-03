@@ -198,13 +198,49 @@ class OpenCodeClient(
         }
 
     suspend fun sessionMessagesAll(sessionId: String): List<Pair<Message, List<Part>>> {
-        val text = execute("GET", "/session/$sessionId/message?limit=100000") { it }
-        if (text.isBlank()) return emptyList()
-        return runCatching {
-            json.decodeFromString<List<SessionInfo>>(text)
-                .map { it.info to it.parts }
-        }.getOrElse { emptyList() }
+        val all = mutableListOf<Pair<Message, List<Part>>>()
+        var before: String? = null
+        while (true) {
+            val (text, next) = fetchPageWithCursor(sessionId, 1000, before)
+            if (text.isBlank()) break
+            val page = runCatching {
+                json.decodeFromString<List<SessionInfo>>(text).map { it.info to it.parts }
+            }.getOrElse { emptyList() }
+            if (page.isEmpty()) break
+            all += page
+            before = next
+            if (next == null) break
+        }
+        return all
     }
+
+    private suspend fun fetchPageWithCursor(sessionId: String, limit: Int, before: String?): Pair<String, String?> =
+        suspendCancellableCoroutine { cont ->
+            val path = "/session/$sessionId/message?limit=$limit" + (before?.let { "&before=$it" } ?: "")
+            val reqBuilder = Request.Builder().url("$base$path")
+            authHeader?.let { reqBuilder.header("Authorization", it) }
+            val request = reqBuilder.build()
+            val call = client.newCall(request)
+            cont.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (cont.isCancelled) return
+                    cont.resumeWithException(e)
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    if (cont.isCancelled) return
+                    response.use {
+                        val text = it.body?.string().orEmpty()
+                        if (!it.isSuccessful) {
+                            cont.resumeWithException(IOException("HTTP ${it.code}: $text"))
+                            return
+                        }
+                        cont.resume(text to it.header("x-next-cursor"))
+                    }
+                }
+            })
+        }
 
     suspend fun commands(directory: String? = null): List<Command> =
         execute("GET", "/command${queryOf(mapOf("directory" to directory))}") { text ->
