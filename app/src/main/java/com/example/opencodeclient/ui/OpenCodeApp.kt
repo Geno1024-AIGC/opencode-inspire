@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
 import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
+import com.example.opencodeclient.data.StoredHistoryStats
 import kotlinx.coroutines.launch
 
 sealed class Screen {
@@ -187,6 +188,7 @@ private fun DrawerContent(
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
     val activeSessionTotalElapsed by viewModel.sessionTotalElapsed.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
+    val storedStats by viewModel.storedStats.collectAsStateWithLifecycle()
 
     ModalDrawerSheet {
         Column(
@@ -241,6 +243,7 @@ private fun DrawerContent(
                         project = project,
                         activeSessionId = activeSession?.id,
                         activeSessionTotalElapsed = activeSessionTotalElapsed,
+                        storedStats = storedStats,
                         shortTokens = shortTokens,
                         onOpenSession = { viewModel.openSession(it) },
                         onNewSession = { viewModel.newSession(project.worktree) },
@@ -279,6 +282,7 @@ private fun ExpandableProject(
     project: ProjectUi,
     activeSessionId: String?,
     activeSessionTotalElapsed: Long? = null,
+    storedStats: Map<String, StoredHistoryStats> = emptyMap(),
     shortTokens: Boolean = true,
     onOpenSession: (String) -> Unit,
     onNewSession: () -> Unit,
@@ -316,10 +320,12 @@ private fun ExpandableProject(
         }
         if (expanded) {
             project.sessions.forEach { s ->
+                val live = if (s.id == activeSessionId) activeSessionTotalElapsed else null
+                val storedElapsed = storedStats[s.id]?.totalElapsed ?: 0L
                 SessionRow(
                     s = s,
                     isActive = s.id == activeSessionId,
-                    totalElapsed = if (s.id == activeSessionId) activeSessionTotalElapsed else null,
+                    totalElapsed = if (live != null && live > 0L) live else if (storedElapsed > 0L) storedElapsed else null,
                     shortTokens = shortTokens,
                     onClick = { onOpenSession(s.id) },
                 )

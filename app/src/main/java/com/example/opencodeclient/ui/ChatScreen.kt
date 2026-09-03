@@ -146,6 +146,11 @@ fun ChatScreen(
     val historyProgress by viewModel.historyProgress.collectAsStateWithLifecycle()
     val storedStats by viewModel.storedStats.collectAsStateWithLifecycle()
     val autoTiming by viewModel.autoTiming.collectAsStateWithLifecycle()
+    val effectiveTotalElapsed: Long? = run {
+        val storedMs = activeSession?.let { storedStats[it.id]?.totalElapsed } ?: 0L
+        val live = sessionTotalElapsed
+        if (storedMs > 0L) storedMs else live
+    }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -286,7 +291,7 @@ fun ChatScreen(
                 .padding(padding)
                 .imePadding(),
         ) {
-            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens, totalElapsed = sessionTotalElapsed)
+            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens, totalElapsed = effectiveTotalElapsed)
             if (searchActive) {
                 OutlinedTextField(
                     value = searchQuery,
