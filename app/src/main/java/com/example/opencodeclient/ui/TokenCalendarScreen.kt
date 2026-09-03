@@ -61,6 +61,7 @@ fun TokenCalendarScreen(
 ) {
     BackHandler(onBack = onBack)
     val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
+    val elapsed by viewModel.tokenElapsed.collectAsStateWithLifecycle()
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -136,7 +137,11 @@ fun TokenCalendarScreen(
             } else {
                 val d = selDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale))
                 val selTokens = history[selDate.toString()] ?: 0L
-                if (selTokens > 0L) "$d · ${stringResource(R.string.calendar_day_tokens, selTokens)}" else d
+                val selElapsed = elapsed[selDate.toString()] ?: 0L
+                val sb = StringBuilder(d)
+                if (selTokens > 0L) sb.append(" · ").append(stringResource(R.string.calendar_day_tokens, selTokens))
+                if (selElapsed > 0L) sb.append(" · ").append(stringResource(R.string.calendar_day_elapsed, selElapsed / 1000.0))
+                sb.toString()
             }
             Text(
                 detailText,
