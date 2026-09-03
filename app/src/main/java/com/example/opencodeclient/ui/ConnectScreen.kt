@@ -158,7 +158,7 @@ fun ConnectScreen(
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
-            servers.forEach { p ->
+            servers.sortedBy { it.url != serverUrl }.forEach { p ->
                 ServerRow(
                     profile = p,
                     isCurrent = p.url == serverUrl,
