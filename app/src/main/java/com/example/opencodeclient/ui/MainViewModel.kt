@@ -841,11 +841,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshSession() {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
-         viewModelScope.launch {
-            if (sessionBusy[sid] != true) {
-                _sending.value = false
-                loadMessages()
-            }
+        viewModelScope.launch {
+            _sending.value = false
+            sessionBusy.remove(sid)
+            loadMessages()
             rollSessionStats(c, sid)
         }
     }
