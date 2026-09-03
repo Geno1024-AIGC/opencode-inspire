@@ -185,6 +185,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
+    private var sendingWatchdog: Job? = null
+    private val SENDING_WATCHDOG_MS = 60_000L
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -465,7 +467,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 lastUserSendTime = null
                 _sessionElapsed.value = null
                 _sessionTotalElapsed.value = null
-                _sending.value = false
+                setSending(false)
                 settings.setServerUrl(serverUrl)
                 settings.setAuth(username, password)
                 _serverUrl.value = serverUrl
@@ -863,7 +865,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
         viewModelScope.launch {
-            _sending.value = false
+            setSending(false)
             sessionBusy.remove(sid)
             loadMessages()
             rollSessionStats(c, sid)
@@ -895,15 +897,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _sessionTotalElapsed.value = if (total > 0L) total else null
     }
 
-     fun send(text: String) {
-         if (text.isBlank()) return
-         val c = client ?: return
-         val sid = _activeSession.value?.id ?: return
-         viewModelScope.launch {
-             _sending.value = true
-             lastUserSendTime = System.currentTimeMillis()
-             _sessionElapsed.value = null
-             _messages.value = _messages.value + ChatMessage(
+    private fun setSending(value: Boolean) {
+        _sending.value = value
+        sendingWatchdog?.cancel()
+        if (value) {
+            sendingWatchdog = viewModelScope.launch {
+                delay(SENDING_WATCHDOG_MS)
+                _sending.value = false
+            }
+        }
+    }
+
+    fun send(text: String) {
+        if (text.isBlank()) return
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        viewModelScope.launch {
+            setSending(true)
+            lastUserSendTime = System.currentTimeMillis()
+            _sessionElapsed.value = null
+            _messages.value = _messages.value + ChatMessage(
                 id = "user-${System.currentTimeMillis()}",
                 role = "user",
                 text = text,
@@ -917,7 +930,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     role = "error",
                     text = e.message ?: getAppString(R.string.send_failed),
                 )
-                _sending.value = false
+                setSending(false)
             }
         }
     }
@@ -938,7 +951,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val prompt = if (text.isBlank()) "Read the attached file `$fileName` and respond." else text.trim()
         viewModelScope.launch {
-            _sending.value = true
+            setSending(true)
             lastUserSendTime = System.currentTimeMillis()
             _sessionElapsed.value = null
             _messages.value = _messages.value + ChatMessage(
@@ -953,9 +966,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _messages.value = _messages.value + ChatMessage(
                     id = "err-${System.currentTimeMillis()}",
                     role = "error",
-                    text = e.message ?: getAppString(R.string.send_failed),
+text = e.message ?: getAppString(R.string.send_failed),
                 )
-                _sending.value = false
+                setSending(false)
             }
         }
     }
@@ -964,7 +977,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
         viewModelScope.launch {
-            _sending.value = true
+            setSending(true)
             try {
                 withContext(Dispatchers.IO) { c.executeCommand(sid, command.name) }
             } catch (e: Exception) {
@@ -973,7 +986,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     role = "error",
                     text = e.message ?: getAppString(R.string.send_failed),
                 )
-                _sending.value = false
+                setSending(false)
             }
         }
     }
@@ -1244,7 +1257,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
         viewModelScope.launch {
-            _sending.value = true
+            setSending(true)
             _messages.value = _messages.value + ChatMessage(
                 id = "user-${System.currentTimeMillis()}",
                 role = "user",
@@ -1254,7 +1267,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 withContext(Dispatchers.IO) { c.sendPromptAsync(sid, "Read $path and summarize its purpose") }
             } catch (_: Exception) {
-                _sending.value = false
+                setSending(false)
             }
         }
     }
@@ -1368,7 +1381,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (type == "session.idle") {
                     val wasBusy = sessionBusy.remove(sid) == true
                     if (sid == active) {
-                        _sending.value = false
+                        setSending(false)
                         val elapsed = lastUserSendTime?.let { System.currentTimeMillis() - it }
                         if (elapsed != null && elapsed > 0) _sessionElapsed.value = elapsed
                         recomputeSessionTotalElapsed()
@@ -1379,7 +1392,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val st = props?.get("status")?.jsonObject?.get("type")?.jsonPrimitive?.contentOrNull
                     sessionBusy[sid] = st == "busy"
                     if (sid == active) {
-                        _sending.value = st == "busy"
+                        setSending(st == "busy")
                     }
                 }
             }
@@ -1403,7 +1416,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     text = errText,
                 )
                 _messages.value = _messages.value + errMsg
-                _sending.value = false
+                setSending(false)
             }
             "todo.updated" -> {
                 val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
