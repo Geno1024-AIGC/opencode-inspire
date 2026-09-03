@@ -1857,6 +1857,13 @@ private fun SessionDetailsScreen(
                     onCopyValue = session.id,
                 )
                 DetailRow(
+                    label = stringResource(R.string.session_details_created),
+                    value = if (session.time?.created != null && session.time!!.created > 0L)
+                        formatMillis(session.time!!.created) else "—",
+                    onCopyValue = if (session.time?.created != null && session.time!!.created > 0L)
+                        session.time!!.created.toString() else null,
+                )
+                DetailRow(
                     label = stringResource(R.string.session_details_context),
                     value = if (contextWindow > 0) formatTokens(contextWindow) else "—",
                     onCopyValue = if (contextWindow > 0) contextWindow.toString() else null,

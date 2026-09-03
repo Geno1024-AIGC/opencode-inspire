@@ -206,6 +206,7 @@
     <string name="session_details_title">Session Details</string>
     <string name="session_details_title_label">Title</string>
     <string name="session_details_id">Session ID</string>
+    <string name="session_details_created">Created</string>
     <string name="session_details_context">Context window</string>
     <string name="session_details_tokens">Token</string>
     <string name="session_details_tokens_in">In %s</string>
