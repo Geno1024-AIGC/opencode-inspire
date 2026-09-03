@@ -166,6 +166,10 @@ fun SettingsScreen(
                         "tokyo_night" to stringResource(R.string.theme_preset_tokyo_night),
                         "dracula" to stringResource(R.string.theme_preset_dracula),
                         "nord" to stringResource(R.string.theme_preset_nord),
+                        "one_dark" to stringResource(R.string.theme_preset_one_dark),
+                        "solarized" to stringResource(R.string.theme_preset_solarized),
+                        "gruvbox" to stringResource(R.string.theme_preset_gruvbox),
+                        "catppuccin" to stringResource(R.string.theme_preset_catppuccin),
                         "custom" to stringResource(R.string.theme_preset_custom),
                     )
                     DropdownSetting(
