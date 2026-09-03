@@ -127,10 +127,13 @@
 
     <!-- Token calendar -->
     <string name="calendar_title">Usage calendar</string>
-    <string name="calendar_total">Total: %1$d tokens</string>
-    <string name="calendar_total_elapsed">%1$s (%2$s)</string>
+    <string name="calendar_table_total">Total</string>
+    <string name="calendar_table_month">Month</string>
+    <string name="calendar_table_token">Token</string>
+    <string name="calendar_table_time">Time</string>
     <string name="calendar_empty">No history yet</string>
-    <string name="calendar_day_detail">%1$s · %2$d tokens · %3$s (%4$s)</string>
+    <string name="calendar_day_detail_tokens">%1$d tokens</string>
+    <string name="calendar_day_detail_elapsed">%1$s (%2$s)</string>
     <string name="settings_token_history">Usage calendar</string>
     <string name="settings_token_history_sub">Daily token usage &amp; time</string>
 

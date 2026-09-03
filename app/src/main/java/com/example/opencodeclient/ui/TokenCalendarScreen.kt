@@ -7,9 +7,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -36,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -94,17 +97,13 @@ fun TokenCalendarScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            Text(
-                stringResource(R.string.calendar_total, totalTokens),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-            Text(
-                stringResource(R.string.calendar_total_elapsed, formatSeconds(totalElapsed), formatClock(totalElapsed)),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            val monthToks = history.filterKeys { isInMonth(it, shownMonth) }.values.sum()
+            val monthElapsed = elapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
+            SummaryTable(
+                totalTokens = totalTokens,
+                monthTokens = monthToks,
+                totalElapsed = totalElapsed,
+                monthElapsed = monthElapsed,
             )
             if (loading) {
                 LinearProgressIndicator(
@@ -140,23 +139,88 @@ fun TokenCalendarScreen(
             )
             HorizontalDivider()
             val selDate = selected
-            val detailText = if (selDate == null) {
-                stringResource(R.string.calendar_empty)
+            if (selDate == null) {
+                Text(
+                    stringResource(R.string.calendar_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                )
             } else {
                 val d = selDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale))
                 val selTokens = history[selDate.toString()] ?: 0L
                 val selElapsed = elapsed[selDate.toString()] ?: 0L
-                stringResource(R.string.calendar_day_detail, d, selTokens, formatSeconds(selElapsed), formatClock(selElapsed))
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(
+                        d,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.calendar_day_detail_tokens, selTokens),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                    Text(
+                        stringResource(R.string.calendar_day_detail_elapsed, formatSeconds(selElapsed), formatClock(selElapsed)),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
             }
-            Text(
-                detailText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            )
         }
     }
 }
+
+@Composable
+private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Long, monthElapsed: Long) {
+    val mono = FontFamily.Monospace
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            Text("", modifier = Modifier.weight(1f))
+            Text(
+                stringResource(R.string.calendar_table_total),
+                fontWeight = FontWeight.Bold,
+                color = onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                stringResource(R.string.calendar_table_month),
+                fontWeight = FontWeight.Bold,
+                color = onSurface,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Text(
+                stringResource(R.string.calendar_table_token),
+                color = labelColor,
+                modifier = Modifier.weight(1f),
+            )
+            Text(totalTokens.toString(), fontFamily = mono, modifier = Modifier.weight(1f))
+            Text(monthTokens.toString(), fontFamily = mono, modifier = Modifier.weight(1f))
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Text(
+                stringResource(R.string.calendar_table_time),
+                color = labelColor,
+                modifier = Modifier.weight(1f),
+            )
+            Text(formatClock(totalElapsed), fontFamily = mono, modifier = Modifier.weight(1f))
+            Text(formatClock(monthElapsed), fontFamily = mono, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+private fun isInMonth(day: String, month: YearMonth): Boolean =
+    runCatching {
+        val d = LocalDate.parse(day)
+        d.year == month.year && d.month == month.month
+    }.getOrDefault(false)
 
 @Composable
 private fun CalendarGrid(
@@ -256,12 +320,13 @@ private fun CalendarDayCell(
             },
             fontWeight = if (isToday || tokens > 0L || selected) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
-            fontSize = 13.sp,
+            fontSize = 15.sp,
+            lineHeight = 16.sp,
         )
         if (inMonth && tokens > 0L) {
             Text(
                 formatTokensCompact(tokens),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, lineHeight = 9.sp),
                 color = if (isToday) MaterialTheme.colorScheme.onPrimary
                     else MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 maxLines = 1,
@@ -271,7 +336,7 @@ private fun CalendarDayCell(
         if (inMonth && dayElapsed > 0L) {
             Text(
                 formatClock(dayElapsed),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp, lineHeight = 8.sp),
                 color = if (isToday) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
