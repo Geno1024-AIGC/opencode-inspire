@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
@@ -38,19 +39,23 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.res.painterResource
 import com.example.opencodeclient.R
@@ -142,6 +147,7 @@ fun ChatScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchActive by rememberSaveable { mutableStateOf(false) }
     var attachedFile by remember { mutableStateOf<android.net.Uri?>(null) }
+    var showSessionDetails by remember { mutableStateOf(false) }
     val attachLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri -> attachedFile = uri }
@@ -211,7 +217,13 @@ fun ChatScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        Column {
+                        Column(
+                            modifier = if (activeSession != null) {
+                                Modifier.clickable { showSessionDetails = true }
+                            } else {
+                                Modifier
+                            },
+                        ) {
                             Text(
                                 activeSession?.title?.ifBlank { "OpenCode" } ?: "OpenCode",
                                 fontWeight = FontWeight.Bold,
@@ -238,12 +250,6 @@ fun ChatScreen(
                             IconButton(onClick = { showFiles = true }) {
                                 Icon(painterResource(R.drawable.ic_folder), stringResource(R.string.files_title))
                             }
-                            SessionActionsMenu(
-                                onRename = { title -> viewModel.renameSession(title) },
-                                onDelete = { viewModel.deleteSession() },
-                                onExport = { viewModel.exportChatAsMarkdown() },
-                                onHistoryStats = { viewModel.computeHistoryStats() },
-                            )
                         }
                         IconButton(onClick = { viewModel.refreshSession() }) {
                             Icon(Icons.Filled.Refresh, stringResource(R.string.chat_refresh))
@@ -530,6 +536,18 @@ fun ChatScreen(
         HistoryStatsDialog(
             stats = stats,
             onDismiss = { viewModel.dismissHistoryStats() },
+        )
+    }
+
+    val session = activeSession
+    if (showSessionDetails && session != null) {
+        SessionDetailsScreen(
+            viewModel = viewModel,
+            session = session,
+            sessionTokens = sessionTokens,
+            contextWindow = contextWindow,
+            historyStats = historyStats,
+            onBack = { showSessionDetails = false },
         )
     }
     }
@@ -1754,58 +1772,124 @@ private fun ModelSwitcher(
 }
 
 @Composable
-private fun SessionActionsMenu(
-    onRename: (String) -> Unit,
-    onDelete: () -> Unit,
-    onExport: () -> Unit,
-    onHistoryStats: () -> Unit,
+private fun SessionDetailsScreen(
+    viewModel: MainViewModel,
+    session: Session,
+    sessionTokens: Tokens?,
+    contextWindow: Long,
+    historyStats: HistoryStats?,
+    onBack: () -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
+    val tokens = sessionTokens ?: session.tokens
 
-    Box {
-        IconButton(onClick = { menuOpen = true }) {
-            Icon(Icons.Filled.MoreVert, stringResource(R.string.settings_title))
-        }
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.session_rename)) },
-                onClick = {
-                    menuOpen = false
-                    showRename = true
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.session_delete)) },
-                onClick = {
-                    menuOpen = false
-                    showDelete = true
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.export_chat)) },
-                onClick = {
-                    menuOpen = false
-                    onExport()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.history_stats)) },
-                onClick = {
-                    menuOpen = false
-                    onHistoryStats()
-                },
-            )
+    Surface(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.chat_back))
+                }
+                Text(
+                    stringResource(R.string.session_details_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            HorizontalDivider()
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                DetailRow(
+                    label = stringResource(R.string.session_details_title_label),
+                    value = session.title.ifBlank { stringResource(R.string.untitled_session) },
+                    onClick = { showRename = true },
+                )
+                DetailRow(
+                    label = stringResource(R.string.session_details_id),
+                    value = session.id,
+                    fontFamily = MonoFontFamily,
+                )
+                DetailRow(
+                    label = stringResource(R.string.session_details_context),
+                    value = if (contextWindow > 0) formatTokens(contextWindow) else "—",
+                )
+                DetailRow(
+                    label = stringResource(R.string.session_details_tokens),
+                    value = buildString {
+                        append(stringResource(R.string.session_details_tokens_in, formatTokens(tokens?.input ?: 0L)))
+                        append(" / ")
+                        append(stringResource(R.string.session_details_tokens_out, formatTokens(tokens?.output ?: 0L)))
+                        if ((tokens?.reasoning ?: 0L) > 0) {
+                            append(" / ")
+                            append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(tokens?.reasoning ?: 0L)))
+                        }
+                    },
+                )
+
+                HorizontalDivider()
+
+                Text(stringResource(R.string.session_details_history), style = MaterialTheme.typography.titleMedium)
+                if (historyStats != null && historyStats.computed) {
+                    Text(
+                        stringResource(R.string.history_stats_total, historyStats.totalElapsed / 1000.0),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        stringResource(R.string.history_stats_messages, historyStats.messageCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text(
+                        stringResource(R.string.session_details_history_none),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                OutlinedButton(
+                    onClick = { viewModel.computeHistoryStats() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.session_details_history_recompute))
+                }
+
+                HorizontalDivider()
+
+                Button(
+                    onClick = { viewModel.exportChatAsMarkdown() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.export_chat))
+                }
+                OutlinedButton(
+                    onClick = { showDelete = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Text(stringResource(R.string.session_delete))
+                }
+            }
         }
     }
 
     if (showRename) {
-        val title = stringResource(R.string.rename_title)
-        var name by rememberSaveable { mutableStateOf("") }
+        var name by rememberSaveable { mutableStateOf(session.title) }
         AlertDialog(
             onDismissRequest = { showRename = false },
-            title = { Text(title) },
+            title = { Text(stringResource(R.string.rename_title)) },
             text = {
                 OutlinedTextField(
                     value = name,
@@ -1818,7 +1902,7 @@ private fun SessionActionsMenu(
                 TextButton(
                     onClick = {
                         showRename = false
-                        onRename(name)
+                        viewModel.renameSession(name)
                     },
                 ) { Text(stringResource(R.string.save)) }
             },
@@ -1837,7 +1921,8 @@ private fun SessionActionsMenu(
                 TextButton(
                     onClick = {
                         showDelete = false
-                        onDelete()
+                        onBack()
+                        viewModel.deleteSession()
                     },
                 ) { Text(stringResource(R.string.session_delete)) }
             },
@@ -1845,6 +1930,42 @@ private fun SessionActionsMenu(
                 TextButton(onClick = { showDelete = false }) { Text(stringResource(R.string.chat_reject)) }
             },
         )
+    }
+}
+
+@Composable
+private fun DetailRow(
+    label: String,
+    value: String,
+    fontFamily: androidx.compose.ui.text.font.FontFamily? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(140.dp),
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = fontFamily),
+            fontWeight = if (onClick != null) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier.weight(1f),
+        )
+        if (onClick != null) {
+            Text(
+                "✎",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
