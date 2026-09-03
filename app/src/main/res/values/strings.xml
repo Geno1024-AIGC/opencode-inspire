@@ -226,6 +226,8 @@
     <string name="history_stats_unavailable">No historical data available for this session.</string>
     <string name="history_stats_computing">Computing history stats</string>
     <string name="history_stats_computing_sub">Fetching and analyzing messages…</string>
+    <string name="history_stats_progress_msgs">Fetched %1$d messages</string>
+    <string name="history_stats_progress_upto">Through: %1$s</string>
     <string name="history_stats_fallback_title">History window moved past saved point</string>
     <string name="history_stats_fallback">Session time span (created → updated): %.1fs</string>
     <string name="search">Search in conversation</string>

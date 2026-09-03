@@ -79,6 +79,11 @@ data class HistoryStats(
     val lastMessageId: String = "",
 )
 
+data class HistoryProgress(
+    val fetched: Int,
+    val lastTimestamp: Long,
+)
+
 data class TodoUi(
     val id: String,
     val content: String,
@@ -166,6 +171,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val historyStats: StateFlow<HistoryStats?> = _historyStats.asStateFlow()
     private val _computingHistory = MutableStateFlow(false)
     val computingHistory: StateFlow<Boolean> = _computingHistory.asStateFlow()
+    private val _historyProgress = MutableStateFlow<HistoryProgress?>(null)
+    val historyProgress: StateFlow<HistoryProgress?> = _historyProgress.asStateFlow()
     private var historyJob: Job? = null
 
     private val _storedStats = MutableStateFlow<Map<String, StoredHistoryStats>>(emptyMap())
@@ -1063,9 +1070,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
         _computingHistory.value = true
+        _historyProgress.value = HistoryProgress(0, 0L)
         historyJob = viewModelScope.launch {
             try {
-                val stats = fetchStatsFor(c, sid)
+                val stats = fetchStatsFor(c, sid) { fetched, lastTime ->
+                    _historyProgress.value = HistoryProgress(fetched, lastTime)
+                }
                 if (coroutineContext.isActive) {
                     _historyStats.value = stats
                     persistStats(sid, stats)
@@ -1076,10 +1086,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun fetchStatsFor(c: OpenCodeClient, sid: String): HistoryStats =
+    private suspend fun fetchStatsFor(
+        c: OpenCodeClient,
+        sid: String,
+        onProgress: (fetched: Int, lastTime: Long) -> Unit = { _, _ -> },
+    ): HistoryStats =
         withContext(Dispatchers.IO) {
             runCatching {
-                val tail = c.sessionMessagesAll(sid)
+                val tail = c.sessionMessagesAll(sid, onProgress = onProgress)
                 if (tail.isEmpty()) {
                     HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = "empty")
                 } else {
@@ -1155,9 +1169,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val c = client ?: return
         if (_computingHistory.value) return
         _computingHistory.value = true
+        _historyProgress.value = HistoryProgress(0, 0L)
         historyJob = viewModelScope.launch {
             try {
-                val stats = fetchStatsFor(c, sid)
+                val stats = fetchStatsFor(c, sid) { fetched, lastTime ->
+                    _historyProgress.value = HistoryProgress(fetched, lastTime)
+                }
                 if (coroutineContext.isActive) {
                     if (sid == _activeSession.value?.id) {
                         _historyStats.value = stats
