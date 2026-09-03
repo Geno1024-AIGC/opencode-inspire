@@ -1086,71 +1086,108 @@ text = e.message ?: getAppString(R.string.send_failed),
         _historyProgress.value = HistoryProgress(0, 0L)
         historyJob = viewModelScope.launch {
             try {
-                val stats = fetchStatsFor(c, sid) { fetched, lastTime ->
-                    _historyProgress.value = HistoryProgress(fetched, lastTime)
+                val tail = withContext(Dispatchers.IO) {
+                    c.sessionMessagesAll(sid) { fetched, lastTime ->
+                        _historyProgress.value = HistoryProgress(fetched, lastTime)
+                    }
                 }
-                if (coroutineContext.isActive) {
-                    _historyStats.value = stats
-                    persistStats(sid, stats)
+                if (!coroutineContext.isActive) return@launch
+                val stats = if (tail.isEmpty()) {
+                    HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = true, lastMessageId = "")
+                } else {
+                    computeElapsedStats(tail)
                 }
+                _historyStats.value = stats
+                persistStats(sid, stats)
             } finally {
                 _computingHistory.value = false
             }
         }
     }
 
-    private suspend fun fetchStatsFor(
-        c: OpenCodeClient,
-        sid: String,
-        onProgress: (fetched: Int, lastTime: Long) -> Unit = { _, _ -> },
-    ): HistoryStats =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                val tail = c.sessionMessagesAll(sid, onProgress = onProgress)
-                if (tail.isEmpty()) {
-                    HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = "empty")
-                } else {
-                    var total = 0L
-                    var turnStart = 0L
-                    var turnEnd = 0L
-                    var latest = 0L
-                    val firstMessages = mutableListOf<String>()
-                    for ((msg, parts) in tail) {
-                        coroutineContext.ensureActive()
-                        val created = serverTimeToMillis(msg.time?.created)
-                        val completed = serverTimeToMillis(msg.time?.completed)
-                        if (created > latest) latest = created
-                        if (completed > latest) latest = completed
-                        if (msg.role == "user") {
-                            if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
-                            turnStart = created
-                            turnEnd = created
-                            if (firstMessages.size < 5) {
-                                val t = parts.firstOrNull { it.type == "text" }?.text ?: msg.id
-                                firstMessages.add(t.take(120))
-                            }
-                        } else {
-                            if (turnStart > 0L && completed > turnEnd) turnEnd = completed
-                        }
-                    }
-                    val lastMsg = tail.last().first
-                    val lastRole = lastMsg.role
-                    val lastCompleted = serverTimeToMillis(lastMsg.time?.completed)
-                    val lastCreated = serverTimeToMillis(lastMsg.time?.created)
-                    if (lastRole != "user" && lastCompleted > 0L && turnStart > 0L && turnEnd > turnStart) {
-                        total += turnEnd - turnStart
-                    }
-                    HistoryStats(
-                        totalElapsed = total, messageCount = tail.size.toLong(),
-                        firstMessages = firstMessages, computed = true,
-                        lastTimestamp = maxOf(latest, lastCompleted, lastCreated),
-                        lastMessageId = lastMsg.id,
-                    )
+    private fun computeElapsedStats(tail: List<Pair<Message, List<Part>>>): HistoryStats {
+        var total = 0L
+        var turnStart = 0L
+        var turnEnd = 0L
+        var latest = 0L
+        val firstMessages = mutableListOf<String>()
+        for ((msg, parts) in tail) {
+            val created = serverTimeToMillis(msg.time?.created)
+            val completed = serverTimeToMillis(msg.time?.completed)
+            if (created > latest) latest = created
+            if (completed > latest) latest = completed
+            if (msg.role == "user") {
+                if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
+                turnStart = created
+                turnEnd = created
+                if (firstMessages.size < 5) {
+                    val t = parts.firstOrNull { it.type == "text" }?.text ?: msg.id
+                    firstMessages.add(t.take(120))
                 }
-            }.getOrElse { e ->
-                HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = e.message)
+            } else {
+                if (turnStart > 0L && completed > turnEnd) turnEnd = completed
             }
         }
+        val lastMsg = tail.last().first
+        val lastCompleted = serverTimeToMillis(lastMsg.time?.completed)
+        val lastCreated = serverTimeToMillis(lastMsg.time?.created)
+        if (lastMsg.role != "user" && lastCompleted > 0L && turnStart > 0L && turnEnd > turnStart) {
+            total += turnEnd - turnStart
+        }
+        return HistoryStats(
+            totalElapsed = total, messageCount = tail.size.toLong(),
+            firstMessages = firstMessages, computed = true,
+            lastTimestamp = maxOf(latest, lastCompleted, lastCreated),
+            lastMessageId = lastMsg.id,
+        )
+    }
+
+    private fun incrementalStats(tail: List<Pair<Message, List<Part>>>, stored: StoredHistoryStats): HistoryStats {
+        val idx = tail.indexOfFirst { it.first.id == stored.lastMessageId }
+        if (idx < 0) return computeElapsedStats(tail)
+        val newMessages = tail.subList(idx + 1, tail.size)
+        if (newMessages.isEmpty()) {
+            return HistoryStats(
+                totalElapsed = stored.totalElapsed,
+                messageCount = tail.size.toLong(),
+                firstMessages = stored.firstMessages,
+                computed = true,
+                lastTimestamp = stored.lastTimestamp,
+                lastMessageId = stored.lastMessageId,
+            )
+        }
+        var total = 0L
+        var turnStart = 0L
+        var turnEnd = 0L
+        var latest = 0L
+        for ((msg, parts) in newMessages) {
+            val created = serverTimeToMillis(msg.time?.created)
+            val completed = serverTimeToMillis(msg.time?.completed)
+            if (created > latest) latest = created
+            if (completed > latest) latest = completed
+            if (msg.role == "user") {
+                if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
+                turnStart = created
+                turnEnd = created
+            } else {
+                if (turnStart > 0L && completed > turnEnd) turnEnd = completed
+            }
+        }
+        val lastMsg = newMessages.last().first
+        val lastCompleted = serverTimeToMillis(lastMsg.time?.completed)
+        val lastCreated = serverTimeToMillis(lastMsg.time?.created)
+        if (lastMsg.role != "user" && lastCompleted > 0L && turnStart > 0L && turnEnd > turnStart) {
+            total += turnEnd - turnStart
+        }
+        return HistoryStats(
+            totalElapsed = stored.totalElapsed + total,
+            messageCount = tail.size.toLong(),
+            firstMessages = stored.firstMessages,
+            computed = true,
+            lastTimestamp = maxOf(stored.lastTimestamp, latest, lastCompleted, lastCreated),
+            lastMessageId = tail.last().first.id,
+        )
+    }
 
     private suspend fun persistStats(sid: String, stats: HistoryStats) {
         settings.saveHistoryStats(
@@ -1184,16 +1221,23 @@ text = e.message ?: getAppString(R.string.send_failed),
         if (!_autoTiming.value) return
         val c = client ?: return
         if (_computingHistory.value) return
-        _computingHistory.value = true
-        _historyProgress.value = HistoryProgress(0, 0L)
+        val stored = _storedStats.value[sid]
         historyJob = viewModelScope.launch {
             try {
-                val stats = fetchStatsFor(c, sid) { fetched, lastTime ->
-                    _historyProgress.value = HistoryProgress(fetched, lastTime)
+                val tail = withContext(Dispatchers.IO) {
+                    c.sessionMessagesAll(sid) { fetched, lastTime ->
+                        _historyProgress.value = HistoryProgress(fetched, lastTime)
+                    }
+                }
+                if (!coroutineContext.isActive) return@launch
+                val stats = if (stored != null && stored.messageCount > 0 && stored.lastMessageId.isNotEmpty()) {
+                    incrementalStats(tail, stored)
+                } else {
+                    if (tail.isEmpty()) HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = true, lastMessageId = "")
+                    else computeElapsedStats(tail)
                 }
                 if (coroutineContext.isActive) {
                     if (sid == _activeSession.value?.id) {
-                        _historyStats.value = stats
                         recomputeSessionElapsed()
                         recomputeSessionTotalElapsed()
                     }
