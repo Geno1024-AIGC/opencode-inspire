@@ -128,6 +128,10 @@
     <string name="channel_canary">Canary</string>
     <string name="settings_ghproxy">Mirror download (ghproxy)</string>
     <string name="settings_ghproxy_sub">Route GitHub release APK downloads through a mainland mirror</string>
+    <string name="settings_update_channel">Release channel</string>
+    <string name="settings_update_source">Download source</string>
+    <string name="source_github">GitHub</string>
+    <string name="source_ghproxy">ghproxy</string>
     <string name="check_updates">Check for updates</string>
     <string name="check_updates_sub">Check GitHub for a newer version</string>
     <string name="check_now">Check</string>
@@ -202,7 +206,7 @@
     <string name="history_stats_title">Historical time stats</string>
     <string name="history_stats_total">Total conversation time: %.1fs</string>
     <string name="history_stats_messages">Messages: %1$d</string>
-    <string name="history_stats_first">First message: </string>
+    <string name="history_stats_first5">First 5 messages</string>
     <string name="history_stats_unavailable">No historical data available for this session.</string>
     <string name="history_stats_fallback_title">History window moved past saved point</string>
     <string name="history_stats_fallback">Session time span (created → updated): %.1fs</string>

@@ -128,6 +128,10 @@
     <string name="channel_canary">Canary</string>
     <string name="settings_ghproxy">镜像下载 (ghproxy)</string>
     <string name="settings_ghproxy_sub">把 GitHub 发布的 APK 下载走大陆镜像</string>
+    <string name="settings_update_channel">发布频道</string>
+    <string name="settings_update_source">下载源</string>
+    <string name="source_github">GitHub</string>
+    <string name="source_ghproxy">ghproxy</string>
     <string name="check_updates">检查更新</string>
     <string name="check_updates_sub">在 GitHub 上检查是否有新版本</string>
     <string name="check_now">检查</string>
@@ -202,7 +206,7 @@
     <string name="history_stats_title">历史耗时统计</string>
     <string name="history_stats_total">对话总耗时：%.1fs</string>
     <string name="history_stats_messages">消息数：%1$d</string>
-    <string name="history_stats_first">第一条消息：</string>
+    <string name="history_stats_first5">前 5 条消息</string>
     <string name="history_stats_unavailable">该会话暂无历史数据可统计。</string>
     <string name="history_stats_fallback_title">历史窗口已前移，改为显示会话跨度</string>
     <string name="history_stats_fallback">会话跨度（创建→更新）：%.1fs</string>

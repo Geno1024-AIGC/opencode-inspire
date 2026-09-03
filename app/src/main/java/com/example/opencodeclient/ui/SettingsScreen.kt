@@ -292,12 +292,16 @@ fun SettingsScreen(
                         ),
                         selected = channel,
                         onSelect = viewModel::setChannel,
+                        title = stringResource(R.string.settings_update_channel),
                     )
-                    SettingSwitchRow(
-                        title = stringResource(R.string.settings_ghproxy),
-                        subtitle = stringResource(R.string.settings_ghproxy_sub),
-                        checked = mirror,
-                        onCheckedChange = viewModel::setMirror,
+                    DropdownSetting(
+                        listOf(
+                            "github" to stringResource(R.string.source_github),
+                            "ghproxy" to stringResource(R.string.source_ghproxy),
+                        ),
+                        selected = if (mirror) "ghproxy" else "github",
+                        onSelect = { viewModel.setMirror(it != "github") },
+                        title = stringResource(R.string.settings_update_source),
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -409,38 +413,48 @@ private fun DropdownSetting(
     options: List<Pair<String, String>>,
     selected: String,
     onSelect: (String) -> Unit,
+    title: String = "",
 ) {
     var expanded by remember { mutableStateOf(false) }
     val currentLabel = options.firstOrNull { it.first == selected }?.second
         ?: options.first().second
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-    ) {
-        OutlinedTextField(
-            value = currentLabel,
-            onValueChange = {},
-            readOnly = true,
-            singleLine = true,
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
-        )
-        ExposedDropdownMenu(
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (title.isNotEmpty()) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        ExposedDropdownMenuBox(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
+            onExpandedChange = { expanded = it },
         ) {
-            options.forEach { (value, label) ->
-                DropdownMenuItem(
-                    text = { Text(label) },
-                    onClick = {
-                        onSelect(value)
-                        expanded = false
-                    },
-                )
+            OutlinedTextField(
+                value = currentLabel,
+                onValueChange = {},
+                readOnly = true,
+                singleLine = true,
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+            ) {
+                options.forEach { (value, label) ->
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        onClick = {
+                            onSelect(value)
+                            expanded = false
+                        },
+                    )
+                }
             }
         }
     }
