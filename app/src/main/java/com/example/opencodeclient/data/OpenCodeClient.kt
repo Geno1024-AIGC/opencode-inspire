@@ -204,7 +204,7 @@ class OpenCodeClient(
         val all = mutableListOf<Pair<Message, List<Part>>>()
         var before: String? = null
         while (true) {
-            val (text, next) = fetchPageWithCursor(sessionId, 1000, before)
+            val (text, next) = fetchPageWithCursor(sessionId, 500, before)
             if (text.isBlank()) break
             val page = runCatching {
                 json.decodeFromString<List<SessionInfo>>(text).map { it.info to it.parts }
