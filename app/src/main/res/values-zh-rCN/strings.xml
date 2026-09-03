@@ -134,6 +134,12 @@
     <string name="calendar_empty">暂无记录</string>
     <string name="calendar_day_detail_tokens">%1$d tokens</string>
     <string name="calendar_day_detail_elapsed">%1$s（%2$s）</string>
+    <string name="stats_tab_daily">日历</string>
+    <string name="stats_tab_monthly">月度</string>
+    <string name="stats_tab_weekly">周度</string>
+    <string name="stats_punch_no_data">暂无数据</string>
+    <string name="stats_legend_less">少</string>
+    <string name="stats_legend_more">多</string>
     <string name="settings_token_history">使用日历</string>
     <string name="settings_token_history_sub">每日 Token 用量与耗时</string>
 

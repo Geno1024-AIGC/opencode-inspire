@@ -4,7 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +15,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -25,12 +32,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -74,6 +84,7 @@ fun TokenCalendarScreen(
     val today = LocalDate.now()
     var shownMonth by remember { mutableStateOf(YearMonth.now()) }
     var selected by remember { mutableStateOf<LocalDate?>(today) }
+    var tab by remember { mutableIntStateOf(0) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -94,7 +105,8 @@ fun TokenCalendarScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding)
+                .verticalScroll(rememberScrollState()),
         ) {
             val monthToks = history.filterKeys { isInMonth(it, shownMonth) }.values.sum()
             val monthElapsed = elapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
@@ -109,67 +121,352 @@ fun TokenCalendarScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = { shownMonth = shownMonth.minusMonths(1) }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text(
-                    shownMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+            PrimaryTabRow(selectedTabIndex = tab) {
+                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_daily)) })
+                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
+                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
+            }
+            when (tab) {
+                0 -> DailyCalendarTab(
+                    history = history,
+                    elapsed = elapsed,
+                    shownMonth = shownMonth,
+                    selected = selected,
+                    locale = locale,
+                    onPrev = { shownMonth = shownMonth.minusMonths(1) },
+                    onNext = { shownMonth = shownMonth.plusMonths(1) },
+                    onSelect = { selected = it },
                 )
-                IconButton(onClick = { shownMonth = shownMonth.plusMonths(1) }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                1 -> MonthlyPunchCard(history = history, locale = locale)
+                2 -> WeeklyPunchCard(history = history, locale = locale)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyCalendarTab(
+    history: Map<String, Long>,
+    elapsed: Map<String, Long>,
+    shownMonth: YearMonth,
+    selected: LocalDate?,
+    locale: Locale,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onSelect: (LocalDate) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onPrev) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                shownMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            IconButton(onClick = onNext) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        CalendarGrid(
+            history = history,
+            elapsed = elapsed,
+            shownMonth = shownMonth,
+            selected = selected,
+            locale = locale,
+            onSelect = onSelect,
+        )
+        HorizontalDivider()
+        val selDate = selected
+        if (selDate == null) {
+            Text(
+                stringResource(R.string.calendar_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        } else {
+            val d = selDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale))
+            val selTokens = history[selDate.toString()] ?: 0L
+            val selElapsed = elapsed[selDate.toString()] ?: 0L
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Text(
+                    d,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontFamily = MonoFontFamily,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.calendar_day_detail_tokens, selTokens),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = MonoFontFamily,
+                )
+                Text(
+                    stringResource(R.string.calendar_day_detail_elapsed, formatSeconds(selElapsed), formatClock(selElapsed)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = MonoFontFamily,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthlyPunchCard(history: Map<String, Long>, locale: Locale) {
+    val cell = 12.dp
+    val gap = 2.dp
+    val matrix = Array(12) { LongArray(31) }
+    var max = 0L
+    for ((day, toks) in history) {
+        runCatching {
+            val d = LocalDate.parse(day)
+            val m = d.monthValue - 1
+            val dd = d.dayOfMonth - 1
+            matrix[m][dd] += toks
+            if (matrix[m][dd] > max) max = matrix[m][dd]
+        }
+    }
+    val maxCell = max.coerceAtLeast(1L)
+    val monthFormatter = DateTimeFormatter.ofPattern("MMM", locale)
+    val dayFormatter = DateTimeFormatter.ofPattern("d", locale)
+
+    if (max <= 0L) {
+        Text(
+            stringResource(R.string.stats_punch_no_data),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+        )
+        return
+    }
+
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            Column(Modifier.width(46.dp)) {
+                repeat(12) { m ->
+                    Box(
+                        Modifier
+                            .height(cell)
+                            .padding(top = 1.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(
+                            YearMonth.of(2001, m + 1).atDay(1).format(monthFormatter),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
+                    if (m < 11) Spacer(Modifier.height(gap))
                 }
             }
-            CalendarGrid(
-                history = history,
-                elapsed = elapsed,
-                shownMonth = shownMonth,
-                selected = selected,
-                locale = locale,
-                onSelect = { selected = it },
-            )
-            HorizontalDivider()
-            val selDate = selected
-            if (selDate == null) {
-                Text(
-                    stringResource(R.string.calendar_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                )
-            } else {
-                val d = selDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale))
-                val selTokens = history[selDate.toString()] ?: 0L
-                val selElapsed = elapsed[selDate.toString()] ?: 0L
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text(
-                        d,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontFamily = MonoFontFamily,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        stringResource(R.string.calendar_day_detail_tokens, selTokens),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = MonoFontFamily,
-                    )
-                    Text(
-                        stringResource(R.string.calendar_day_detail_elapsed, formatSeconds(selElapsed), formatClock(selElapsed)),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = MonoFontFamily,
-                    )
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    repeat(31) { dd ->
+                        Text(
+                            (dd + 1).toString(),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(cell),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(2.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                    repeat(12) { m ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                            repeat(31) { dd ->
+                                val v = matrix[m][dd]
+                                PunchCell(
+                                    intensity = if (v > 0L) v.toDouble() / maxCell else 0.0,
+                                    modifier = Modifier.size(cell).padding(1.dp),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
+        PunchLegend()
+    }
+}
+
+@Composable
+private fun WeeklyPunchCard(history: Map<String, Long>, locale: Locale) {
+    var year by remember { mutableStateOf(LocalDate.now().year) }
+    val cell = 12.dp
+    val gap = 2.dp
+
+    val first = LocalDate.of(year, 1, 1)
+    val last = LocalDate.of(year, 12, 31)
+    val columns = mutableListOf<List<LocalDate?>>()
+    var cur: MutableList<LocalDate?> = MutableList(7) { null }
+    var d = first
+    var active = false
+    while (!d.isAfter(last)) {
+        val row = d.dayOfWeek.value - 1
+        if (row == 0 && active) {
+            columns.add(cur)
+            cur = MutableList(7) { null }
+        }
+        cur[row] = d
+        active = true
+        if (d.dayOfWeek.value == DayOfWeek.SUNDAY.value) {
+            columns.add(cur)
+            cur = MutableList(7) { null }
+            active = false
+        }
+        d = d.plusDays(1)
+    }
+    if (cur.any { it != null }) columns.add(cur)
+
+    val contentWidth = (cell + gap) * columns.size
+    var max = 0L
+    for (col in columns) {
+        for (date in col) {
+            if (date != null) max = maxOf(max, history[date.toString()] ?: 0L)
+        }
+    }
+    val maxCell = max.coerceAtLeast(1L)
+
+    val mos = WeekFields.of(locale).firstDayOfWeek
+    val weekdayFormatter = DateTimeFormatter.ofPattern("EEE", locale)
+
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = { year-- }) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                year.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = { year++ }) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Row {
+            Column(Modifier.width(24.dp)) {
+                repeat(7) { r ->
+                    val day = mos.plus(r.toLong())
+                    Box(
+                        Modifier.height(cell),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(
+                            day.getDisplayName(TextStyle.NARROW, locale),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
+                    if (r < 6) Spacer(Modifier.height(gap))
+                }
+            }
+            Spacer(Modifier.width(6.dp))
+            Row(Modifier.horizontalScroll(rememberScrollState())) {
+                Column(Modifier.width(contentWidth)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        repeat(columns.size) { c ->
+                            val firstOfMonth = columns[c].firstOrNull { it != null && it.dayOfMonth == 1 }
+                            Text(
+                                if (firstOfMonth != null) firstOfMonth.format(monthAbbrevOf(locale)) else "",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                modifier = Modifier.width(cell),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        repeat(columns.size) { c ->
+                            Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                                repeat(7) { r ->
+                                    val date = columns[c][r]
+                                    val v = if (date != null) history[date.toString()] ?: 0L else 0L
+                                    PunchCell(
+                                        intensity = if (v > 0L) v.toDouble() / maxCell else 0.0,
+                                        modifier = Modifier.width(cell).height(cell).padding(1.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (max <= 0L) {
+            Text(
+                stringResource(R.string.stats_punch_no_data),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 12.dp),
+            )
+        }
+        PunchLegend()
+    }
+}
+
+private fun monthAbbrevOf(locale: Locale): DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MMM", locale)
+
+@Composable
+private fun PunchCell(intensity: Double, modifier: Modifier = Modifier) {
+    val color = if (intensity > 0.0) {
+        MaterialTheme.colorScheme.primary.copy(
+            alpha = (0.15f + 0.6f * intensity.toFloat()).coerceIn(0.15f, 0.75f),
+        )
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    }
+    Box(
+        modifier
+            .background(color, RoundedCornerShape(2.dp)),
+    )
+}
+
+@Composable
+private fun PunchLegend() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 8.dp),
+    ) {
+        Text(
+            stringResource(R.string.stats_legend_less),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.width(6.dp))
+        repeat(5) { i ->
+            PunchCell(
+                intensity = i / 4.0,
+                modifier = Modifier.width(12.dp).height(12.dp).padding(1.dp),
+            )
+            if (i < 4) Spacer(Modifier.width(2.dp))
+        }
+        Spacer(Modifier.width(6.dp))
+        Text(
+            stringResource(R.string.stats_legend_more),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
