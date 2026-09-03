@@ -370,7 +370,7 @@ private fun SessionRow(
                 s.id,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontFamily = MonoFontFamily,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

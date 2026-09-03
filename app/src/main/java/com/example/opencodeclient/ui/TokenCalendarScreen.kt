@@ -38,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -154,19 +153,19 @@ fun TokenCalendarScreen(
                     Text(
                         d,
                         style = MaterialTheme.typography.titleSmall,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = MonoFontFamily,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         stringResource(R.string.calendar_day_detail_tokens, selTokens),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = MonoFontFamily,
                     )
                     Text(
                         stringResource(R.string.calendar_day_detail_elapsed, formatSeconds(selElapsed), formatClock(selElapsed)),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = MonoFontFamily,
                     )
                 }
             }
@@ -176,7 +175,7 @@ fun TokenCalendarScreen(
 
 @Composable
 private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Long, monthElapsed: Long) {
-    val mono = FontFamily.Monospace
+    val mono = MonoFontFamily
     val onSurface = MaterialTheme.colorScheme.onSurface
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
