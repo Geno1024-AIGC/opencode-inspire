@@ -129,10 +129,10 @@
     <string name="calendar_title">使用日历</string>
     <string name="calendar_total">总计：%1$d tokens</string>
     <string name="calendar_total_elapsed">%1$s（%2$s）</string>
-    <string name="calendar_day_tokens">%1$d tokens</string>
-    <string name="calendar_day_elapsed_full">耗时：%1$s（%2$s）</string>
-    <string name="settings_token_history">Token 记录</string>
-    <string name="settings_token_history_sub">每日 Token 用量</string>
+    <string name="calendar_empty">暂无记录</string>
+    <string name="calendar_day_detail">%1$s · %2$d tokens · %3$s（%4$s）</string>
+    <string name="settings_token_history">使用日历</string>
+    <string name="settings_token_history_sub">每日 Token 用量与耗时</string>
 
     <!-- Updates -->
     <string name="settings_updates">更新</string>
