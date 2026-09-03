@@ -197,6 +197,7 @@ private fun DrawerContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { onServers() }
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -253,26 +254,14 @@ private fun DrawerContent(
         }
 
         HorizontalDivider()
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                stringResource(R.string.drawer_settings),
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onSettings() }
-                    .padding(16.dp),
-            )
-            Text(
-                stringResource(R.string.drawer_servers),
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onServers() }
-                    .padding(16.dp),
-            )
-        }
+        Text(
+            stringResource(R.string.drawer_settings),
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onSettings() }
+                .padding(16.dp),
+        )
         }
     }
 }
