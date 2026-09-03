@@ -12,8 +12,18 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.Serializable
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
+
+@Serializable
+data class StoredHistoryStats(
+    val totalElapsed: Long = 0L,
+    val messageCount: Long = 0L,
+    val firstMessages: List<String> = emptyList(),
+    val lastTimestamp: Long = 0L,
+    val lastMessageId: String = "",
+)
 
 class SettingsRepository(private val context: Context) {
     private object Keys {
@@ -32,6 +42,8 @@ class SettingsRepository(private val context: Context) {
         val MIRROR = booleanPreferencesKey("mirror")
         val USER_BUBBLE_COLOR = longPreferencesKey("user_bubble_color")
         val ASSIST_BUBBLE_COLOR = longPreferencesKey("assistant_bubble_color")
+        val AUTO_UPDATE_TIMING = booleanPreferencesKey("auto_update_timing")
+        val HISTORY_STATS = stringPreferencesKey("history_stats")
     }
 
     private val json = Json {
@@ -59,6 +71,13 @@ class SettingsRepository(private val context: Context) {
     val mirror: Flow<Boolean> = context.dataStore.data.map { it[Keys.MIRROR] ?: false }
     val userBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.USER_BUBBLE_COLOR] ?: -1L }
     val assistantBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.ASSIST_BUBBLE_COLOR] ?: -1L }
+    val autoUpdateTiming: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_UPDATE_TIMING] ?: false }
+    val historyStats: Flow<Map<String, StoredHistoryStats>> =
+        context.dataStore.data.map { prefs ->
+            prefs[Keys.HISTORY_STATS]?.let { raw ->
+                runCatching { json.decodeFromString<Map<String, StoredHistoryStats>>(raw) }.getOrNull()
+            } ?: emptyMap()
+        }
 
     suspend fun setShortTokens(enabled: Boolean) {
         context.dataStore.edit { it[Keys.SHORT_TOKENS] = enabled }
@@ -94,6 +113,30 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAssistantBubbleColor(color: Long) {
         context.dataStore.edit { it[Keys.ASSIST_BUBBLE_COLOR] = color }
+    }
+
+    suspend fun setAutoUpdateTiming(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.AUTO_UPDATE_TIMING] = enabled }
+    }
+
+    suspend fun saveHistoryStats(sessionId: String, stats: StoredHistoryStats) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.HISTORY_STATS]?.let { raw ->
+                runCatching { json.decodeFromString<Map<String, StoredHistoryStats>>(raw) }.getOrNull()
+            } ?: emptyMap()
+            prefs[Keys.HISTORY_STATS] = json.encodeToString(current + (sessionId to stats))
+        }
+    }
+
+    suspend fun removeHistoryStats(sessionId: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.HISTORY_STATS]?.let { raw ->
+                runCatching { json.decodeFromString<Map<String, StoredHistoryStats>>(raw) }.getOrNull()
+            } ?: emptyMap()
+            if (current.containsKey(sessionId)) {
+                prefs[Keys.HISTORY_STATS] = json.encodeToString(current - sessionId)
+            }
+        }
     }
 
     suspend fun setServerUrl(url: String) {

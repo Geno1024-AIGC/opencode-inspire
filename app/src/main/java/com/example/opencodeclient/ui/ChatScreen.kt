@@ -61,6 +61,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.ui.res.painterResource
 import com.example.opencodeclient.R
@@ -103,6 +104,7 @@ import kotlinx.coroutines.launch
 import com.example.opencodeclient.data.FileNode
 import com.example.opencodeclient.data.ModelInfo
 import com.example.opencodeclient.data.QuestionRequest
+import com.example.opencodeclient.data.StoredHistoryStats
 import com.example.opencodeclient.data.Tokens
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -141,6 +143,8 @@ fun ChatScreen(
     val exportMarkdown by viewModel.exportMarkdown.collectAsStateWithLifecycle()
     val historyStats by viewModel.historyStats.collectAsStateWithLifecycle()
     val computingHistory by viewModel.computingHistory.collectAsStateWithLifecycle()
+    val storedStats by viewModel.storedStats.collectAsStateWithLifecycle()
+    val autoTiming by viewModel.autoTiming.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -552,6 +556,8 @@ fun ChatScreen(
             sessionTokens = sessionTokens,
             contextWindow = contextWindow,
             historyStats = historyStats,
+            storedStats = storedStats[session.id],
+            autoTiming = autoTiming,
             shortTokens = shortTokens,
             onBack = { showSessionDetails = false },
         )
@@ -1784,12 +1790,16 @@ private fun SessionDetailsScreen(
     sessionTokens: Tokens?,
     contextWindow: Long,
     historyStats: HistoryStats?,
+    storedStats: StoredHistoryStats?,
+    autoTiming: Boolean,
     shortTokens: Boolean = true,
     onBack: () -> Unit,
 ) {
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     val tokens = sessionTokens ?: session.tokens
+    val stored = storedStats
+    val hasStored = stored != null && stored.totalElapsed > 0L
 
     BackHandler { onBack() }
 
@@ -1856,13 +1866,18 @@ private fun SessionDetailsScreen(
                 HorizontalDivider()
 
                 Text(stringResource(R.string.session_details_history), style = MaterialTheme.typography.titleMedium)
-                if (historyStats != null && historyStats.computed) {
+
+                val showElapsed = historyStats?.computed == true
+                val displayElapsed = if (showElapsed) historyStats!!.totalElapsed else (stored?.totalElapsed ?: 0L)
+                val displayLastTime = if (showElapsed) historyStats!!.lastTimestamp else (stored?.lastTimestamp ?: 0L)
+
+                if (displayElapsed > 0L) {
                     Text(
-                        stringResource(R.string.history_stats_total, historyStats.totalElapsed / 1000.0),
+                        stringResource(R.string.session_details_history_total, displayElapsed / 1000.0),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        stringResource(R.string.history_stats_messages, historyStats.messageCount),
+                        stringResource(R.string.session_details_history_upto, formatMillis(displayLastTime)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1873,11 +1888,33 @@ private fun SessionDetailsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        stringResource(R.string.session_details_auto_update),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = autoTiming,
+                        onCheckedChange = { viewModel.setAutoUpdateTiming(it) },
+                    )
+                }
+
                 OutlinedButton(
                     onClick = { viewModel.computeHistoryStats() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(stringResource(R.string.session_details_history_recompute))
+                    Text(
+                        stringResource(
+                            if (hasStored) R.string.session_details_history_update
+                            else R.string.session_details_history_recompute
+                        )
+                    )
                 }
 
                 HorizontalDivider()
