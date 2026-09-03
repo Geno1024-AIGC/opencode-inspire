@@ -143,6 +143,7 @@ fun ChatScreen(
     val exportMarkdown by viewModel.exportMarkdown.collectAsStateWithLifecycle()
     val historyStats by viewModel.historyStats.collectAsStateWithLifecycle()
     val computingHistory by viewModel.computingHistory.collectAsStateWithLifecycle()
+    val historyProgress by viewModel.historyProgress.collectAsStateWithLifecycle()
     val storedStats by viewModel.storedStats.collectAsStateWithLifecycle()
     val autoTiming by viewModel.autoTiming.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -521,12 +522,18 @@ fun ChatScreen(
             onDismissRequest = { viewModel.cancelHistoryStats() },
             title = { Text(stringResource(R.string.history_stats_computing)) },
             text = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    CircularProgressIndicator(Modifier.size(24.dp))
-                    Text(
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    historyProgress?.let { p ->
+                        Text(
+                            stringResource(R.string.history_stats_progress_msgs, p.fetched),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            stringResource(R.string.history_stats_progress_upto, formatMillis(p.lastTimestamp)),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    } ?: Text(
                         stringResource(R.string.history_stats_computing_sub),
                         style = MaterialTheme.typography.bodyMedium,
                     )

@@ -197,7 +197,10 @@ class OpenCodeClient(
                 .map { it.info to it.parts }
         }
 
-    suspend fun sessionMessagesAll(sessionId: String): List<Pair<Message, List<Part>>> {
+    suspend fun sessionMessagesAll(
+        sessionId: String,
+        onProgress: (fetched: Int, lastTimestamp: Long) -> Unit = { _, _ -> },
+    ): List<Pair<Message, List<Part>>> {
         val all = mutableListOf<Pair<Message, List<Part>>>()
         var before: String? = null
         while (true) {
@@ -208,6 +211,8 @@ class OpenCodeClient(
             }.getOrElse { emptyList() }
             if (page.isEmpty()) break
             all += page
+            val lastTime = page.last().first.time?.created ?: 0L
+            onProgress(all.size, lastTime)
             before = next
             if (next == null) break
         }
