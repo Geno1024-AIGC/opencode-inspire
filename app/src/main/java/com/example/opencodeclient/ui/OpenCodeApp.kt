@@ -320,12 +320,11 @@ private fun ExpandableProject(
         }
         if (expanded) {
             project.sessions.forEach { s ->
-                val live = if (s.id == activeSessionId) activeSessionTotalElapsed else null
                 val storedElapsed = storedStats[s.id]?.totalElapsed ?: 0L
                 SessionRow(
                     s = s,
                     isActive = s.id == activeSessionId,
-                    totalElapsed = if (live != null && live > 0L) live else if (storedElapsed > 0L) storedElapsed else null,
+                    totalElapsed = if (storedElapsed > 0L) storedElapsed else null,
                     shortTokens = shortTokens,
                     onClick = { onOpenSession(s.id) },
                 )
