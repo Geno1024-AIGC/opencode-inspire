@@ -3,7 +3,11 @@ package com.example.opencodeclient.ui
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -1828,10 +1832,12 @@ private fun SessionDetailsScreen(
                     label = stringResource(R.string.session_details_id),
                     value = session.id,
                     fontFamily = MonoFontFamily,
+                    onCopyValue = session.id,
                 )
                 DetailRow(
                     label = stringResource(R.string.session_details_context),
                     value = if (contextWindow > 0) formatTokens(contextWindow) else "—",
+                    onCopyValue = if (contextWindow > 0) contextWindow.toString() else null,
                 )
                 DetailRow(
                     label = stringResource(R.string.session_details_tokens),
@@ -1844,6 +1850,7 @@ private fun SessionDetailsScreen(
                             append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(tokens?.reasoning ?: 0L, shortTokens)))
                         }
                     },
+                    onCopyValue = tokens?.let { "${it.input}/${it.output}/${it.reasoning}" },
                 )
 
                 HorizontalDivider()
@@ -1948,11 +1955,25 @@ private fun DetailRow(
     value: String,
     fontFamily: androidx.compose.ui.text.font.FontFamily? = null,
     onClick: (() -> Unit)? = null,
+    onCopyValue: String? = null,
 ) {
+    val context = LocalContext.current
+    val copyable = onCopyValue != null
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                when {
+                    onClick != null -> Modifier.clickable(onClick = onClick)
+                    copyable -> Modifier.clickable {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText(label, onCopyValue))
+                        Toast.makeText(context, context.getString(R.string.copied), Toast.LENGTH_SHORT).show()
+                    }
+                    else -> Modifier
+                }
+            )
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1965,7 +1986,7 @@ private fun DetailRow(
         Text(
             value,
             style = MaterialTheme.typography.bodyMedium.copy(fontFamily = fontFamily),
-            fontWeight = if (onClick != null) FontWeight.SemiBold else FontWeight.Normal,
+            fontWeight = if (onClick != null || copyable) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.weight(1f),
         )
         if (onClick != null) {
@@ -1973,6 +1994,12 @@ private fun DetailRow(
                 "✎",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
+            )
+        } else if (copyable) {
+            Text(
+                "⎘",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
