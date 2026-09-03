@@ -22,8 +22,6 @@ import com.example.opencodeclient.data.Project
 import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
-import com.example.opencodeclient.data.SessionStatsRecord
-import com.example.opencodeclient.data.SessionStatsStore
 import com.example.opencodeclient.data.SettingsRepository
 import com.example.opencodeclient.data.Tokens
 import com.example.opencodeclient.data.Updater
@@ -70,7 +68,7 @@ data class PartUi(
 data class HistoryStats(
     val totalElapsed: Long,
     val messageCount: Long,
-    val firstUserText: String?,
+    val firstMessages: List<String> = emptyList(),
     val computed: Boolean,
     val error: String? = null,
     val fallbackSpanMs: Long = 0L,
@@ -96,7 +94,6 @@ sealed interface UiState {
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = SettingsRepository(application)
-    private val statsStore = SessionStatsStore(application)
 
     private fun getAppString(resId: Int): String {
         val ctx = getApplication<Application>()
@@ -1051,64 +1048,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 runCatching {
                     val tail = c.sessionMessagesAll(sid)
                     if (tail.isEmpty()) {
-                        HistoryStats(totalElapsed = 0L, messageCount = 0L, firstUserText = null, computed = false, error = "empty")
+                        HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = "empty")
                     } else {
-                        val existing = statsStore.record(sid)
-                        val anchorIndex = existing.anchorId?.let { a -> tail.indexOfFirst { it.first.id == a } } ?: -1
-                        if (existing.anchorId != null && anchorIndex < 0) {
-                            statsStore.save(sid, SessionStatsRecord())
-                            HistoryStats(
-                                totalElapsed = 0L, messageCount = 0L, firstUserText = null,
-                                computed = false, fallbackSpanMs = sessionSpanMs(),
-                            )
-                        } else {
-                            var total = existing.totalElapsed
-                            var count = existing.messageCount
-                            var lastUser = existing.lastUserTime
-                            var firstUserText = existing.firstUserText
-                            val startFrom = if (existing.anchorId == null) 0 else anchorIndex + 1
-                            for (i in startFrom until tail.size) {
-                                val (msg, parts) = tail[i]
-                                val time = serverTimeToMillis(msg.time?.created)
-                                if (msg.role == "user") {
-                                    lastUser = time
-                                    if (firstUserText == null) {
-                                        firstUserText = parts.firstOrNull { it.type == "text" }?.text
-                                            ?: msg.id
-                                    }
-                                } else if (lastUser > 0L && time > lastUser) {
-                                    total += time - lastUser
+                        var total = 0L
+                        var turnStart = 0L
+                        var turnEnd = 0L
+                        val firstMessages = mutableListOf<String>()
+                        for ((msg, parts) in tail) {
+                            val created = serverTimeToMillis(msg.time?.created)
+                            if (msg.role == "user") {
+                                if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
+                                turnStart = created
+                                turnEnd = created
+                                if (firstMessages.size < 5) {
+                                    val t = parts.firstOrNull { it.type == "text" }?.text ?: msg.id
+                                    firstMessages.add(t.take(120))
                                 }
+                            } else {
+                                val completed = serverTimeToMillis(msg.time?.completed)
+                                if (turnStart > 0L && completed > turnEnd) turnEnd = completed
                             }
-                            val last = tail.last()
-                            val record = SessionStatsRecord(
-                                anchorId = last.first.id,
-                                anchorTime = serverTimeToMillis(last.first.time?.created),
-                                lastUserTime = lastUser,
-                                totalElapsed = total,
-                                messageCount = count + (tail.size - startFrom),
-                                firstUserText = firstUserText,
-                            )
-                            statsStore.save(sid, record)
-                            HistoryStats(
-                                totalElapsed = total, messageCount = record.messageCount,
-                                firstUserText = firstUserText, computed = true,
-                            )
                         }
+                        val lastRole = tail.last().first.role
+                        val lastCompleted = serverTimeToMillis(tail.last().first.time?.completed)
+                        if (lastRole != "user" && lastCompleted > 0L && turnStart > 0L && turnEnd > turnStart) {
+                            total += turnEnd - turnStart
+                        }
+                        HistoryStats(
+                            totalElapsed = total, messageCount = tail.size.toLong(),
+                            firstMessages = firstMessages, computed = true,
+                        )
                     }
                 }.getOrElse { e ->
-                    HistoryStats(totalElapsed = 0L, messageCount = 0L, firstUserText = null, computed = false, error = e.message)
+                    HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = e.message)
                 }
             }
             _historyStats.value = stats
         }
-    }
-
-    private fun sessionSpanMs(): Long {
-        val t = _activeSession.value?.time ?: return 0L
-        val created = serverTimeToMillis(t.created.takeIf { it > 0 })
-        val updated = serverTimeToMillis(t.updated)
-        return if (updated > created) updated - created else 0L
     }
 
     fun dismissHistoryStats() {
