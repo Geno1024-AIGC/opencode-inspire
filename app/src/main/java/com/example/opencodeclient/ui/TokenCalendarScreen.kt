@@ -5,21 +5,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -28,7 +25,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,7 +63,7 @@ fun TokenCalendarScreen(
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
-        viewModel.loadTokenHistory()
+        if (history.isEmpty() && elapsed.isEmpty()) viewModel.loadTokenHistory()
     }
 
     val totalTokens = history.values.sum()
@@ -75,7 +71,7 @@ fun TokenCalendarScreen(
     val locale = Locale.getDefault()
     val today = LocalDate.now()
     var shownMonth by remember { mutableStateOf(YearMonth.now()) }
-    var detailDate by remember { mutableStateOf<LocalDate?>(null) }
+    var selected by remember { mutableStateOf<LocalDate?>(today) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -84,6 +80,11 @@ fun TokenCalendarScreen(
                 title = { Text(stringResource(R.string.calendar_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.drawer_close)) }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.loadTokenHistory() }) {
+                        Icon(Icons.Filled.Refresh, stringResource(R.string.drawer_refresh))
+                    }
                 },
             )
         },
@@ -94,10 +95,16 @@ fun TokenCalendarScreen(
                 .padding(padding),
         ) {
             Text(
-                stringResource(R.string.calendar_total, totalTokens) + " · " + stringResource(R.string.calendar_total_elapsed, formatSeconds(totalElapsed), formatClock(totalElapsed)),
+                stringResource(R.string.calendar_total, totalTokens),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            Text(
+                stringResource(R.string.calendar_total_elapsed, formatSeconds(totalElapsed), formatClock(totalElapsed)),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
             if (loading) {
                 LinearProgressIndicator(
@@ -127,34 +134,27 @@ fun TokenCalendarScreen(
                 history = history,
                 elapsed = elapsed,
                 shownMonth = shownMonth,
+                selected = selected,
                 locale = locale,
-                onSelect = { detailDate = it },
+                onSelect = { selected = it },
+            )
+            HorizontalDivider()
+            val selDate = selected
+            val detailText = if (selDate == null) {
+                stringResource(R.string.calendar_empty)
+            } else {
+                val d = selDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale))
+                val selTokens = history[selDate.toString()] ?: 0L
+                val selElapsed = elapsed[selDate.toString()] ?: 0L
+                stringResource(R.string.calendar_day_detail, d, selTokens, formatSeconds(selElapsed), formatClock(selElapsed))
+            }
+            Text(
+                detailText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             )
         }
-    }
-
-    detailDate?.let { date ->
-        val day = date.toString()
-        val tokens = history[day] ?: 0L
-        val dur = elapsed[day] ?: 0L
-        AlertDialog(
-            onDismissRequest = { detailDate = null },
-            title = {
-                Text(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale)), fontWeight = FontWeight.Bold)
-            },
-            text = {
-                Column {
-                    Text(stringResource(R.string.calendar_day_tokens, tokens))
-                    if (dur > 0L) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(stringResource(R.string.calendar_day_elapsed_full, formatSeconds(dur), formatClock(dur)))
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { detailDate = null }) { Text(stringResource(android.R.string.ok)) }
-            },
-        )
     }
 }
 
@@ -163,6 +163,7 @@ private fun CalendarGrid(
     history: Map<String, Long>,
     elapsed: Map<String, Long>,
     shownMonth: YearMonth,
+    selected: LocalDate?,
     locale: Locale,
     onSelect: (LocalDate) -> Unit,
 ) {
@@ -202,6 +203,7 @@ private fun CalendarGrid(
                         inMonth = inMonth,
                         tokens = tokens,
                         dayElapsed = dayElapsed,
+                        selected = date == selected,
                         isToday = date == today,
                         intensity = if (tokens > 0L) tokens.toDouble() / monthMax else 0.0,
                         onClick = { onSelect(date) },
@@ -219,6 +221,7 @@ private fun CalendarDayCell(
     inMonth: Boolean,
     tokens: Long,
     dayElapsed: Long,
+    selected: Boolean,
     isToday: Boolean,
     intensity: Double,
     onClick: () -> Unit,
@@ -231,8 +234,9 @@ private fun CalendarDayCell(
     }
     Column(
         modifier = modifier
-            .aspectRatio(0.9f)
-            .padding(2.dp)
+            .aspectRatio(1f)
+            .padding(1.dp)
+            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier)
             .background(
                 if (inMonth || isToday) bg else Color.Transparent,
                 CircleShape,
@@ -247,16 +251,17 @@ private fun CalendarDayCell(
             color = when {
                 !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 isToday -> MaterialTheme.colorScheme.onPrimary
-                tokens > 0L -> MaterialTheme.colorScheme.primary
+                tokens > 0L || selected -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
-            fontWeight = if (isToday || tokens > 0L) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (isToday || tokens > 0L || selected) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
+            fontSize = 13.sp,
         )
         if (inMonth && tokens > 0L) {
             Text(
                 formatTokensCompact(tokens),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
                 color = if (isToday) MaterialTheme.colorScheme.onPrimary
                     else MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 maxLines = 1,
