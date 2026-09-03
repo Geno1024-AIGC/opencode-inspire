@@ -44,6 +44,8 @@ class SettingsRepository(private val context: Context) {
         val ASSIST_BUBBLE_COLOR = longPreferencesKey("assistant_bubble_color")
         val AUTO_UPDATE_TIMING = booleanPreferencesKey("auto_update_timing")
         val HISTORY_STATS = stringPreferencesKey("history_stats")
+        val TOKEN_HISTORY = stringPreferencesKey("token_history")
+        val TOKEN_ELAPSED = stringPreferencesKey("token_elapsed")
     }
 
     private val json = Json {
@@ -78,6 +80,16 @@ class SettingsRepository(private val context: Context) {
                 runCatching { json.decodeFromString<Map<String, StoredHistoryStats>>(raw) }.getOrNull()
             } ?: emptyMap()
         }
+    val tokenHistory: Flow<Map<String, Long>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.TOKEN_HISTORY]?.let { raw ->
+            runCatching { json.decodeFromString<Map<String, Long>>(raw) }.getOrNull()
+        } ?: emptyMap()
+    }
+    val tokenElapsed: Flow<Map<String, Long>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.TOKEN_ELAPSED]?.let { raw ->
+            runCatching { json.decodeFromString<Map<String, Long>>(raw) }.getOrNull()
+        } ?: emptyMap()
+    }
 
     suspend fun setShortTokens(enabled: Boolean) {
         context.dataStore.edit { it[Keys.SHORT_TOKENS] = enabled }
@@ -117,6 +129,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAutoUpdateTiming(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_UPDATE_TIMING] = enabled }
+    }
+
+    suspend fun saveTokenHistory(tokens: Map<String, Long>, elapsed: Map<String, Long>) {
+        context.dataStore.edit {
+            it[Keys.TOKEN_HISTORY] = json.encodeToString(tokens)
+            it[Keys.TOKEN_ELAPSED] = json.encodeToString(elapsed)
+        }
     }
 
     suspend fun saveHistoryStats(sessionId: String, stats: StoredHistoryStats) {

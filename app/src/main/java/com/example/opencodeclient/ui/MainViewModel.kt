@@ -312,6 +312,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             settings.autoUpdateTiming.collect { _autoTiming.value = it }
         }
+        viewModelScope.launch {
+            settings.tokenHistory.collect { _tokenHistory.value = it }
+        }
+        viewModelScope.launch {
+            settings.tokenElapsed.collect { _tokenElapsed.value = it }
+        }
         createNotificationChannel()
     }
 
@@ -469,7 +475,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     tokens to elapsed
                 }
                 _tokenHistory.value = byDayToken
-                if (coroutineContext.isActive) _tokenElapsed.value = byDayElapsed
+                if (coroutineContext.isActive) {
+                    _tokenElapsed.value = byDayElapsed
+                    settings.saveTokenHistory(byDayToken, byDayElapsed)
+                }
             } finally {
                 _tokenHistoryLoading.value = false
             }
