@@ -186,6 +186,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val tokenHistoryLoading: StateFlow<Boolean> = _tokenHistoryLoading.asStateFlow()
     private val _tokenElapsed = MutableStateFlow<Map<String, Long>>(emptyMap())
     val tokenElapsed: StateFlow<Map<String, Long>> = _tokenElapsed.asStateFlow()
+    private val _hourMonth = MutableStateFlow<Map<Int, Long>>(emptyMap())
+    val hourMonth: StateFlow<Map<Int, Long>> = _hourMonth.asStateFlow()
+    private val _hourWeek = MutableStateFlow<Map<Int, Long>>(emptyMap())
+    val hourWeek: StateFlow<Map<Int, Long>> = _hourWeek.asStateFlow()
 
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
@@ -434,51 +438,64 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _tokenHistoryLoading.value = true
         viewModelScope.launch {
             try {
-                val (byDayToken, byDayElapsed) = withContext(Dispatchers.IO) {
-                    val c = client ?: return@withContext emptyMap<String, Long>() to emptyMap<String, Long>()
-                    val tokens = mutableMapOf<String, Long>()
-                    val elapsed = mutableMapOf<String, Long>()
-                    val zone = java.time.ZoneId.systemDefault()
-                    c.sessions().forEach { s ->
-                        val messages = runCatching { c.sessionMessagesAll(s.id) }.getOrNull() ?: return@forEach
-                        var turnStart = 0L
-                        var turnEnd = 0L
-                        for ((msg, _) in messages) {
-                            coroutineContext.ensureActive()
-                            val created = msg.time?.created ?: continue
-                            val completed = msg.time?.completed ?: 0L
-                            if (created <= 0L) continue
-                            val day = java.time.Instant.ofEpochMilli(created)
-                                .atZone(zone).toLocalDate().toString()
-                            val toks = msg.tokens
-                            val total = toks?.total
-                                ?: ((toks?.input ?: 0L) + (toks?.output ?: 0L) + (toks?.reasoning ?: 0L))
-                            if (total > 0L) tokens[day] = (tokens[day] ?: 0L) + total
-                            if (msg.role == "user") {
-                                if (turnStart > 0L && turnEnd > turnStart) {
-                                    val d = java.time.Instant.ofEpochMilli(turnStart)
-                                        .atZone(zone).toLocalDate().toString()
-                                    elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
-                                }
-                                turnStart = created
-                                turnEnd = created
-                            } else if (turnStart > 0L && completed > turnEnd) {
-                                turnEnd = completed
+            withContext(Dispatchers.IO) {
+                val c = client ?: return@withContext
+                val tokens = mutableMapOf<String, Long>()
+                val elapsed = mutableMapOf<String, Long>()
+                val hourMonth = mutableMapOf<Int, Long>()
+                val hourWeek = mutableMapOf<Int, Long>()
+                val zone = java.time.ZoneId.systemDefault()
+                val now = java.time.LocalDate.now(zone)
+                val firstDow = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value
+                val weekStart = now.with(
+                    java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
+                )
+                c.sessions().forEach { s ->
+                    val messages = runCatching { c.sessionMessagesAll(s.id) }.getOrNull() ?: return@forEach
+                    var turnStart = 0L
+                    var turnEnd = 0L
+                    for ((msg, _) in messages) {
+                        coroutineContext.ensureActive()
+                        val created = msg.time?.created ?: continue
+                        val completed = msg.time?.completed ?: 0L
+                        if (created <= 0L) continue
+                        val zdt = java.time.Instant.ofEpochMilli(created).atZone(zone)
+                        val day = zdt.toLocalDate()
+                        val toks = msg.tokens
+                        val total = toks?.total
+                            ?: ((toks?.input ?: 0L) + (toks?.output ?: 0L) + (toks?.reasoning ?: 0L))
+                        if (total > 0L) {
+                            tokens[day.toString()] = (tokens[day.toString()] ?: 0L) + total
+                            val hour = zdt.hour
+                            if (day.year == now.year && day.month == now.month) {
+                                hourMonth[hour] = (hourMonth[hour] ?: 0L) + total
+                            }
+                            if (!day.isBefore(weekStart) && day.isBefore(weekStart.plusDays(7))) {
+                                hourWeek[hour] = (hourWeek[hour] ?: 0L) + total
                             }
                         }
-                        if (turnStart > 0L && turnEnd > turnStart) {
-                            val d = java.time.Instant.ofEpochMilli(turnStart)
-                                .atZone(zone).toLocalDate().toString()
-                            elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
+                        if (msg.role == "user") {
+                            if (turnStart > 0L && turnEnd > turnStart) {
+                                val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
+                                elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
+                            }
+                            turnStart = created
+                            turnEnd = created
+                        } else if (turnStart > 0L && completed > turnEnd) {
+                            turnEnd = completed
                         }
                     }
-                    tokens to elapsed
+                    if (turnStart > 0L && turnEnd > turnStart) {
+                        val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
+                        elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
+                    }
                 }
-                _tokenHistory.value = byDayToken
-                if (coroutineContext.isActive) {
-                    _tokenElapsed.value = byDayElapsed
-                    settings.saveTokenHistory(byDayToken, byDayElapsed)
-                }
+                _tokenHistory.value = tokens
+                _tokenElapsed.value = elapsed
+                _hourMonth.value = hourMonth
+                _hourWeek.value = hourWeek
+                if (coroutineContext.isActive) settings.saveTokenHistory(tokens, elapsed)
+            }
             } finally {
                 _tokenHistoryLoading.value = false
             }

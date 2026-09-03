@@ -137,9 +137,8 @@
     <string name="stats_tab_daily">Daily</string>
     <string name="stats_tab_monthly">Monthly</string>
     <string name="stats_tab_weekly">Weekly</string>
-    <string name="stats_punch_no_data">No data yet</string>
-    <string name="stats_legend_less">Less</string>
-    <string name="stats_legend_more">More</string>
+    <string name="stats_hour_month">%1$s · hourly tokens</string>
+    <string name="stats_hour_week">Week %1$s – %2$s · hourly tokens</string>
     <string name="settings_token_history">Usage calendar</string>
     <string name="settings_token_history_sub">Daily token usage &amp; time</string>
 
