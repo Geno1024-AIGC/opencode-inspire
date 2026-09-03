@@ -92,6 +92,13 @@
     <string name="theme_preset_solarized">Solarized</string>
     <string name="theme_preset_gruvbox">Gruvbox</string>
     <string name="theme_preset_catppuccin">Catppuccin</string>
+    <string name="theme_preset_china_red">China Red</string>
+    <string name="theme_preset_persimmon">Persimmon Orange</string>
+    <string name="theme_preset_lemon">Lemon Yellow</string>
+    <string name="theme_preset_forest">Forest Green</string>
+    <string name="theme_preset_mint">Mint Cyan</string>
+    <string name="theme_preset_sky_blue">Sky Blue</string>
+    <string name="theme_preset_grape">Grape Purple</string>
     <string name="theme_preset_custom">Custom</string>
     <string name="theme_custom_primary">Primary</string>
     <string name="theme_custom_background">Background</string>
