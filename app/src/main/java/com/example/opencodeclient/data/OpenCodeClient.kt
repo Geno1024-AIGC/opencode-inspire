@@ -216,7 +216,7 @@ class OpenCodeClient(
             before = next
             if (next == null) break
         }
-        return all
+        return all.sortedBy { it.first.time?.created ?: Long.MIN_VALUE }
     }
 
     private suspend fun fetchPageWithCursor(sessionId: String, limit: Int, before: String?): Pair<String, String?> =
