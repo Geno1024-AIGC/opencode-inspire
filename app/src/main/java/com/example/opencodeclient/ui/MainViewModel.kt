@@ -30,6 +30,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -159,6 +161,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _historyStats = MutableStateFlow<HistoryStats?>(null)
     val historyStats: StateFlow<HistoryStats?> = _historyStats.asStateFlow()
+    private val _computingHistory = MutableStateFlow(false)
+    val computingHistory: StateFlow<Boolean> = _computingHistory.asStateFlow()
+    private var historyJob: Job? = null
 
     private val _tokenHistory = MutableStateFlow<Map<String, Long>>(emptyMap())
     val tokenHistory: StateFlow<Map<String, Long>> = _tokenHistory.asStateFlow()
@@ -1041,50 +1046,67 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun computeHistoryStats() {
+        if (_computingHistory.value) return
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
-        viewModelScope.launch {
-            val stats = withContext(Dispatchers.IO) {
-                runCatching {
-                    val tail = c.sessionMessagesAll(sid)
-                    if (tail.isEmpty()) {
-                        HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = "empty")
-                    } else {
-                        var total = 0L
-                        var turnStart = 0L
-                        var turnEnd = 0L
-                        val firstMessages = mutableListOf<String>()
-                        for ((msg, parts) in tail) {
-                            val created = serverTimeToMillis(msg.time?.created)
-                            if (msg.role == "user") {
-                                if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
-                                turnStart = created
-                                turnEnd = created
-                                if (firstMessages.size < 5) {
-                                    val t = parts.firstOrNull { it.type == "text" }?.text ?: msg.id
-                                    firstMessages.add(t.take(120))
+        _computingHistory.value = true
+        historyJob = viewModelScope.launch {
+            try {
+                val stats = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val tail = c.sessionMessagesAll(sid)
+                        if (tail.isEmpty()) {
+                            HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = "empty")
+                        } else {
+                            var total = 0L
+                            var turnStart = 0L
+                            var turnEnd = 0L
+                            val firstMessages = mutableListOf<String>()
+                            for ((msg, parts) in tail) {
+                                coroutineContext.ensureActive()
+                                val created = serverTimeToMillis(msg.time?.created)
+                                if (msg.role == "user") {
+                                    if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
+                                    turnStart = created
+                                    turnEnd = created
+                                    if (firstMessages.size < 5) {
+                                        val t = parts.firstOrNull { it.type == "text" }?.text ?: msg.id
+                                        firstMessages.add(t.take(120))
+                                    }
+                                } else {
+                                    val completed = serverTimeToMillis(msg.time?.completed)
+                                    if (turnStart > 0L && completed > turnEnd) turnEnd = completed
                                 }
-                            } else {
-                                val completed = serverTimeToMillis(msg.time?.completed)
-                                if (turnStart > 0L && completed > turnEnd) turnEnd = completed
                             }
+                            val lastRole = tail.last().first.role
+                            val lastCompleted = serverTimeToMillis(tail.last().first.time?.completed)
+                            if (lastRole != "user" && lastCompleted > 0L && turnStart > 0L && turnEnd > turnStart) {
+                                total += turnEnd - turnStart
+                            }
+                            HistoryStats(
+                                totalElapsed = total, messageCount = tail.size.toLong(),
+                                firstMessages = firstMessages, computed = true,
+                            )
                         }
-                        val lastRole = tail.last().first.role
-                        val lastCompleted = serverTimeToMillis(tail.last().first.time?.completed)
-                        if (lastRole != "user" && lastCompleted > 0L && turnStart > 0L && turnEnd > turnStart) {
-                            total += turnEnd - turnStart
-                        }
-                        HistoryStats(
-                            totalElapsed = total, messageCount = tail.size.toLong(),
-                            firstMessages = firstMessages, computed = true,
-                        )
+                    }.getOrElse { e ->
+                        HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = e.message)
                     }
-                }.getOrElse { e ->
-                    HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = e.message)
                 }
+                if (coroutineContext.isActive) {
+                    _historyStats.value = stats
+                    _computingHistory.value = false
+                }
+            } finally {
+                _computingHistory.value = false
             }
-            _historyStats.value = stats
         }
+    }
+
+    fun cancelHistoryStats() {
+        historyJob?.cancel()
+        historyJob = null
+        _historyStats.value = null
+        _computingHistory.value = false
     }
 
     fun dismissHistoryStats() {

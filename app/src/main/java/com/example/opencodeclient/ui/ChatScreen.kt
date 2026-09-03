@@ -130,6 +130,7 @@ fun ChatScreen(
     val collapsedMessageIds by viewModel.collapsedMessageIds.collectAsStateWithLifecycle()
     val exportMarkdown by viewModel.exportMarkdown.collectAsStateWithLifecycle()
     val historyStats by viewModel.historyStats.collectAsStateWithLifecycle()
+    val computingHistory by viewModel.computingHistory.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -498,6 +499,31 @@ fun ChatScreen(
 
     previewUrl?.let { url ->
         LinkPreviewSheet(url = url, onDismiss = { previewUrl = null })
+    }
+
+    if (computingHistory) {
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelHistoryStats() },
+            title = { Text(stringResource(R.string.history_stats_computing)) },
+            text = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    CircularProgressIndicator(Modifier.size(24.dp))
+                    Text(
+                        stringResource(R.string.history_stats_computing_sub),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelHistoryStats() }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 
     historyStats?.let { stats ->
