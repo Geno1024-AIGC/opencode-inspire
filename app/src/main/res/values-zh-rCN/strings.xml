@@ -130,6 +130,7 @@
     <string name="calendar_total">总计：%1$d</string>
     <string name="calendar_empty">暂无 Token 记录</string>
     <string name="calendar_day_tokens">%1$d tokens</string>
+    <string name="calendar_day_elapsed">%1$.1f秒</string>
     <string name="settings_token_history">Token 记录</string>
     <string name="settings_token_history_sub">每日 Token 用量</string>
 
