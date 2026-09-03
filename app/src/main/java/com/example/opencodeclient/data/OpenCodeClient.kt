@@ -198,7 +198,7 @@ class OpenCodeClient(
         }
 
     suspend fun sessionMessagesAll(sessionId: String): List<Pair<Message, List<Part>>> {
-        val text = execute("GET", "/session/$sessionId/message?limit=3500") { it }
+        val text = execute("GET", "/session/$sessionId/message?limit=100000") { it }
         if (text.isBlank()) return emptyList()
         return runCatching {
             json.decodeFromString<List<SessionInfo>>(text)
