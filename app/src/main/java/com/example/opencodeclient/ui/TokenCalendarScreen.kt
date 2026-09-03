@@ -22,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -60,6 +61,7 @@ fun TokenCalendarScreen(
 ) {
     BackHandler(onBack = onBack)
     val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
+    val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.loadTokenHistory()
@@ -95,6 +97,11 @@ fun TokenCalendarScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.calendar_total, total), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            if (loading) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                )
             }
             Row(
                 modifier = Modifier

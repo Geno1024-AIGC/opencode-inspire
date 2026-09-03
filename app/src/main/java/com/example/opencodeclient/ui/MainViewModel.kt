@@ -182,6 +182,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _tokenHistory = MutableStateFlow<Map<String, Long>>(emptyMap())
     val tokenHistory: StateFlow<Map<String, Long>> = _tokenHistory.asStateFlow()
+    private val _tokenHistoryLoading = MutableStateFlow(false)
+    val tokenHistoryLoading: StateFlow<Boolean> = _tokenHistoryLoading.asStateFlow()
 
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
@@ -420,23 +422,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadTokenHistory() {
+        if (_tokenHistoryLoading.value) return
+        _tokenHistoryLoading.value = true
         viewModelScope.launch {
-            _tokenHistory.value = withContext(Dispatchers.IO) {
-                val c = client ?: return@withContext emptyMap()
-                val map = mutableMapOf<String, Long>()
-                val zone = java.time.ZoneId.systemDefault()
-                c.sessions().forEach { s ->
-                    val created = s.time?.created ?: 0L
-                    if (created > 0L) {
-                        val day = java.time.Instant.ofEpochMilli(created)
-                            .atZone(zone).toLocalDate().toString()
-                        val toks = s.tokens
-                        val total = toks?.total
-                            ?: ((toks?.input ?: 0L) + (toks?.output ?: 0L) + (toks?.reasoning ?: 0L))
-                        if (total > 0L) map[day] = (map[day] ?: 0L) + total
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    val c = client ?: return@withContext emptyMap()
+                    val map = mutableMapOf<String, Long>()
+                    val zone = java.time.ZoneId.systemDefault()
+                    c.sessions().forEach { s ->
+                        val messages = runCatching { c.sessionMessagesAll(s.id) }.getOrNull() ?: return@forEach
+                        for ((msg, _) in messages) {
+                            coroutineContext.ensureActive()
+                            val created = msg.time?.created ?: continue
+                            if (created <= 0L) continue
+                            val day = java.time.Instant.ofEpochMilli(created)
+                                .atZone(zone).toLocalDate().toString()
+                            val toks = msg.tokens
+                            val total = toks?.total
+                                ?: ((toks?.input ?: 0L) + (toks?.output ?: 0L) + (toks?.reasoning ?: 0L))
+                            if (total > 0L) map[day] = (map[day] ?: 0L) + total
+                        }
                     }
+                    map
                 }
-                map
+                _tokenHistory.value = result
+            } finally {
+                _tokenHistoryLoading.value = false
             }
         }
     }
