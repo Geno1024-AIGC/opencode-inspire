@@ -170,6 +170,13 @@ fun SettingsScreen(
                         "solarized" to stringResource(R.string.theme_preset_solarized),
                         "gruvbox" to stringResource(R.string.theme_preset_gruvbox),
                         "catppuccin" to stringResource(R.string.theme_preset_catppuccin),
+                        "china_red" to stringResource(R.string.theme_preset_china_red),
+                        "persimmon" to stringResource(R.string.theme_preset_persimmon),
+                        "lemon" to stringResource(R.string.theme_preset_lemon),
+                        "forest" to stringResource(R.string.theme_preset_forest),
+                        "mint" to stringResource(R.string.theme_preset_mint),
+                        "sky_blue" to stringResource(R.string.theme_preset_sky_blue),
+                        "grape" to stringResource(R.string.theme_preset_grape),
                         "custom" to stringResource(R.string.theme_preset_custom),
                     )
                     DropdownSetting(
