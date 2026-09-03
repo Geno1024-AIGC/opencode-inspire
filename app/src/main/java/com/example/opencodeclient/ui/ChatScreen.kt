@@ -583,17 +583,32 @@ private fun HistoryStatsDialog(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    if (!stats.firstUserText.isNullOrBlank()) {
+                    if (stats.firstMessages.isNotEmpty()) {
                         Text(
-                            stringResource(R.string.history_stats_first),
+                            stringResource(R.string.history_stats_first5),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                         )
-                        Text(
-                            stats.firstUserText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            stats.firstMessages.forEachIndexed { idx, t ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        "${idx + 1}.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontFamily = MonoFontFamily,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                    Text(
+                                        t,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
                     }
                 } else if (stats.fallbackSpanMs > 0L) {
                     Text(
