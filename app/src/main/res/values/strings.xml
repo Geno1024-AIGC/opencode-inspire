@@ -213,7 +213,11 @@
     <string name="session_details_tokens_reasoning">Reasoning %s</string>
     <string name="session_details_history">Historical time stats</string>
     <string name="session_details_history_none">Not computed yet for this session.</string>
-    <string name="session_details_history_recompute">Recompute</string>
+    <string name="session_details_history_recompute">Compute all</string>
+    <string name="session_details_history_total">Cumulative time: %.1fs</string>
+    <string name="session_details_history_upto">Through: %1$s</string>
+    <string name="session_details_auto_update">Auto-update timing on each reply</string>
+    <string name="session_details_history_update">Update</string>
     <string name="history_stats">Historical time stats</string>
     <string name="history_stats_title">Historical time stats</string>
     <string name="history_stats_total">Total conversation time: %.1fs</string>

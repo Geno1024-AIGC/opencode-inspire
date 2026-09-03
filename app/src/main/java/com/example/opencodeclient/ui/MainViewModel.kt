@@ -23,6 +23,7 @@ import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
+import com.example.opencodeclient.data.StoredHistoryStats
 import com.example.opencodeclient.data.Tokens
 import com.example.opencodeclient.data.Updater
 import com.example.opencodeclient.data.promptTokens
@@ -74,6 +75,8 @@ data class HistoryStats(
     val computed: Boolean,
     val error: String? = null,
     val fallbackSpanMs: Long = 0L,
+    val lastTimestamp: Long = 0L,
+    val lastMessageId: String = "",
 )
 
 data class TodoUi(
@@ -164,6 +167,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _computingHistory = MutableStateFlow(false)
     val computingHistory: StateFlow<Boolean> = _computingHistory.asStateFlow()
     private var historyJob: Job? = null
+
+    private val _storedStats = MutableStateFlow<Map<String, StoredHistoryStats>>(emptyMap())
+    val storedStats: StateFlow<Map<String, StoredHistoryStats>> = _storedStats.asStateFlow()
+    private val _autoTiming = MutableStateFlow(false)
+    val autoTiming: StateFlow<Boolean> = _autoTiming.asStateFlow()
 
     private val _tokenHistory = MutableStateFlow<Map<String, Long>>(emptyMap())
     val tokenHistory: StateFlow<Map<String, Long>> = _tokenHistory.asStateFlow()
@@ -284,6 +292,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.assistantBubbleColor.collect { _assistantBubbleColor.value = it }
+        }
+        viewModelScope.launch {
+            settings.historyStats.collect { _storedStats.value = it }
+        }
+        viewModelScope.launch {
+            settings.autoUpdateTiming.collect { _autoTiming.value = it }
         }
         createNotificationChannel()
     }
@@ -1051,54 +1065,74 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _computingHistory.value = true
         historyJob = viewModelScope.launch {
             try {
-                val stats = withContext(Dispatchers.IO) {
-                    runCatching {
-                        val tail = c.sessionMessagesAll(sid)
-                        if (tail.isEmpty()) {
-                            HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = "empty")
-                        } else {
-                            var total = 0L
-                            var turnStart = 0L
-                            var turnEnd = 0L
-                            val firstMessages = mutableListOf<String>()
-                            for ((msg, parts) in tail) {
-                                coroutineContext.ensureActive()
-                                val created = serverTimeToMillis(msg.time?.created)
-                                if (msg.role == "user") {
-                                    if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
-                                    turnStart = created
-                                    turnEnd = created
-                                    if (firstMessages.size < 5) {
-                                        val t = parts.firstOrNull { it.type == "text" }?.text ?: msg.id
-                                        firstMessages.add(t.take(120))
-                                    }
-                                } else {
-                                    val completed = serverTimeToMillis(msg.time?.completed)
-                                    if (turnStart > 0L && completed > turnEnd) turnEnd = completed
-                                }
-                            }
-                            val lastRole = tail.last().first.role
-                            val lastCompleted = serverTimeToMillis(tail.last().first.time?.completed)
-                            if (lastRole != "user" && lastCompleted > 0L && turnStart > 0L && turnEnd > turnStart) {
-                                total += turnEnd - turnStart
-                            }
-                            HistoryStats(
-                                totalElapsed = total, messageCount = tail.size.toLong(),
-                                firstMessages = firstMessages, computed = true,
-                            )
-                        }
-                    }.getOrElse { e ->
-                        HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = e.message)
-                    }
-                }
+                val stats = fetchStatsFor(c, sid)
                 if (coroutineContext.isActive) {
                     _historyStats.value = stats
-                    _computingHistory.value = false
+                    persistStats(sid, stats)
                 }
             } finally {
                 _computingHistory.value = false
             }
         }
+    }
+
+    private suspend fun fetchStatsFor(c: OpenCodeClient, sid: String): HistoryStats =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val tail = c.sessionMessagesAll(sid)
+                if (tail.isEmpty()) {
+                    HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = "empty")
+                } else {
+                    var total = 0L
+                    var turnStart = 0L
+                    var turnEnd = 0L
+                    val firstMessages = mutableListOf<String>()
+                    for ((msg, parts) in tail) {
+                        coroutineContext.ensureActive()
+                        val created = serverTimeToMillis(msg.time?.created)
+                        if (msg.role == "user") {
+                            if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
+                            turnStart = created
+                            turnEnd = created
+                            if (firstMessages.size < 5) {
+                                val t = parts.firstOrNull { it.type == "text" }?.text ?: msg.id
+                                firstMessages.add(t.take(120))
+                            }
+                        } else {
+                            val completed = serverTimeToMillis(msg.time?.completed)
+                            if (turnStart > 0L && completed > turnEnd) turnEnd = completed
+                        }
+                    }
+                    val lastMsg = tail.last().first
+                    val lastRole = lastMsg.role
+                    val lastCompleted = serverTimeToMillis(lastMsg.time?.completed)
+                    val lastCreated = serverTimeToMillis(lastMsg.time?.created)
+                    if (lastRole != "user" && lastCompleted > 0L && turnStart > 0L && turnEnd > turnStart) {
+                        total += turnEnd - turnStart
+                    }
+                    HistoryStats(
+                        totalElapsed = total, messageCount = tail.size.toLong(),
+                        firstMessages = firstMessages, computed = true,
+                        lastTimestamp = maxOf(lastCompleted, lastCreated),
+                        lastMessageId = lastMsg.id,
+                    )
+                }
+            }.getOrElse { e ->
+                HistoryStats(totalElapsed = 0L, messageCount = 0L, computed = false, error = e.message)
+            }
+        }
+
+    private suspend fun persistStats(sid: String, stats: HistoryStats) {
+        settings.saveHistoryStats(
+            sid,
+            StoredHistoryStats(
+                totalElapsed = stats.totalElapsed,
+                messageCount = stats.messageCount,
+                firstMessages = stats.firstMessages,
+                lastTimestamp = stats.lastTimestamp,
+                lastMessageId = stats.lastMessageId,
+            ),
+        )
     }
 
     fun cancelHistoryStats() {
@@ -1110,6 +1144,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissHistoryStats() {
         _historyStats.value = null
+    }
+
+    fun setAutoUpdateTiming(enabled: Boolean) {
+        viewModelScope.launch { settings.setAutoUpdateTiming(enabled) }
+    }
+
+    fun autoUpdateTimingForSession(sid: String) {
+        if (!_autoTiming.value) return
+        val c = client ?: return
+        if (_computingHistory.value) return
+        _computingHistory.value = true
+        historyJob = viewModelScope.launch {
+            try {
+                val stats = fetchStatsFor(c, sid)
+                if (coroutineContext.isActive) {
+                    if (sid == _activeSession.value?.id) {
+                        _historyStats.value = stats
+                        recomputeSessionElapsed()
+                        recomputeSessionTotalElapsed()
+                    }
+                    persistStats(sid, stats)
+                }
+            } finally {
+                _computingHistory.value = false
+            }
+        }
     }
     private fun appendChatExport(sb: StringBuilder, msg: ChatMessage) {
         val role = when (msg.role) {
@@ -1292,6 +1352,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val elapsed = lastUserSendTime?.let { System.currentTimeMillis() - it }
                         if (elapsed != null && elapsed > 0) _sessionElapsed.value = elapsed
                         recomputeSessionTotalElapsed()
+                        autoUpdateTimingForSession(sid)
                     }
                     if (wasBusy) notifySessionDone(sid, _sessionTokens.value?.total ?: 0L)
                 } else {
