@@ -12,12 +12,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -26,6 +28,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,8 +54,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
-
-const val CALENDAR_DAYS = 6 * 7
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,11 +70,12 @@ fun TokenCalendarScreen(
         viewModel.loadTokenHistory()
     }
 
-    val total = history.values.sum()
+    val totalTokens = history.values.sum()
+    val totalElapsed = elapsed.values.sum()
     val locale = Locale.getDefault()
     val today = LocalDate.now()
     var shownMonth by remember { mutableStateOf(YearMonth.now()) }
-    var selected by remember { mutableStateOf<LocalDate?>(today) }
+    var detailDate by remember { mutableStateOf<LocalDate?>(null) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -90,15 +93,12 @@ fun TokenCalendarScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(stringResource(R.string.calendar_total, total), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
+            Text(
+                stringResource(R.string.calendar_total, totalTokens) + " · " + stringResource(R.string.calendar_total_elapsed, formatSeconds(totalElapsed), formatClock(totalElapsed)),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
             if (loading) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -111,7 +111,7 @@ fun TokenCalendarScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { shownMonth = shownMonth.minusMonths(1); selected = null }) {
+                IconButton(onClick = { shownMonth = shownMonth.minusMonths(1) }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(
@@ -119,47 +119,52 @@ fun TokenCalendarScreen(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
-                IconButton(onClick = { shownMonth = shownMonth.plusMonths(1); selected = null }) {
+                IconButton(onClick = { shownMonth = shownMonth.plusMonths(1) }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             CalendarGrid(
                 history = history,
+                elapsed = elapsed,
                 shownMonth = shownMonth,
-                selected = selected,
-                onSelect = { selected = it },
                 locale = locale,
-            )
-            HorizontalDivider()
-            val selDate = selected
-            val detailText = if (selDate == null) {
-                stringResource(R.string.calendar_empty)
-            } else {
-                val d = selDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale))
-                val selTokens = history[selDate.toString()] ?: 0L
-                val selElapsed = elapsed[selDate.toString()] ?: 0L
-                val sb = StringBuilder(d)
-                if (selTokens > 0L) sb.append(" · ").append(stringResource(R.string.calendar_day_tokens, selTokens))
-                if (selElapsed > 0L) sb.append(" · ").append(stringResource(R.string.calendar_day_elapsed, selElapsed / 1000.0))
-                sb.toString()
-            }
-            Text(
-                detailText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                onSelect = { detailDate = it },
             )
         }
+    }
+
+    detailDate?.let { date ->
+        val day = date.toString()
+        val tokens = history[day] ?: 0L
+        val dur = elapsed[day] ?: 0L
+        AlertDialog(
+            onDismissRequest = { detailDate = null },
+            title = {
+                Text(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale)), fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column {
+                    Text(stringResource(R.string.calendar_day_tokens, tokens))
+                    if (dur > 0L) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(stringResource(R.string.calendar_day_elapsed_full, formatSeconds(dur), formatClock(dur)))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { detailDate = null }) { Text(stringResource(android.R.string.ok)) }
+            },
+        )
     }
 }
 
 @Composable
 private fun CalendarGrid(
     history: Map<String, Long>,
+    elapsed: Map<String, Long>,
     shownMonth: YearMonth,
-    selected: LocalDate?,
-    onSelect: (LocalDate) -> Unit,
     locale: Locale,
+    onSelect: (LocalDate) -> Unit,
 ) {
     val today = LocalDate.now()
     val firstDayOfWeek = WeekFields.of(locale).firstDayOfWeek.value
@@ -191,11 +196,12 @@ private fun CalendarGrid(
                     val date = gridStart.plusDays((r * 7 + c).toLong())
                     val inMonth = date.month == first.month && date.year == first.year
                     val tokens = history[date.toString()] ?: 0L
+                    val dayElapsed = elapsed[date.toString()] ?: 0L
                     CalendarDayCell(
                         date = date,
                         inMonth = inMonth,
                         tokens = tokens,
-                        selected = date == selected,
+                        dayElapsed = dayElapsed,
                         isToday = date == today,
                         intensity = if (tokens > 0L) tokens.toDouble() / monthMax else 0.0,
                         onClick = { onSelect(date) },
@@ -212,7 +218,7 @@ private fun CalendarDayCell(
     date: LocalDate,
     inMonth: Boolean,
     tokens: Long,
-    selected: Boolean,
+    dayElapsed: Long,
     isToday: Boolean,
     intensity: Double,
     onClick: () -> Unit,
@@ -225,9 +231,8 @@ private fun CalendarDayCell(
     }
     Column(
         modifier = modifier
-            .aspectRatio(1f)
+            .aspectRatio(0.9f)
             .padding(2.dp)
-            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier)
             .background(
                 if (inMonth || isToday) bg else Color.Transparent,
                 CircleShape,
@@ -242,10 +247,11 @@ private fun CalendarDayCell(
             color = when {
                 !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 isToday -> MaterialTheme.colorScheme.onPrimary
-                tokens > 0L || selected -> MaterialTheme.colorScheme.primary
+                tokens > 0L -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
-            fontWeight = if (isToday || tokens > 0L || selected) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (isToday || tokens > 0L) FontWeight.Bold else FontWeight.Normal,
+            maxLines = 1,
         )
         if (inMonth && tokens > 0L) {
             Text(
@@ -254,13 +260,41 @@ private fun CalendarDayCell(
                 color = if (isToday) MaterialTheme.colorScheme.onPrimary
                     else MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 maxLines = 1,
+                overflow = TextOverflow.Clip,
+            )
+        }
+        if (inMonth && dayElapsed > 0L) {
+            Text(
+                formatClock(dayElapsed),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp),
+                color = if (isToday) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
             )
         }
     }
 }
 
 private fun formatTokensCompact(n: Long): String = when {
-    n >= 1_000_000 -> ((n / 1_000_000f).let { if (it % 1f == 0f) it.toInt().toString() else "%.1f".format(it) }) + "m"
-    n >= 1_000 -> ((n / 1_000f).let { if (it % 1f == 0f) it.toInt().toString() else "%.1f".format(it) }) + "k"
+    n >= 1_000_000_000_000L -> trim1(n / 1_000_000_000_000f) + "T"
+    n >= 1_000_000_000L -> trim1(n / 1_000_000_000f) + "G"
+    n >= 1_000_000L -> trim1(n / 1_000_000f) + "M"
+    n >= 1_000L -> trim1(n / 1_000f) + "k"
     else -> n.toString()
+}
+
+private fun trim1(v: Float): String =
+    if (v % 1f == 0f) v.toInt().toString() else "%.1f".format(Locale.ROOT, v)
+
+private fun formatSeconds(ms: Long): String =
+    "%.1f".format(Locale.ROOT, ms / 1000.0) + " s"
+
+private fun formatClock(ms: Long): String {
+    val totalTenths = ms / 100
+    val h = totalTenths / 36000
+    val m = (totalTenths % 36000) / 600
+    val s = (totalTenths % 600) / 10
+    val d = totalTenths % 10
+    return "%d:%02d:%02d.%d".format(Locale.ROOT, h, m, s, d)
 }
