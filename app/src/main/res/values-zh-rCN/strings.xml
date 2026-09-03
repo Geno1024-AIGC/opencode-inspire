@@ -126,11 +126,11 @@
     <string name="color_assistant_title">助手消息颜色</string>
 
     <!-- Token calendar -->
-    <string name="calendar_title">Token 使用日历</string>
-    <string name="calendar_total">总计：%1$d</string>
-    <string name="calendar_empty">暂无 Token 记录</string>
+    <string name="calendar_title">使用日历</string>
+    <string name="calendar_total">总计：%1$d tokens</string>
+    <string name="calendar_total_elapsed">%1$s（%2$s）</string>
     <string name="calendar_day_tokens">%1$d tokens</string>
-    <string name="calendar_day_elapsed">%1$.1f秒</string>
+    <string name="calendar_day_elapsed_full">耗时：%1$s（%2$s）</string>
     <string name="settings_token_history">Token 记录</string>
     <string name="settings_token_history_sub">每日 Token 用量</string>
 

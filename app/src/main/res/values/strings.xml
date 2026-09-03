@@ -126,11 +126,11 @@
     <string name="color_assistant_title">Assistant messages color</string>
 
     <!-- Token calendar -->
-    <string name="calendar_title">Token calendar</string>
-    <string name="calendar_total">Total: %1$d</string>
-    <string name="calendar_empty">No token history yet</string>
+    <string name="calendar_title">Usage calendar</string>
+    <string name="calendar_total">Total: %1$d tokens</string>
+    <string name="calendar_total_elapsed">%1$s (%2$s)</string>
     <string name="calendar_day_tokens">%1$d tokens</string>
-    <string name="calendar_day_elapsed">%1$.1fs</string>
+    <string name="calendar_day_elapsed_full">Time: %1$s (%2$s)</string>
     <string name="settings_token_history">Token history</string>
     <string name="settings_token_history_sub">Daily token usage</string>
 
