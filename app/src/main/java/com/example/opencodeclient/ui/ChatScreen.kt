@@ -1,5 +1,6 @@
 package com.example.opencodeclient.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
@@ -547,6 +548,7 @@ fun ChatScreen(
             sessionTokens = sessionTokens,
             contextWindow = contextWindow,
             historyStats = historyStats,
+            shortTokens = shortTokens,
             onBack = { showSessionDetails = false },
         )
     }
@@ -1778,14 +1780,21 @@ private fun SessionDetailsScreen(
     sessionTokens: Tokens?,
     contextWindow: Long,
     historyStats: HistoryStats?,
+    shortTokens: Boolean = true,
     onBack: () -> Unit,
 ) {
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     val tokens = sessionTokens ?: session.tokens
 
+    BackHandler { onBack() }
+
     Surface(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1827,12 +1836,12 @@ private fun SessionDetailsScreen(
                 DetailRow(
                     label = stringResource(R.string.session_details_tokens),
                     value = buildString {
-                        append(stringResource(R.string.session_details_tokens_in, formatTokens(tokens?.input ?: 0L)))
+                        append(stringResource(R.string.session_details_tokens_in, formatTokens(tokens?.input ?: 0L, shortTokens)))
                         append(" / ")
-                        append(stringResource(R.string.session_details_tokens_out, formatTokens(tokens?.output ?: 0L)))
+                        append(stringResource(R.string.session_details_tokens_out, formatTokens(tokens?.output ?: 0L, shortTokens)))
                         if ((tokens?.reasoning ?: 0L) > 0) {
                             append(" / ")
-                            append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(tokens?.reasoning ?: 0L)))
+                            append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(tokens?.reasoning ?: 0L, shortTokens)))
                         }
                     },
                 )
