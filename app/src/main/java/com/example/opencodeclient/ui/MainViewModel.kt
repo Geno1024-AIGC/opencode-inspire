@@ -1100,10 +1100,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     var total = 0L
                     var turnStart = 0L
                     var turnEnd = 0L
+                    var latest = 0L
                     val firstMessages = mutableListOf<String>()
                     for ((msg, parts) in tail) {
                         coroutineContext.ensureActive()
                         val created = serverTimeToMillis(msg.time?.created)
+                        val completed = serverTimeToMillis(msg.time?.completed)
+                        if (created > latest) latest = created
+                        if (completed > latest) latest = completed
                         if (msg.role == "user") {
                             if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
                             turnStart = created
@@ -1113,7 +1117,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 firstMessages.add(t.take(120))
                             }
                         } else {
-                            val completed = serverTimeToMillis(msg.time?.completed)
                             if (turnStart > 0L && completed > turnEnd) turnEnd = completed
                         }
                     }
@@ -1127,7 +1130,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     HistoryStats(
                         totalElapsed = total, messageCount = tail.size.toLong(),
                         firstMessages = firstMessages, computed = true,
-                        lastTimestamp = maxOf(lastCompleted, lastCreated),
+                        lastTimestamp = maxOf(latest, lastCompleted, lastCreated),
                         lastMessageId = lastMsg.id,
                     )
                 }
