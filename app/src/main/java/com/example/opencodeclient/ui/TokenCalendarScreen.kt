@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -118,9 +119,13 @@ fun TokenCalendarScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .padding(padding),
         ) {
+            PrimaryTabRow(selectedTabIndex = tab) {
+                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_daily)) })
+                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
+                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
+            }
             val monthToks = history.filterKeys { isInMonth(it, shownMonth) }.values.sum()
             val monthElapsed = elapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
             SummaryTable(
@@ -147,24 +152,26 @@ fun TokenCalendarScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
-            PrimaryTabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_daily)) })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
-                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
-            }
             when (tab) {
-                0 -> DailyCalendarTab(
-                    history = history,
-                    elapsed = elapsed,
-                    shownMonth = shownMonth,
-                    selected = selected,
-                    locale = locale,
-                    onPrev = { shownMonth = shownMonth.minusMonths(1) },
-                    onNext = { shownMonth = shownMonth.plusMonths(1) },
-                    onSelect = { selected = it },
-                )
-                1 -> MonthColumnCard(buckets = hourByMonth, locale = locale)
-                2 -> WeekColumnCard(buckets = hourByWeek, locale = locale)
+                0 -> Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    DailyCalendarTab(
+                        history = history,
+                        elapsed = elapsed,
+                        shownMonth = shownMonth,
+                        selected = selected,
+                        locale = locale,
+                        onPrev = { shownMonth = shownMonth.minusMonths(1) },
+                        onNext = { shownMonth = shownMonth.plusMonths(1) },
+                        onSelect = { selected = it },
+                    )
+                }
+                1 -> MonthColumnCard(buckets = hourByMonth, locale = locale, modifier = Modifier.weight(1f))
+                2 -> WeekColumnCard(buckets = hourByWeek, locale = locale, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -246,7 +253,11 @@ private fun DailyCalendarTab(
 }
 
 @Composable
-private fun MonthColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale) {
+private fun MonthColumnCard(
+    buckets: Map<String, Map<Int, Long>>,
+    locale: Locale,
+    modifier: Modifier = Modifier,
+) {
     val sorted = buckets.toSortedMap()
     val periods = sorted.keys.toList()
     val labels = periods.map { key ->
@@ -256,13 +267,16 @@ private fun MonthColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale
     PeriodColumns(
         periods = sorted.map { it.key to it.value },
         labels = labels,
-        circle = 24.dp,
-        gap = 2.dp,
+        modifier = modifier,
     )
 }
 
 @Composable
-private fun WeekColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale) {
+private fun WeekColumnCard(
+    buckets: Map<String, Map<Int, Long>>,
+    locale: Locale,
+    modifier: Modifier = Modifier,
+) {
     val sorted = buckets.toSortedMap()
     val periods = sorted.keys.toList()
     var clickedWeek by remember { mutableStateOf<LocalDate?>(null) }
@@ -276,8 +290,7 @@ private fun WeekColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale)
     PeriodColumns(
         periods = sorted.map { it.key to it.value },
         labels = labels,
-        circle = 24.dp,
-        gap = 2.dp,
+        modifier = modifier,
         onLabelClick = { _, key ->
             runCatching { clickedWeek = LocalDate.parse(key) }
         },
@@ -324,8 +337,7 @@ private val PeriodHeaderH = 20.dp
 private fun PeriodColumns(
     periods: List<Pair<String, Map<Int, Long>>>,
     labels: List<String>,
-    circle: androidx.compose.ui.unit.Dp,
-    gap: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
     onLabelClick: ((index: Int, key: String) -> Unit)? = null,
 ) {
     val mono = MonoFontFamily
@@ -344,7 +356,11 @@ private fun PeriodColumns(
     for (h in 0 until 24) if (totals[h] > max) max = totals[h]
     max = max.coerceAtLeast(1L)
 
-    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val gap = 2.dp
+        val vPad = 16.dp
+        val circle = (((maxHeight - PeriodHeaderH - vPad).value - 46f) / 24f).dp.coerceAtLeast(10.dp)
+        Row(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
         Column(
             Modifier.width(24.dp),
             verticalArrangement = Arrangement.spacedBy(gap),
@@ -411,6 +427,7 @@ private fun PeriodColumns(
                     HourCircle(value = totals[hour], max = max, size = circle, gap = gap, primary = primary)
                 }
             }
+        }
         }
     }
 }
