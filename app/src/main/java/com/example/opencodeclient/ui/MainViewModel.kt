@@ -189,8 +189,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _hourByMonth = MutableStateFlow<Map<String, Map<Int, Long>>>(emptyMap())
     val hourByMonth: StateFlow<Map<String, Map<Int, Long>>> = _hourByMonth.asStateFlow()
     private val _hourByWeek = MutableStateFlow<Map<String, Map<Int, Long>>>(emptyMap())
+
     val hourByWeek: StateFlow<Map<String, Map<Int, Long>>> = _hourByWeek.asStateFlow()
 
+    private val _tokenSync = MutableStateFlow(0L)
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
     private var sendingWatchdog: Job? = null
@@ -322,6 +324,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             settings.tokenElapsed.collect { _tokenElapsed.value = it }
         }
+        viewModelScope.launch {
+            settings.tokenMonth.collect { _hourByMonth.value = it }
+        }
+        viewModelScope.launch {
+            settings.tokenWeek.collect { _hourByWeek.value = it }
+        }
+        viewModelScope.launch {
+            settings.tokenSync.collect { _tokenSync.value = it }
+        }
         createNotificationChannel()
     }
 
@@ -433,76 +444,115 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loadTokenHistory() {
+    fun loadTokenHistory() = runTokenLoad(incremental = false)
+
+    fun incrementTokenHistory() = runTokenLoad(incremental = true)
+
+    fun refreshTokenHistory() = runTokenLoad(incremental = _tokenSync.value > 0L)
+
+    private fun runTokenLoad(incremental: Boolean) {
         if (_tokenHistoryLoading.value) return
         _tokenHistoryLoading.value = true
         viewModelScope.launch {
             try {
-            withContext(Dispatchers.IO) {
-                val c = client ?: return@withContext
-                val tokens = mutableMapOf<String, Long>()
-                val elapsed = mutableMapOf<String, Long>()
-                val zone = java.time.ZoneId.systemDefault()
-                val now = java.time.LocalDate.now(zone)
-                val firstDow = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value
-                val currentWeekStart = now.with(
-                    java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
-                )
-                val monthBuckets = mutableMapOf<String, MutableMap<Int, Long>>()
-                val monthKeys = (0 until 12).map { java.time.YearMonth.now().minusMonths(it.toLong()).toString() }
-                monthKeys.forEach { monthBuckets[it] = mutableMapOf() }
-                val weekBuckets = mutableMapOf<String, MutableMap<Int, Long>>()
-                val weekStartDates = (0 until 16).map { currentWeekStart.minusWeeks(it.toLong()) }
-                weekStartDates.forEach { weekBuckets[it.toString()] = mutableMapOf() }
-                val weekStartSet = weekBuckets.keys.toSet()
-                c.sessions().forEach { s ->
-                    val messages = runCatching { c.sessionMessagesAll(s.id) }.getOrNull() ?: return@forEach
-                    var turnStart = 0L
-                    var turnEnd = 0L
-                    for ((msg, _) in messages) {
+                withContext(Dispatchers.IO) {
+                    val c = client ?: return@withContext
+                    val zone = java.time.ZoneId.systemDefault()
+                    val now = java.time.LocalDate.now(zone)
+                    val firstDow = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value
+                    val currentWeekStart = now.with(
+                        java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
+                    )
+                    val currentMonth = java.time.YearMonth.now().toString()
+                    val monthKeys = (0 until 12).map { java.time.YearMonth.now().minusMonths(it.toLong()).toString() }
+                    val weekStartDates = (0 until 16).map { currentWeekStart.minusWeeks(it.toLong()) }
+                    val weekStartDatesStr = weekStartDates.map { it.toString() }
+                    val weekStartSet = weekStartDatesStr.toSet()
+
+                    val baseSync = if (incremental) _tokenSync.value else 0L
+                    val hasFreshCache = incremental && baseSync > 0L
+
+                    val tokens = (if (incremental) _tokenHistory.value else emptyMap()).toMutableMap()
+                    val elapsed = (if (incremental) _tokenElapsed.value else emptyMap()).toMutableMap()
+                    val month = (if (incremental) _hourByMonth.value else emptyMap())
+                        .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
+                    val week = (if (incremental) _hourByWeek.value else emptyMap())
+                        .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
+
+                    var maxMsgMs = baseSync
+
+                    c.sessions().forEach { s ->
                         coroutineContext.ensureActive()
-                        val created = msg.time?.created ?: continue
-                        val completed = msg.time?.completed ?: 0L
-                        if (created <= 0L) continue
-                        val zdt = java.time.Instant.ofEpochMilli(created).atZone(zone)
-                        val day = zdt.toLocalDate()
-                        val toks = msg.tokens
-                        val total = toks?.total
-                            ?: ((toks?.input ?: 0L) + (toks?.output ?: 0L) + (toks?.reasoning ?: 0L))
-                        if (total > 0L) {
-                            tokens[day.toString()] = (tokens[day.toString()] ?: 0L) + total
-                            val hour = zdt.hour
-                            monthBuckets[day.toString().substring(0, 7)]?.let { it[hour] = (it[hour] ?: 0L) + total }
-                            val ws = day.with(
-                                java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
-                            ).toString()
-                            if (ws in weekStartSet) {
-                                val it2 = weekBuckets[ws]!!
-                                it2[hour] = (it2[hour] ?: 0L) + total
+                        val messages = if (hasFreshCache) {
+                            runCatching { c.sessionMessagesSince(s.id, baseSync) }.getOrNull()
+                        } else {
+                            runCatching { c.sessionMessagesAll(s.id) }.getOrNull()
+                        } ?: return@forEach
+                        var turnStart = 0L
+                        var turnEnd = 0L
+                        for ((msg, _) in messages) {
+                            coroutineContext.ensureActive()
+                            val created = serverTimeToMillis(msg.time?.created)
+                            val completed = serverTimeToMillis(msg.time?.completed)
+                            if (created <= 0L) continue
+                            if (created > maxMsgMs) maxMsgMs = created
+                            val zdt = java.time.Instant.ofEpochMilli(created).atZone(zone)
+                            val day = zdt.toLocalDate()
+                            val toks = msg.tokens
+                            val total = toks?.total
+                                ?: ((toks?.input ?: 0L) + (toks?.output ?: 0L) + (toks?.reasoning ?: 0L))
+                            if (total > 0L) {
+                                tokens[day.toString()] = (tokens[day.toString()] ?: 0L) + total
+                                val hour = zdt.hour
+                                val mKey = day.toString().substring(0, 7)
+                                val mBuckets = month.getOrPut(mKey) { mutableMapOf() }
+                                mBuckets[hour] = (mBuckets[hour] ?: 0L) + total
+                                val ws = day.with(
+                                    java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
+                                ).toString()
+                                if (ws in weekStartSet) {
+                                    val wBuckets = week.getOrPut(ws) { mutableMapOf() }
+                                    wBuckets[hour] = (wBuckets[hour] ?: 0L) + total
+                                }
+                            }
+                            if (msg.role == "user") {
+                                if (turnStart > 0L && turnEnd > turnStart) {
+                                    val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
+                                    elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
+                                }
+                                turnStart = created
+                                turnEnd = created
+                            } else if (turnStart > 0L && completed > turnEnd) {
+                                turnEnd = completed
                             }
                         }
-                        if (msg.role == "user") {
-                            if (turnStart > 0L && turnEnd > turnStart) {
-                                val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
-                                elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
-                            }
-                            turnStart = created
-                            turnEnd = created
-                        } else if (turnStart > 0L && completed > turnEnd) {
-                            turnEnd = completed
+                        if (turnStart > 0L && turnEnd > turnStart) {
+                            val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
+                            elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
                         }
                     }
-                    if (turnStart > 0L && turnEnd > turnStart) {
-                        val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
-                        elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
+
+                    val monthOut = month.filterKeys { it in monthKeys }
+                    val weekOut = week.filterKeys { it in weekStartDatesStr }
+
+                    _tokenHistory.value = tokens
+                    _tokenElapsed.value = elapsed
+                    _hourByMonth.value = monthOut
+                    _hourByWeek.value = weekOut
+                    _tokenSync.value = maxMsgMs
+                    if (coroutineContext.isActive) {
+                        val todayStr = now.toString()
+                        settings.saveTokenHistory(
+                            tokens.filterKeys { it != todayStr },
+                            elapsed.filterKeys { it != todayStr },
+                        )
+                        settings.saveTokenCalendar(
+                            monthOut.filterKeys { it != currentMonth },
+                            weekOut.filterKeys { it != currentWeekStart.toString() },
+                            maxMsgMs,
+                        )
                     }
                 }
-                _tokenHistory.value = tokens
-                _tokenElapsed.value = elapsed
-                _hourByMonth.value = monthBuckets
-                _hourByWeek.value = weekBuckets
-                if (coroutineContext.isActive) settings.saveTokenHistory(tokens, elapsed)
-            }
             } finally {
                 _tokenHistoryLoading.value = false
             }
