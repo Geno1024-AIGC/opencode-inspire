@@ -318,7 +318,7 @@ private fun WeekColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale)
     }
 }
 
-private val PeriodHeaderH = 14.dp
+private val PeriodHeaderH = 20.dp
 
 @Composable
 private fun PeriodColumns(
