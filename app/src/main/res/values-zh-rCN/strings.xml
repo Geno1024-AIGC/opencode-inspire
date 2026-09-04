@@ -41,6 +41,7 @@
     <string name="server_username">用户名</string>
     <string name="server_password">密码</string>
     <string name="server_save">保存服务器</string>
+    <string name="server_add">添加服务器</string>
     <string name="done">完成</string>
 
     <!-- Add project dialog -->
