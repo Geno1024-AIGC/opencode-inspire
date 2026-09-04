@@ -22,6 +22,7 @@ data class StoredHistoryStats(
     val messageCount: Long = 0L,
     val userMessages: Long = 0L,
     val assistantMessages: Long = 0L,
+    val toolCalls: Long = 0L,
     val firstMessages: List<String> = emptyList(),
     val lastTimestamp: Long = 0L,
     val lastMessageId: String = "",

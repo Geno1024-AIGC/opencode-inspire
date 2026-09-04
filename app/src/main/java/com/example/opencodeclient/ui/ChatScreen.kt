@@ -661,6 +661,13 @@ private fun HistoryStatsDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 2.dp),
                     )
+                    if (stats.toolCalls > 0L) {
+                        Text(
+                            stringResource(R.string.history_stats_tools, stats.toolCalls),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (stats.lastTimestamp > 0L) {
                         Text(
                             stringResource(R.string.history_stats_latest, formatMillis(stats.lastTimestamp)),
@@ -1943,6 +1950,7 @@ private fun SessionDetailsScreen(
                 val displayMessages = hist?.messageCount ?: (stored?.messageCount ?: 0L)
                 val displayUser = hist?.userMessages ?: (stored?.userMessages ?: 0L)
                 val displayAssistant = hist?.assistantMessages ?: (stored?.assistantMessages ?: 0L)
+                val displayTools = hist?.toolCalls ?: (stored?.toolCalls ?: 0L)
 
                 if (displayElapsed > 0L) {
                     StatText(stringResource(R.string.session_details_history_total, displayElapsed / 1000.0))
@@ -1952,6 +1960,13 @@ private fun SessionDetailsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+                    if (displayTools > 0L) {
+                        Text(
+                            stringResource(R.string.session_details_history_tools, displayTools),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Text(

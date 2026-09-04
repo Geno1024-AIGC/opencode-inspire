@@ -245,6 +245,7 @@
     <string name="session_details_history_total">累计耗时：%.1fs</string>
     <string name="session_details_history_upto">到：%1$s</string>
     <string name="session_details_history_messages">消息数：%1$d ↑%2$d ↓%3$d</string>
+    <string name="session_details_history_tools">工具调用：%1$d</string>
     <string name="session_details_history_exchanges">双向对话：%1$d</string>
     <string name="session_details_history_user">我发的：%1$d</string>
     <string name="session_details_history_assistant">你发的：%1$d</string>
@@ -255,6 +256,7 @@
     <string name="history_stats_exchanges">双向对话：%1$d</string>
     <string name="history_stats_total">对话总耗时：%.1fs</string>
     <string name="history_stats_messages">消息数：%1$d ↑%2$d ↓%3$d</string>
+    <string name="history_stats_tools">工具调用：%1$d</string>
     <string name="history_stats_user">我发的：%1$d</string>
     <string name="history_stats_assistant">你发的：%1$d</string>
     <string name="history_stats_first5">前 5 条消息</string>
