@@ -237,7 +237,7 @@
     <string name="session_details_tokens_in">输入 %s</string>
     <string name="session_details_tokens_out">输出 %s</string>
     <string name="session_details_tokens_reasoning">推理 %s</string>
-    <string name="session_details_history">历史耗时统计</string>
+    <string name="session_details_history">历史统计</string>
     <string name="session_details_history_none">该会话尚未统计。</string>
     <string name="session_details_history_recompute">统计全部</string>
     <string name="session_details_history_incremental">增量</string>
@@ -246,7 +246,7 @@
     <string name="session_details_history_upto">到：%1$s</string>
     <string name="session_details_auto_update">每次回复后自动更新耗时</string>
     <string name="session_details_history_update">更新</string>
-    <string name="history_stats">统计历史耗时</string>
+    <string name="history_stats">统计历史</string>
     <string name="history_stats_title">历史统计</string>
     <string name="history_stats_exchanges">双向对话：%1$d</string>
     <string name="history_stats_total">对话总耗时：%.1fs</string>
