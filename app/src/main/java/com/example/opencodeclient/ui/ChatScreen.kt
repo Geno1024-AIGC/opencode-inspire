@@ -654,23 +654,19 @@ private fun HistoryStatsDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (stats.computed) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        StatText(stringResource(R.string.history_stats_total, stats.totalElapsed / 1000.0), bold = true, modifier = Modifier.weight(2f))
-                        StatText(stringResource(R.string.history_stats_messages, stats.messageCount), modifier = Modifier.weight(1f))
-                        StatText(stringResource(R.string.history_stats_exchanges, stats.exchanges), modifier = Modifier.weight(1f))
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        StatText(stringResource(R.string.history_stats_user, stats.userMessages), modifier = Modifier.weight(1f))
-                        StatText(stringResource(R.string.history_stats_assistant, stats.assistantMessages), modifier = Modifier.weight(1f))
-                        if (stats.lastTimestamp > 0L) {
-                            StatText(stringResource(R.string.history_stats_latest, formatMillis(stats.lastTimestamp)), modifier = Modifier.weight(2f))
-                        }
+                    StatText(stringResource(R.string.history_stats_total, stats.totalElapsed / 1000.0), bold = true)
+                    Text(
+                        stringResource(R.string.history_stats_messages, stats.messageCount, stats.userMessages, stats.assistantMessages),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                    if (stats.lastTimestamp > 0L) {
+                        Text(
+                            stringResource(R.string.history_stats_latest, formatMillis(stats.lastTimestamp)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     if (stats.firstMessages.isNotEmpty()) {
                         Text(
@@ -1947,25 +1943,22 @@ private fun SessionDetailsScreen(
                 val displayMessages = hist?.messageCount ?: (stored?.messageCount ?: 0L)
                 val displayUser = hist?.userMessages ?: (stored?.userMessages ?: 0L)
                 val displayAssistant = hist?.assistantMessages ?: (stored?.assistantMessages ?: 0L)
-                val displayExchanges = hist?.exchanges ?: displayUser
 
                 if (displayElapsed > 0L) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        StatText(stringResource(R.string.session_details_history_total, displayElapsed / 1000.0), bold = true, modifier = Modifier.weight(2f))
-                        StatText(stringResource(R.string.session_details_history_messages, displayMessages), modifier = Modifier.weight(1f))
-                        StatText(stringResource(R.string.session_details_history_exchanges, displayExchanges), modifier = Modifier.weight(1f))
+                    StatText(stringResource(R.string.session_details_history_total, displayElapsed / 1000.0), bold = true)
+                    if (displayMessages > 0L) {
+                        Text(
+                            stringResource(R.string.session_details_history_messages, displayMessages, displayUser, displayAssistant),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        StatText(stringResource(R.string.session_details_history_user, displayUser), modifier = Modifier.weight(1f))
-                        StatText(stringResource(R.string.session_details_history_assistant, displayAssistant), modifier = Modifier.weight(1f))
-                        StatText(stringResource(R.string.session_details_history_upto, formatMillis(displayLastTime)), modifier = Modifier.weight(2f))
-                    }
+                    Text(
+                        stringResource(R.string.session_details_history_upto, formatMillis(displayLastTime)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 } else {
                     Text(
                         stringResource(R.string.session_details_history_none),
