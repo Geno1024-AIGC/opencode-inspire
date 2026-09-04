@@ -235,6 +235,8 @@
     <string name="session_details_history">Historical time stats</string>
     <string name="session_details_history_none">Not computed yet for this session.</string>
     <string name="session_details_history_recompute">Compute all</string>
+    <string name="session_details_history_incremental">Incremental</string>
+    <string name="session_details_history_full">Full</string>
     <string name="session_details_history_total">Cumulative time: %.1fs</string>
     <string name="session_details_history_upto">Through: %1$s</string>
     <string name="session_details_auto_update">Auto-update timing on each reply</string>
@@ -249,6 +251,7 @@
     <string name="history_stats_computing_sub">Fetching and analyzing messages…</string>
     <string name="history_stats_progress_msgs">Fetched %1$d messages</string>
     <string name="history_stats_progress_upto">Through: %1$s</string>
+    <string name="history_stats_latest">Latest message: %1$s</string>
     <string name="history_stats_fallback_title">History window moved past saved point</string>
     <string name="history_stats_fallback">Session time span (created → updated): %.1fs</string>
     <string name="search">Search in conversation</string>
