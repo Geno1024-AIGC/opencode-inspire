@@ -62,6 +62,7 @@
     <string name="scroll_to_bottom">Scroll to bottom</string>
     <string name="session_elapsed">Replied in %.1fs</string>
     <string name="session_total_elapsed">Total time %.1fs</string>
+    <string name="session_total_messages">%1$d messages</string>
     <string name="chat_working">Working…</string>
     <string name="chat_abort">Abort</string>
     <string name="chat_refresh">Refresh</string>

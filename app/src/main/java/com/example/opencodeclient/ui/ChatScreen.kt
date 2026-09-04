@@ -302,7 +302,7 @@ fun ChatScreen(
                 .padding(padding)
                 .imePadding(),
         ) {
-            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens, totalElapsed = effectiveTotalElapsed)
+            TokenStatsBar(viewModel = viewModel, tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens, totalElapsed = effectiveTotalElapsed, messageCount = activeSession?.let { storedStats[it.id]?.messageCount })
             if (searchActive) {
                 OutlinedTextField(
                     value = searchQuery,
@@ -1696,6 +1696,7 @@ private fun TokenStatsBar(
     contextWindow: Long,
     shortTokens: Boolean,
     totalElapsed: Long? = null,
+    messageCount: Long? = null,
 ) {
     if (tokens == null && contextWindow <= 0) return
     val input = tokens?.input ?: 0L
@@ -1764,15 +1765,23 @@ private fun TokenStatsBar(
                     .height(3.dp),
             )
         }
-        totalElapsed?.let { elapsed ->
-            if (elapsed > 0) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.padding(top = 2.dp),
-                ) {
+        if (totalElapsed != null && totalElapsed > 0L || messageCount != null && messageCount > 0L) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.padding(top = 2.dp),
+            ) {
+                if (totalElapsed != null && totalElapsed > 0L) {
                     Text(
-                        stringResource(R.string.session_total_elapsed, elapsed / 1000.0),
+                        stringResource(R.string.session_total_elapsed, totalElapsed / 1000.0),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        fontFamily = MonoFontFamily,
+                    )
+                }
+                if (messageCount != null && messageCount > 0L) {
+                    Text(
+                        stringResource(R.string.session_total_messages, messageCount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                         fontFamily = MonoFontFamily,
