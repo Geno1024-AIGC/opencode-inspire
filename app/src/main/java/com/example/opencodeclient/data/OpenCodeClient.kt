@@ -113,17 +113,23 @@ class OpenCodeClient(
             else json.decodeFromString(Project.serializer(), text)
         }
 
-    suspend fun listFiles(path: String? = null): List<FileNode> =
-        execute("GET", "/file?path=${java.net.URLEncoder.encode(path ?: "", "UTF-8")}") { text ->
-            android.util.Log.d("FileBrowser", "raw /file (path=$path): $text")
+    suspend fun listDirectory(locationDir: String? = null, path: String? = null): List<FileNode> =
+        execute(
+            "GET",
+            "/api/fs/list${queryOf(mapOf("location.directory" to locationDir, "path" to path))}",
+        ) { text ->
             if (text.isBlank()) emptyList()
             else {
-                val root = json.parseToJsonElement(text)
-                if (root is JsonArray) {
-                    json.decodeFromJsonElement(ListSerializer(FileNode.serializer()), root)
-                } else {
-                    val node = json.decodeFromJsonElement(FileNode.serializer(), root)
-                    node.children ?: listOf(node)
+                val obj = json.parseToJsonElement(text).jsonObject
+                val data = obj["data"]?.jsonArray ?: return@execute emptyList()
+                data.mapNotNull { el ->
+                    if (el !is JsonObject) return@mapNotNull null
+                    val p = el["path"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                    FileNode(
+                        name = p.trimEnd('/').substringAfterLast('/'),
+                        type = el["type"]?.jsonPrimitive?.content ?: "file",
+                        path = p,
+                    )
                 }
             }
         }

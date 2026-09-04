@@ -498,13 +498,16 @@ fun ChatScreen(
      }
 
        if (showFiles) {
+        val directory = activeSession?.directory
+        if (directory != null) {
             ModalBottomSheet(onDismissRequest = { showFiles = false }) {
                 FileBrowserSheet(
-                    root = "/",
+                    locationDir = directory,
                     viewModel = viewModel,
                     onClose = { showFiles = false },
                 )
             }
+        }
     }
 
     if (pendingQuestions.isNotEmpty()) {
@@ -2144,18 +2147,23 @@ private fun DetailRow(
 
 @Composable
 private fun FileBrowserSheet(
-    root: String,
+    locationDir: String,
     viewModel: MainViewModel,
     onClose: () -> Unit,
 ) {
-    var path by rememberSaveable { mutableStateOf(root) }
+    var path by rememberSaveable { mutableStateOf("") }
     var files by remember { mutableStateOf<List<FileNode>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+
+    val label = if (path.isEmpty())
+        locationDir.trimEnd('/').substringAfterLast('/').ifBlank { locationDir }
+    else
+        path.trimEnd('/').substringAfterLast('/')
 
     LaunchedEffect(path) {
         loading = true
         files = try {
-            viewModel.listFiles(path)
+            viewModel.listSessionDirFiles(path, locationDir)
         } catch (_: Exception) {
             emptyList()
         }
@@ -2174,7 +2182,7 @@ private fun FileBrowserSheet(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                fileLabel(path),
+                label,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -2188,12 +2196,12 @@ private fun FileBrowserSheet(
         Spacer(Modifier.height(8.dp))
 
         LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
-            if (path != root) {
+            if (path.isNotEmpty()) {
                 item(key = "up") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { path = parentOf(path, root) }
+                            .clickable { path = parentOfRelative(path) }
                             .padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -2240,18 +2248,12 @@ private fun FileBrowserSheet(
     }
 }
 
-private fun parentOf(path: String, root: String): String {
+private fun parentOfRelative(path: String): String {
     val p = path.trimEnd('/')
-    val r = root.trimEnd('/')
-    if (p == r) return path
     val idx = p.lastIndexOf('/')
-    if (idx <= 0) return "/"
+    if (idx <= 0) return ""
     return p.substring(0, idx)
 }
-
-private fun fileLabel(path: String): String =
-    path.substringAfterLast('/').ifBlank { path }
-
 private fun extractMarkdownLinks(text: String): List<String> {
     val markdown = Regex("""\[[^\]]*\]\(\s*(https?://[^\s)]+)\)""")
     val rawUrls = Regex("""https?://[^\s<>()]+""")

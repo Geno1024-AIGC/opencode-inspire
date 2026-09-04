@@ -926,7 +926,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun listServerFiles(path: String? = null): List<com.example.opencodeclient.data.FileNode> {
         val c = client ?: return emptyList()
         return try {
-            withContext(Dispatchers.IO) { c.listFiles(path) }
+            withContext(Dispatchers.IO) { c.listDirectory(null, path) }
         } catch (_: Exception) {
             emptyList()
         }
@@ -1590,16 +1590,11 @@ text = e.message ?: getAppString(R.string.send_failed),
         _exportMarkdown.value = null
     }
 
-    suspend fun listFiles(path: String): List<com.example.opencodeclient.data.FileNode> {
+    suspend fun listSessionDirFiles(relPath: String, locationDir: String): List<com.example.opencodeclient.data.FileNode> {
         val c = client ?: return emptyList()
-        val version = withContext(Dispatchers.IO) {
-            runCatching { c.health() }.getOrNull()?.version
-        }
-        android.util.Log.d("FileBrowser", "serverVersion=$version path=$path")
         return try {
-            withContext(Dispatchers.IO) { c.listFiles(path) }
-        } catch (e: Exception) {
-            android.util.Log.d("FileBrowser", "listFiles exception=${e.message}", e)
+            withContext(Dispatchers.IO) { c.listDirectory(locationDir, relPath) }
+        } catch (_: Exception) {
             emptyList()
         }
     }
