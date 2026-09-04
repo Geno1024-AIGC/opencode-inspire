@@ -167,6 +167,7 @@ fun ChatScreen(
     val context = LocalContext.current
     var input by rememberSaveable { mutableStateOf("") }
     var commandMenuOpen by remember { mutableStateOf(false) }
+    var recentCommands by rememberSaveable { mutableStateOf(listOf<String>()) }
     var showFiles by rememberSaveable { mutableStateOf(false) }
     var userScrolledAway by remember { mutableStateOf(false) }
     var rawMessage by remember { mutableStateOf<ChatMessage?>(null) }
@@ -417,18 +418,24 @@ fun ChatScreen(
                         placeholder = { Text(stringResource(R.string.chat_placeholder)) },
                     )
                     if (showCommands) {
+                        val orderedCommands = buildList {
+                            recentCommands.forEach { name ->
+                                commands.firstOrNull { it.name == name }?.let { add(it) }
+                            }
+                            commands.forEach { if (it.name !in recentCommands) add(it) }
+                        }
                         DropdownMenu(
                             expanded = true,
                             onDismissRequest = { commandMenuOpen = false },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            if (commands.isEmpty()) {
+                            if (orderedCommands.isEmpty()) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.slash_no_commands)) },
                                     onClick = {},
                                 )
                             } else {
-                                commands.forEach { cmd ->
+                                orderedCommands.forEach { cmd ->
                                     DropdownMenuItem(
                                         text = {
                                             Column {
@@ -445,6 +452,7 @@ fun ChatScreen(
                                             }
                                         },
                                         onClick = {
+                                            recentCommands = listOf(cmd.name) + recentCommands.filter { it != cmd.name }
                                             viewModel.runCommand(cmd)
                                             input = ""
                                         },
