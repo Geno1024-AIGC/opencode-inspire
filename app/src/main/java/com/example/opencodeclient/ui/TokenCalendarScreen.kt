@@ -52,11 +52,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
 import java.time.DayOfWeek
@@ -156,8 +159,8 @@ fun TokenCalendarScreen(
                 }
                 PrimaryTabRow(selectedTabIndex = tab) {
                     Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_daily)) })
-                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
-                    Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
+                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
+                    Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
                 }
                 when (tab) {
                     0 -> DailyCalendarTab(
@@ -170,8 +173,8 @@ fun TokenCalendarScreen(
                         onNext = { shownMonth = shownMonth.plusMonths(1) },
                         onSelect = { selected = it },
                     )
-                    1 -> MonthColumnCard(buckets = hourByMonth, locale = locale, modifier = Modifier.fillMaxWidth().height(viewportH))
-                    2 -> WeekColumnCard(buckets = hourByWeek, locale = locale, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    1 -> WeekColumnCard(buckets = hourByWeek, locale = locale, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    2 -> MonthColumnCard(buckets = hourByMonth, locale = locale, modifier = Modifier.fillMaxWidth().height(viewportH))
                 }
             }
         }
@@ -500,17 +503,28 @@ private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Lon
     val mono = MonoFontFamily
     val onSurface = MaterialTheme.colorScheme.onSurface
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.bodyMedium
+    val monthLabel = stringResource(R.string.calendar_table_month)
+    val totalLabel = stringResource(R.string.calendar_table_total)
+    val tokenLabel = stringResource(R.string.calendar_table_token)
+    val timeLabel = stringResource(R.string.calendar_table_time)
+    val labelWidth = with(LocalDensity.current) {
+        listOf(tokenLabel, timeLabel).maxOfOrNull {
+            textMeasurer.measure(AnnotatedString(it), style = labelStyle).size.width.toDp()
+        } ?: 0.dp
+    }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(Modifier.fillMaxWidth()) {
-            Text("", modifier = Modifier.weight(1f))
+            Text("", modifier = Modifier.width(labelWidth))
             Text(
-                stringResource(R.string.calendar_table_total),
+                monthLabel,
                 fontWeight = FontWeight.Bold,
                 color = onSurface,
                 modifier = Modifier.weight(1f),
             )
             Text(
-                stringResource(R.string.calendar_table_month),
+                totalLabel,
                 fontWeight = FontWeight.Bold,
                 color = onSurface,
                 modifier = Modifier.weight(1f),
@@ -518,21 +532,21 @@ private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Lon
         }
         Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
             Text(
-                stringResource(R.string.calendar_table_token),
+                tokenLabel,
                 color = labelColor,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.width(labelWidth),
             )
-            Text(totalTokens.toString(), fontFamily = mono, modifier = Modifier.weight(1f))
             Text(monthTokens.toString(), fontFamily = mono, modifier = Modifier.weight(1f))
+            Text(totalTokens.toString(), fontFamily = mono, modifier = Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
             Text(
-                stringResource(R.string.calendar_table_time),
+                timeLabel,
                 color = labelColor,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.width(labelWidth),
             )
-            Text(formatClock(totalElapsed), fontFamily = mono, modifier = Modifier.weight(1f))
             Text(formatClock(monthElapsed), fontFamily = mono, modifier = Modifier.weight(1f))
+            Text(formatClock(totalElapsed), fontFamily = mono, modifier = Modifier.weight(1f))
         }
     }
 }
