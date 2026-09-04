@@ -468,7 +468,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val currentWeekStart = now.with(
                         java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
                     )
-                    val currentMonth = java.time.YearMonth.now().toString()
                     val monthKeys = (0 until 12).map { java.time.YearMonth.now().minusMonths(it.toLong()).toString() }
                     val weekStartDates = (0 until 16).map { currentWeekStart.minusWeeks(it.toLong()) }
                     val weekStartDatesStr = weekStartDates.map { it.toString() }
@@ -546,19 +545,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _hourByWeek.value = weekOut
                     _tokenSync.value = maxMsgMs
                     if (coroutineContext.isActive) {
-                        val todayStr = now.toString()
                         val syncedAtMs = System.currentTimeMillis()
                         _tokenSyncedAt.value = syncedAtMs
-                        settings.saveTokenHistory(
-                            tokens.filterKeys { it != todayStr },
-                            elapsed.filterKeys { it != todayStr },
-                        )
-                        settings.saveTokenCalendar(
-                            monthOut.filterKeys { it != currentMonth },
-                            weekOut.filterKeys { it != currentWeekStart.toString() },
-                            maxMsgMs,
-                            syncedAtMs,
-                        )
+                        settings.saveTokenHistory(tokens, elapsed)
+                        settings.saveTokenCalendar(monthOut, weekOut, maxMsgMs, syncedAtMs)
                     }
                 }
             } finally {
