@@ -1945,6 +1945,11 @@ private fun SessionDetailsScreen(
                 val showElapsed = historyStats?.computed == true
                 val displayElapsed = if (showElapsed) historyStats!!.totalElapsed else (stored?.totalElapsed ?: 0L)
                 val displayLastTime = if (showElapsed) historyStats!!.lastTimestamp else (stored?.lastTimestamp ?: 0L)
+                val hist = if (showElapsed) historyStats!! else null
+                val displayMessages = hist?.messageCount ?: (stored?.messageCount ?: 0L)
+                val displayUser = hist?.userMessages ?: (stored?.userMessages ?: 0L)
+                val displayAssistant = hist?.assistantMessages ?: (stored?.assistantMessages ?: 0L)
+                val displayExchanges = hist?.exchanges ?: displayUser
 
                 if (displayElapsed > 0L) {
                     Text(
@@ -1960,6 +1965,28 @@ private fun SessionDetailsScreen(
                     Text(
                         stringResource(R.string.session_details_history_none),
                         style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                if (displayMessages > 0L) {
+                    Text(
+                        stringResource(R.string.session_details_history_messages, displayMessages),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        stringResource(R.string.session_details_history_exchanges, displayExchanges),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        stringResource(R.string.session_details_history_user, displayUser),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        stringResource(R.string.session_details_history_assistant, displayAssistant),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
