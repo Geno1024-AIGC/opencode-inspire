@@ -77,10 +77,8 @@ fun TokenCalendarScreen(
     val hourByMonth by viewModel.hourByMonth.collectAsStateWithLifecycle()
     val hourByWeek by viewModel.hourByWeek.collectAsStateWithLifecycle()
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
-
-    LaunchedEffect(Unit) {
-        viewModel.refreshTokenHistory()
-    }
+    val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
+    var hiddenSyncAt by remember { mutableStateOf(false) }
 
     val totalTokens = history.values.sum()
     val totalElapsed = elapsed.values.sum()
@@ -100,10 +98,16 @@ fun TokenCalendarScreen(
                 },
                 actions = {
                     Row {
-                        TextButton(onClick = { viewModel.incrementTokenHistory() }) {
+                        TextButton(onClick = {
+                            hiddenSyncAt = true
+                            viewModel.incrementTokenHistory()
+                        }) {
                             Text(stringResource(R.string.calendar_incremental))
                         }
-                        TextButton(onClick = { viewModel.loadTokenHistory() }) {
+                        TextButton(onClick = {
+                            hiddenSyncAt = true
+                            viewModel.loadTokenHistory()
+                        }) {
                             Text(stringResource(R.string.calendar_full))
                         }
                     }
@@ -125,6 +129,19 @@ fun TokenCalendarScreen(
                 totalElapsed = totalElapsed,
                 monthElapsed = monthElapsed,
             )
+            if (syncedAt > 0L && !hiddenSyncAt) {
+                Text(
+                    stringResource(
+                        R.string.calendar_last_updated,
+                        java.time.Instant.ofEpochMilli(syncedAt)
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", locale)),
+                    ),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
             if (loading) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),

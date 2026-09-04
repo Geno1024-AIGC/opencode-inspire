@@ -49,6 +49,7 @@ class SettingsRepository(private val context: Context) {
         val TOKEN_MONTH = stringPreferencesKey("token_month")
         val TOKEN_WEEK = stringPreferencesKey("token_week")
         val TOKEN_SYNC = longPreferencesKey("token_sync")
+        val TOKEN_SYNC_AT = longPreferencesKey("token_sync_at")
     }
 
     private val json = Json {
@@ -104,6 +105,7 @@ class SettingsRepository(private val context: Context) {
         } ?: emptyMap()
     }
     val tokenSync: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC] ?: 0L }
+    val tokenSyncedAt: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC_AT] ?: 0L }
 
     suspend fun setShortTokens(enabled: Boolean) {
         context.dataStore.edit { it[Keys.SHORT_TOKENS] = enabled }
@@ -156,11 +158,13 @@ class SettingsRepository(private val context: Context) {
         month: Map<String, Map<Int, Long>>,
         week: Map<String, Map<Int, Long>>,
         syncMs: Long,
+        syncedAtMs: Long = 0L,
     ) {
         context.dataStore.edit {
             it[Keys.TOKEN_MONTH] = json.encodeToString(month)
             it[Keys.TOKEN_WEEK] = json.encodeToString(week)
             it[Keys.TOKEN_SYNC] = syncMs
+            it[Keys.TOKEN_SYNC_AT] = syncedAtMs
         }
     }
 
