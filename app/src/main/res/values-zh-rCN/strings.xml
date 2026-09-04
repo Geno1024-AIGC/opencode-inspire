@@ -246,7 +246,8 @@
     <string name="session_details_auto_update">每次回复后自动更新耗时</string>
     <string name="session_details_history_update">更新</string>
     <string name="history_stats">统计历史耗时</string>
-    <string name="history_stats_title">历史耗时统计</string>
+    <string name="history_stats_title">历史统计</string>
+    <string name="history_stats_exchanges">双向对话：%1$d</string>
     <string name="history_stats_total">对话总耗时：%.1fs</string>
     <string name="history_stats_messages">消息数：%1$d</string>
     <string name="history_stats_user">我发的：%1$d</string>

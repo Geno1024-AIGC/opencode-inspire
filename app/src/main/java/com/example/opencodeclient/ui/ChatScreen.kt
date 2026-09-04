@@ -665,6 +665,11 @@ private fun HistoryStatsDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
+                        stringResource(R.string.history_stats_exchanges, stats.exchanges),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
                         stringResource(R.string.history_stats_user, stats.userMessages),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

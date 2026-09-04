@@ -246,7 +246,8 @@
     <string name="session_details_auto_update">Auto-update timing on each reply</string>
     <string name="session_details_history_update">Update</string>
     <string name="history_stats">Historical time stats</string>
-    <string name="history_stats_title">Historical time stats</string>
+    <string name="history_stats_title">History stats</string>
+    <string name="history_stats_exchanges">Exchanges: %1$d</string>
     <string name="history_stats_total">Total conversation time: %.1fs</string>
     <string name="history_stats_messages">Messages: %1$d</string>
     <string name="history_stats_user">Sent by me: %1$d</string>
