@@ -353,8 +353,8 @@ private fun PeriodColumns(
             if (v > max) max = v
         }
     }
-    for (h in 0 until 24) if (totals[h] > max) max = totals[h]
     max = max.coerceAtLeast(1L)
+    val totalsMax = (totals.maxOrNull() ?: 0L).coerceAtLeast(1L)
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val gap = 2.dp
@@ -423,7 +423,7 @@ private fun PeriodColumns(
             )
             Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                 for (hour in 0 until 24) {
-                    HourCircle(value = totals[hour], max = max, size = circle, gap = gap, primary = primary)
+                    HourCircle(value = totals[hour], max = totalsMax, size = circle, gap = gap, primary = primary)
                 }
             }
         }
