@@ -654,38 +654,23 @@ private fun HistoryStatsDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (stats.computed) {
-                    Text(
-                        stringResource(R.string.history_stats_total, stats.totalElapsed / 1000.0),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontFamily = MonoFontFamily,
-                    )
-                    Text(
-                        stringResource(R.string.history_stats_messages, stats.messageCount),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        stringResource(R.string.history_stats_exchanges, stats.exchanges),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        stringResource(R.string.history_stats_user, stats.userMessages),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        stringResource(R.string.history_stats_assistant, stats.assistantMessages),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (stats.lastTimestamp > 0L) {
-                        Text(
-                            stringResource(R.string.history_stats_latest, formatMillis(stats.lastTimestamp)),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontFamily = MonoFontFamily,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        StatText(stringResource(R.string.history_stats_total, stats.totalElapsed / 1000.0), bold = true, modifier = Modifier.weight(2f))
+                        StatText(stringResource(R.string.history_stats_messages, stats.messageCount), modifier = Modifier.weight(1f))
+                        StatText(stringResource(R.string.history_stats_exchanges, stats.exchanges), modifier = Modifier.weight(1f))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        StatText(stringResource(R.string.history_stats_user, stats.userMessages), modifier = Modifier.weight(1f))
+                        StatText(stringResource(R.string.history_stats_assistant, stats.assistantMessages), modifier = Modifier.weight(1f))
+                        if (stats.lastTimestamp > 0L) {
+                            StatText(stringResource(R.string.history_stats_latest, formatMillis(stats.lastTimestamp)), modifier = Modifier.weight(2f))
+                        }
                     }
                     if (stats.firstMessages.isNotEmpty()) {
                         Text(
@@ -1851,6 +1836,19 @@ private fun ModelSwitcher(
 }
 
 @Composable
+private fun StatText(text: String, modifier: Modifier = Modifier, bold: Boolean = false) {
+    Text(
+        text,
+        modifier = modifier,
+        style = if (bold) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
+        fontWeight = if (bold) FontWeight.Bold else null,
+        color = if (bold) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
 private fun SessionDetailsScreen(
     viewModel: MainViewModel,
     session: Session,
@@ -1952,41 +1950,26 @@ private fun SessionDetailsScreen(
                 val displayExchanges = hist?.exchanges ?: displayUser
 
                 if (displayElapsed > 0L) {
-                    Text(
-                        stringResource(R.string.session_details_history_total, displayElapsed / 1000.0),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        stringResource(R.string.session_details_history_upto, formatMillis(displayLastTime)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        StatText(stringResource(R.string.session_details_history_total, displayElapsed / 1000.0), bold = true, modifier = Modifier.weight(2f))
+                        StatText(stringResource(R.string.session_details_history_messages, displayMessages), modifier = Modifier.weight(1f))
+                        StatText(stringResource(R.string.session_details_history_exchanges, displayExchanges), modifier = Modifier.weight(1f))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        StatText(stringResource(R.string.session_details_history_user, displayUser), modifier = Modifier.weight(1f))
+                        StatText(stringResource(R.string.session_details_history_assistant, displayAssistant), modifier = Modifier.weight(1f))
+                        StatText(stringResource(R.string.session_details_history_upto, formatMillis(displayLastTime)), modifier = Modifier.weight(2f))
+                    }
                 } else {
                     Text(
                         stringResource(R.string.session_details_history_none),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                if (displayMessages > 0L) {
-                    Text(
-                        stringResource(R.string.session_details_history_messages, displayMessages),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        stringResource(R.string.session_details_history_exchanges, displayExchanges),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        stringResource(R.string.session_details_history_user, displayUser),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        stringResource(R.string.session_details_history_assistant, displayAssistant),
-                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
