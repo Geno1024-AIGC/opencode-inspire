@@ -74,6 +74,7 @@ data class HistoryStats(
     val userMessages: Long = 0L,
     val assistantMessages: Long = 0L,
     val exchanges: Long = 0L,
+    val toolCalls: Long = 0L,
     val firstMessages: List<String> = emptyList(),
     val computed: Boolean,
     val error: String? = null,
@@ -1268,6 +1269,7 @@ text = e.message ?: getAppString(R.string.send_failed),
         userMessages = userMessages,
         assistantMessages = assistantMessages,
         exchanges = userMessages,
+        toolCalls = toolCalls,
         firstMessages = firstMessages,
         computed = true,
         lastTimestamp = lastTimestamp,
@@ -1281,11 +1283,13 @@ text = e.message ?: getAppString(R.string.send_failed),
         var latest = 0L
         var userCount = 0L
         var assistantCount = 0L
+        var toolCount = 0L
         for ((msg, parts) in newTail) {
             val created = serverTimeToMillis(msg.time?.created)
             val completed = serverTimeToMillis(msg.time?.completed)
             if (created > latest) latest = created
             if (completed > latest) latest = completed
+            toolCount += parts.count { it.type == "tool" }
             if (msg.role == "user") {
                 userCount++
                 if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
@@ -1308,6 +1312,7 @@ text = e.message ?: getAppString(R.string.send_failed),
             userMessages = stored.userMessages + userCount,
             assistantMessages = stored.assistantMessages + assistantCount,
             exchanges = stored.userMessages + userCount,
+            toolCalls = stored.toolCalls + toolCount,
             firstMessages = stored.firstMessages,
             computed = true,
             lastTimestamp = maxOf(stored.lastTimestamp, latest, lastCompleted, lastCreated),
@@ -1323,11 +1328,13 @@ text = e.message ?: getAppString(R.string.send_failed),
         val firstMessages = mutableListOf<String>()
         var userCount = 0L
         var assistantCount = 0L
+        var toolCount = 0L
         for ((msg, parts) in tail) {
             val created = serverTimeToMillis(msg.time?.created)
             val completed = serverTimeToMillis(msg.time?.completed)
             if (created > latest) latest = created
             if (completed > latest) latest = completed
+            toolCount += parts.count { it.type == "tool" }
             if (msg.role == "user") {
                 userCount++
                 if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
@@ -1351,7 +1358,7 @@ text = e.message ?: getAppString(R.string.send_failed),
         return HistoryStats(
             totalElapsed = total, messageCount = tail.size.toLong(),
             userMessages = userCount, assistantMessages = assistantCount,
-            exchanges = userCount,
+            exchanges = userCount, toolCalls = toolCount,
             firstMessages = firstMessages, computed = true,
             lastTimestamp = maxOf(latest, lastCompleted, lastCreated),
             lastMessageId = lastMsg.id,
@@ -1369,6 +1376,7 @@ text = e.message ?: getAppString(R.string.send_failed),
                 userMessages = stored.userMessages,
                 assistantMessages = stored.assistantMessages,
                 exchanges = stored.userMessages,
+                toolCalls = stored.toolCalls,
                 firstMessages = stored.firstMessages,
                 computed = true,
                 lastTimestamp = stored.lastTimestamp,
@@ -1381,11 +1389,13 @@ text = e.message ?: getAppString(R.string.send_failed),
         var latest = 0L
         var userCount = 0L
         var assistantCount = 0L
+        var toolCount = 0L
         for ((msg, parts) in newMessages) {
             val created = serverTimeToMillis(msg.time?.created)
             val completed = serverTimeToMillis(msg.time?.completed)
             if (created > latest) latest = created
             if (completed > latest) latest = completed
+            toolCount += parts.count { it.type == "tool" }
             if (msg.role == "user") {
                 userCount++
                 if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
@@ -1408,6 +1418,7 @@ text = e.message ?: getAppString(R.string.send_failed),
             userMessages = stored.userMessages + userCount,
             assistantMessages = stored.assistantMessages + assistantCount,
             exchanges = stored.userMessages + userCount,
+            toolCalls = stored.toolCalls + toolCount,
             firstMessages = stored.firstMessages,
             computed = true,
             lastTimestamp = maxOf(stored.lastTimestamp, latest, lastCompleted, lastCreated),
@@ -1423,6 +1434,7 @@ text = e.message ?: getAppString(R.string.send_failed),
                 messageCount = stats.messageCount,
                 userMessages = stats.userMessages,
                 assistantMessages = stats.assistantMessages,
+                toolCalls = stats.toolCalls,
                 firstMessages = stats.firstMessages,
                 lastTimestamp = stats.lastTimestamp,
                 lastMessageId = stats.lastMessageId,
