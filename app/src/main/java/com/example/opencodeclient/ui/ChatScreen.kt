@@ -2016,6 +2016,12 @@ private fun SessionDetailsScreen(
 
                 HorizontalDivider()
 
+                OutlinedButton(
+                    onClick = { viewModel.compactSession() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.compact))
+                }
                 Button(
                     onClick = { viewModel.exportChatAsMarkdown() },
                     modifier = Modifier.fillMaxWidth(),
