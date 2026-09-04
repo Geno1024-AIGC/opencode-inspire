@@ -77,7 +77,6 @@ class OpenCodeClient(
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 if (cont.isCancelled) return
-                android.util.Log.d("ApiError", "network failure for $path", e)
                 cont.resumeWithException(e)
             }
 
@@ -86,7 +85,6 @@ class OpenCodeClient(
                 response.use {
                     val text = it.body?.string().orEmpty()
                     if (!it.isSuccessful) {
-                        android.util.Log.d("ApiError", "HTTP ${it.code} for $path: $text")
                         cont.resumeWithException(IOException("HTTP ${it.code}: $text"))
                         return
                     }
@@ -119,7 +117,6 @@ class OpenCodeClient(
         execute("GET", "/file?path=${java.net.URLEncoder.encode(path ?: "", "UTF-8")}") { text ->
             if (text.isBlank()) emptyList()
             else {
-                android.util.Log.d("FileBrowser", "raw /file body: $text")
                 val root = json.parseToJsonElement(text)
                 if (root is JsonArray) {
                     json.decodeFromJsonElement(ListSerializer(FileNode.serializer()), root)
