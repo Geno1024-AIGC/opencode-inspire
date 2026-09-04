@@ -375,7 +375,7 @@ fun SettingsScreen(
                             )
                         }
                         Text(
-                            stringResource(R.string.color_edit),
+                            stringResource(R.string.settings_open_calendar),
                             color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelLarge,
                         )
