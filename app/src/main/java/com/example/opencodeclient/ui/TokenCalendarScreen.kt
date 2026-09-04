@@ -513,7 +513,7 @@ private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Lon
         listOf(tokenLabel, timeLabel).maxOfOrNull {
             textMeasurer.measure(AnnotatedString(it), style = labelStyle).size.width.toDp()
         } ?: 0.dp
-    }
+    } + 8.dp
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(Modifier.fillMaxWidth()) {
             Text("", modifier = Modifier.width(labelWidth))
@@ -534,6 +534,7 @@ private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Lon
             Text(
                 tokenLabel,
                 color = labelColor,
+                maxLines = 1,
                 modifier = Modifier.width(labelWidth),
             )
             Text(monthTokens.toString(), fontFamily = mono, modifier = Modifier.weight(1f))
@@ -543,6 +544,7 @@ private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Lon
             Text(
                 timeLabel,
                 color = labelColor,
+                maxLines = 1,
                 modifier = Modifier.width(labelWidth),
             )
             Text(formatClock(monthElapsed), fontFamily = mono, modifier = Modifier.weight(1f))
