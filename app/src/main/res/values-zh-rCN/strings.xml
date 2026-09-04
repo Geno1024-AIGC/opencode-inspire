@@ -127,6 +127,8 @@
 
     <!-- Token calendar -->
     <string name="calendar_title">使用日历</string>
+    <string name="calendar_incremental">增量</string>
+    <string name="calendar_full">全量</string>
     <string name="calendar_table_total">总计</string>
     <string name="calendar_table_month">月度</string>
     <string name="calendar_table_token">Token</string>

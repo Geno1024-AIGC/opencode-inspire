@@ -46,6 +46,9 @@ class SettingsRepository(private val context: Context) {
         val HISTORY_STATS = stringPreferencesKey("history_stats")
         val TOKEN_HISTORY = stringPreferencesKey("token_history")
         val TOKEN_ELAPSED = stringPreferencesKey("token_elapsed")
+        val TOKEN_MONTH = stringPreferencesKey("token_month")
+        val TOKEN_WEEK = stringPreferencesKey("token_week")
+        val TOKEN_SYNC = longPreferencesKey("token_sync")
     }
 
     private val json = Json {
@@ -90,6 +93,17 @@ class SettingsRepository(private val context: Context) {
             runCatching { json.decodeFromString<Map<String, Long>>(raw) }.getOrNull()
         } ?: emptyMap()
     }
+    val tokenMonth: Flow<Map<String, Map<Int, Long>>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.TOKEN_MONTH]?.let { raw ->
+            runCatching { json.decodeFromString<Map<String, Map<Int, Long>>>(raw) }.getOrNull()
+        } ?: emptyMap()
+    }
+    val tokenWeek: Flow<Map<String, Map<Int, Long>>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.TOKEN_WEEK]?.let { raw ->
+            runCatching { json.decodeFromString<Map<String, Map<Int, Long>>>(raw) }.getOrNull()
+        } ?: emptyMap()
+    }
+    val tokenSync: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC] ?: 0L }
 
     suspend fun setShortTokens(enabled: Boolean) {
         context.dataStore.edit { it[Keys.SHORT_TOKENS] = enabled }
@@ -135,6 +149,18 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit {
             it[Keys.TOKEN_HISTORY] = json.encodeToString(tokens)
             it[Keys.TOKEN_ELAPSED] = json.encodeToString(elapsed)
+        }
+    }
+
+    suspend fun saveTokenCalendar(
+        month: Map<String, Map<Int, Long>>,
+        week: Map<String, Map<Int, Long>>,
+        syncMs: Long,
+    ) {
+        context.dataStore.edit {
+            it[Keys.TOKEN_MONTH] = json.encodeToString(month)
+            it[Keys.TOKEN_WEEK] = json.encodeToString(week)
+            it[Keys.TOKEN_SYNC] = syncMs
         }
     }
 

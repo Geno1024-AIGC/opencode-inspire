@@ -79,7 +79,7 @@ fun TokenCalendarScreen(
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
-        if (history.isEmpty() && elapsed.isEmpty()) viewModel.loadTokenHistory()
+        viewModel.refreshTokenHistory()
     }
 
     val totalTokens = history.values.sum()
@@ -99,8 +99,13 @@ fun TokenCalendarScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.drawer_close)) }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.loadTokenHistory() }) {
-                        Icon(Icons.Filled.Refresh, stringResource(R.string.drawer_refresh))
+                    Row {
+                        TextButton(onClick = { viewModel.incrementTokenHistory() }) {
+                            Text(stringResource(R.string.calendar_incremental))
+                        }
+                        TextButton(onClick = { viewModel.loadTokenHistory() }) {
+                            Text(stringResource(R.string.calendar_full))
+                        }
                     }
                 },
             )
