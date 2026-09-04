@@ -115,6 +115,7 @@ class OpenCodeClient(
 
     suspend fun listFiles(path: String? = null): List<FileNode> =
         execute("GET", "/file?path=${java.net.URLEncoder.encode(path ?: "", "UTF-8")}") { text ->
+            android.util.Log.d("FileBrowser", "raw /file (path=$path): $text")
             if (text.isBlank()) emptyList()
             else {
                 val root = json.parseToJsonElement(text)
