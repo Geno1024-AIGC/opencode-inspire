@@ -2154,6 +2154,8 @@ private fun FileBrowserSheet(
     var path by rememberSaveable { mutableStateOf("") }
     var files by remember { mutableStateOf<List<FileNode>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    var previewPath by remember { mutableStateOf<String?>(null) }
+    var previewName by remember { mutableStateOf<String?>(null) }
 
     val label = if (path.isEmpty())
         locationDir.trimEnd('/').substringAfterLast('/').ifBlank { locationDir }
@@ -2228,7 +2230,7 @@ private fun FileBrowserSheet(
                         .clickable {
                             when (node.type) {
                                 "directory" -> path = node.path
-                                else -> viewModel.openFileInChat(node.path)
+                                else -> { previewPath = node.path; previewName = node.name }
                             }
                         }
                         .padding(vertical = 8.dp),
@@ -2246,6 +2248,78 @@ private fun FileBrowserSheet(
             }
         }
     }
+
+    val currentPreview = previewPath
+    if (currentPreview != null) {
+        FilePreviewDialog(
+            path = currentPreview,
+            name = previewName ?: currentPreview.substringAfterLast('/'),
+            locationDir = locationDir,
+            viewModel = viewModel,
+            onDismiss = { previewPath = null; previewName = null },
+        )
+    }
+}
+
+@Composable
+private fun FilePreviewDialog(
+    path: String,
+    name: String,
+    locationDir: String,
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit,
+) {
+    var content by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    var failed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(path, locationDir) {
+        loading = true
+        failed = false
+        content = try {
+            viewModel.readSessionFileContent(path, locationDir)
+        } catch (_: Exception) {
+            null
+        }
+        loading = false
+        if (content == null) failed = true
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+        },
+        text = {
+            when {
+                loading -> CircularProgressIndicator()
+                failed -> Text(stringResource(R.string.files_read_failed), style = MaterialTheme.typography.bodyMedium)
+                else -> Text(
+                    content.orEmpty(),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                )
+            }
+        },
+        confirmButton = {
+            if (!loading && !failed) {
+                TextButton(
+                    enabled = content != null,
+                    onClick = {
+                        viewModel.sendFileInChat(path, content.orEmpty())
+                        onDismiss()
+                    },
+                ) {
+                    Text(stringResource(R.string.files_send_to_ai))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.files_cancel))
+            }
+        },
+    )
 }
 
 private fun parentOfRelative(path: String): String {

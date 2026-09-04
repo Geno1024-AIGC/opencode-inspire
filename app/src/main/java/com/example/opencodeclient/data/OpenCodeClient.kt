@@ -138,6 +138,17 @@ class OpenCodeClient(
             }
         }
 
+    suspend fun readFileContent(locationDir: String?, path: String): String? =
+        execute(
+            "GET",
+            "/file/content${queryOf(mapOf("directory" to locationDir, "path" to path))}",
+            headers = if (locationDir.isNullOrBlank()) emptyMap()
+            else mapOf("x-opencode-directory" to locationDir),
+        ) { text ->
+            if (text.isBlank()) null
+            else json.parseToJsonElement(text).jsonObject["content"]?.jsonPrimitive?.contentOrNull
+        }
+
     suspend fun createSession(directory: String? = null, parentId: String? = null, title: String? = null): Session =
         execute(
             "POST",

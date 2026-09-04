@@ -1599,19 +1599,29 @@ text = e.message ?: getAppString(R.string.send_failed),
         }
     }
 
-    fun openFileInChat(path: String) {
+    suspend fun readSessionFileContent(relPath: String, locationDir: String): String? {
+        val c = client ?: return null
+        return try {
+            withContext(Dispatchers.IO) { c.readFileContent(locationDir, relPath) }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun sendFileInChat(path: String, content: String) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
         viewModelScope.launch {
             setSending(true)
+            val prompt = if (content.isBlank()) "Read $path" else "Read the file `$path` and summarize its purpose:\n\n$content"
             _messages.value = _messages.value + ChatMessage(
                 id = "user-${System.currentTimeMillis()}",
                 role = "user",
-                text = "Read $path",
+                text = prompt,
                 time = System.currentTimeMillis(),
             )
             try {
-                withContext(Dispatchers.IO) { c.sendPromptAsync(sid, "Read $path and summarize its purpose") }
+                withContext(Dispatchers.IO) { c.sendPromptAsync(sid, prompt) }
             } catch (_: Exception) {
                 setSending(false)
             }
