@@ -249,6 +249,8 @@
     <string name="history_stats_title">历史耗时统计</string>
     <string name="history_stats_total">对话总耗时：%.1fs</string>
     <string name="history_stats_messages">消息数：%1$d</string>
+    <string name="history_stats_user">我发的：%1$d</string>
+    <string name="history_stats_assistant">你发的：%1$d</string>
     <string name="history_stats_first5">前 5 条消息</string>
     <string name="history_stats_unavailable">该会话暂无历史数据可统计。</string>
     <string name="history_stats_computing">统计历史耗时中</string>

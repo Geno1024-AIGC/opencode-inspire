@@ -20,6 +20,8 @@ private val Context.dataStore by preferencesDataStore(name = "settings")
 data class StoredHistoryStats(
     val totalElapsed: Long = 0L,
     val messageCount: Long = 0L,
+    val userMessages: Long = 0L,
+    val assistantMessages: Long = 0L,
     val firstMessages: List<String> = emptyList(),
     val lastTimestamp: Long = 0L,
     val lastMessageId: String = "",
