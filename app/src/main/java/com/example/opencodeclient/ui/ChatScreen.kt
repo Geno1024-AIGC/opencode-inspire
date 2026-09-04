@@ -253,7 +253,7 @@ fun ChatScreen(
                             },
                         ) {
                             Text(
-                                activeSession?.title?.ifBlank { "OpenCode" } ?: "OpenCode",
+                                activeSession?.title?.ifBlank { stringResource(R.string.app_name) } ?: stringResource(R.string.app_name),
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
