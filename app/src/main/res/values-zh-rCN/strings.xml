@@ -288,6 +288,8 @@
 
     <!-- Notification -->
     <string name="notify_session_done">会话已完成</string>
+    <string name="notify_streaming_title">OpenCode 工作中</string>
+    <string name="notify_streaming">助手正在回复…</string>
     <string name="permission_notif_title">允许发送通知吗？</string>
     <string name="permission_notif_message">允许通知，以便在助手完成长时间任务时提醒你。你可以随时在系统设置中更改。</string>
     <string name="permission_notif_allow">允许</string>

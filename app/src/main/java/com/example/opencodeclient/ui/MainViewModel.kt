@@ -460,6 +460,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun showStreamingNotification() {
+        val context = getApplication<Application>()
+        val notification = android.app.Notification.Builder(context, "session_status")
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setContentTitle(getAppString(R.string.notify_streaming_title))
+            .setContentText(getAppString(R.string.notify_streaming))
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
+        try {
+            context.getSystemService(Context.NOTIFICATION_SERVICE)?.let { service ->
+                (service as? NotificationManager)?.notify(1003, notification)
+            }
+        } catch (_: Exception) {
+            // permission not granted
+        }
+    }
+
+    private fun cancelStreamingNotification() {
+        val context = getApplication<Application>()
+        try {
+            context.getSystemService(Context.NOTIFICATION_SERVICE)?.let { service ->
+                (service as? NotificationManager)?.cancel(1003)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     fun loadTokenHistory() = runTokenLoad(incremental = false)
 
     fun incrementTokenHistory() = runTokenLoad(incremental = true)
@@ -1026,10 +1054,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _sending.value = value
         sendingWatchdog?.cancel()
         if (value) {
+            showStreamingNotification()
             sendingWatchdog = viewModelScope.launch {
                 delay(SENDING_WATCHDOG_MS)
                 _sending.value = false
+                cancelStreamingNotification()
             }
+        } else {
+            cancelStreamingNotification()
         }
     }
 

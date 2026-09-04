@@ -288,6 +288,8 @@
 
     <!-- Notification -->
     <string name="notify_session_done">Session finished</string>
+    <string name="notify_streaming_title">OpenCode working</string>
+    <string name="notify_streaming">Assistant is responding…</string>
     <string name="permission_notif_title">Allow notifications?</string>
     <string name="permission_notif_message">Allow notifications to get notified when the assistant finishes a long task. You can change this anytime in system settings.</string>
     <string name="permission_notif_allow">Allow</string>
