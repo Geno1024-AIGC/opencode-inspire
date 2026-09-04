@@ -415,7 +415,7 @@ fun ChatScreen(
                     if (showCommands) {
                         DropdownMenu(
                             expanded = true,
-                            onDismissRequest = {},
+                            onDismissRequest = { input = "" },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (commands.isEmpty()) {
