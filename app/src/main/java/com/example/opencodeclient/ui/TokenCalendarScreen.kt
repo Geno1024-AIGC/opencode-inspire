@@ -521,12 +521,14 @@ private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Lon
                 monthLabel,
                 fontWeight = FontWeight.Bold,
                 color = onSurface,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f),
             )
             Text(
                 totalLabel,
                 fontWeight = FontWeight.Bold,
                 color = onSurface,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -537,8 +539,8 @@ private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Lon
                 maxLines = 1,
                 modifier = Modifier.width(labelWidth),
             )
-            Text(monthTokens.toString(), fontFamily = mono, modifier = Modifier.weight(1f))
-            Text(totalTokens.toString(), fontFamily = mono, modifier = Modifier.weight(1f))
+            Text(monthTokens.toString(), fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+            Text(totalTokens.toString(), fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
             Text(
@@ -547,8 +549,8 @@ private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Lon
                 maxLines = 1,
                 modifier = Modifier.width(labelWidth),
             )
-            Text(formatClock(monthElapsed), fontFamily = mono, modifier = Modifier.weight(1f))
-            Text(formatClock(totalElapsed), fontFamily = mono, modifier = Modifier.weight(1f))
+            Text(formatClock(monthElapsed), fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+            Text(formatClock(totalElapsed), fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
         }
     }
 }
