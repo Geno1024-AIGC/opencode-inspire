@@ -468,7 +468,7 @@ private fun ServersDialog(
                 if (servers.isEmpty()) {
                     Text(stringResource(R.string.servers_empty), style = MaterialTheme.typography.bodySmall)
                 }
-                servers.forEach { p ->
+                servers.sortedBy { it.url != serverUrl }.forEach { p ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f).clickable {
                             viewModel.connect(p.url, p.username, p.password)
