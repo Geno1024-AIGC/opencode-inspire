@@ -8,8 +8,10 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -132,6 +134,15 @@ fun ChatScreen(
     val sessionTotalElapsed by viewModel.sessionTotalElapsed.collectAsStateWithLifecycle()
     val pendingQuestions by viewModel.pendingQuestions.collectAsStateWithLifecycle()
     val todos by viewModel.todos.collectAsStateWithLifecycle()
+    var todosHidden by rememberSaveable { mutableStateOf(false) }
+    var lastTodosKey by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(todos) {
+        val key = todos.joinToString("\u0001") { it.content }
+        if (key.isNotEmpty() && key != lastTodosKey) {
+            todosHidden = false
+        }
+        lastTodosKey = key
+    }
     val commands by viewModel.commands.collectAsStateWithLifecycle()
     val models by viewModel.models.collectAsStateWithLifecycle()
     val currentModelId by viewModel.currentModelId.collectAsStateWithLifecycle()
@@ -354,8 +365,8 @@ fun ChatScreen(
                 }
             }
 
-            if (todos.isNotEmpty()) {
-                TodoPanel(todos)
+            if (todos.isNotEmpty() && !todosHidden) {
+                TodoPanel(todos = todos, onDismiss = { todosHidden = true })
                 Spacer(Modifier.height(4.dp))
             }
 
@@ -1004,14 +1015,18 @@ private fun CopyableCode(code: String) {
 }
 
 @Composable
-private fun TodoPanel(todos: List<TodoUi>) {
+@OptIn(ExperimentalFoundationApi::class)
+private fun TodoPanel(todos: List<TodoUi>, onDismiss: () -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(true) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-            .clickable { expanded = !expanded }
+            .combinedClickable(
+                onClick = { expanded = !expanded },
+                onLongClick = onDismiss,
+            )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
