@@ -534,10 +534,12 @@ fun ChatScreen(
                             stringResource(R.string.history_stats_progress_msgs, p.fetched),
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        Text(
-                            stringResource(R.string.history_stats_progress_upto, formatMillis(p.lastTimestamp)),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                        if (p.lastTimestamp > 0L) {
+                            Text(
+                                stringResource(R.string.history_stats_progress_upto, formatMillis(p.lastTimestamp)),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
                     } ?: Text(
                         stringResource(R.string.history_stats_computing_sub),
                         style = MaterialTheme.typography.bodyMedium,
@@ -651,6 +653,14 @@ private fun HistoryStatsDialog(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (stats.lastTimestamp > 0L) {
+                        Text(
+                            stringResource(R.string.history_stats_latest, formatMillis(stats.lastTimestamp)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontFamily = MonoFontFamily,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (stats.firstMessages.isNotEmpty()) {
                         Text(
                             stringResource(R.string.history_stats_first5),
@@ -1812,6 +1822,7 @@ private fun SessionDetailsScreen(
     val tokens = sessionTokens ?: session.tokens
     val stored = storedStats
     val hasStored = stored != null && stored.totalElapsed > 0L
+    val canIncremental = stored != null && !stored.lastMessageId.isNullOrEmpty()
 
     BackHandler { onBack() }
 
@@ -1924,16 +1935,20 @@ private fun SessionDetailsScreen(
                     )
                 }
 
-                OutlinedButton(
-                    onClick = { viewModel.computeHistoryStats() },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        stringResource(
-                            if (hasStored) R.string.session_details_history_update
-                            else R.string.session_details_history_recompute
-                        )
-                    )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { viewModel.incrementHistoryStats() },
+                        enabled = canIncremental,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.session_details_history_incremental))
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.computeHistoryStats() },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.session_details_history_full))
+                    }
                 }
 
                 HorizontalDivider()

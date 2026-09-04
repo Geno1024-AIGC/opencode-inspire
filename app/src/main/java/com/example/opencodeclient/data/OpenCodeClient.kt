@@ -211,12 +211,52 @@ class OpenCodeClient(
             }.getOrElse { emptyList() }
             if (page.isEmpty()) break
             all += page
-            val lastTime = page.last().first.time?.created ?: 0L
+            val lastTime = timeToMillis(page.last().first.time?.created)
             onProgress(all.size, lastTime)
             before = next
             if (next == null) break
         }
         return all.sortedBy { it.first.time?.created ?: Long.MIN_VALUE }
+    }
+
+    suspend fun sessionMessagesSince(
+        sessionId: String,
+        sinceMs: Long,
+        onProgress: (fetched: Int, earliestSeen: Long) -> Unit = { _, _ -> },
+    ): List<Pair<Message, List<Part>>> {
+        val result = mutableListOf<Pair<Message, List<Part>>>()
+        var before: String? = null
+        var done = false
+        var earliestMs = 0L
+        while (!done) {
+            val (text, next) = fetchPageWithCursor(sessionId, 500, before)
+            if (text.isBlank()) break
+            val page = runCatching {
+                json.decodeFromString<List<SessionInfo>>(text).map { it.info to it.parts }
+            }.getOrElse { emptyList() }
+            if (page.isEmpty()) break
+            for (item in page) {
+                val created = timeToMillis(item.first.time?.created)
+                if (created > 0L && created <= sinceMs && sinceMs > 0L) {
+                    done = true
+                    break
+                }
+                if (created > 0L) {
+                    result.add(item)
+                    if (earliestMs == 0L || created < earliestMs) earliestMs = created
+                }
+            }
+            onProgress(result.size, earliestMs)
+            before = next
+            if (next == null) break
+        }
+        return result.sortedBy { timeToMillis(it.first.time?.created) }
+    }
+
+    private fun timeToMillis(value: Long?): Long = when {
+        value == null || value <= 0L -> 0L
+        value < 10_000_000_000L -> value * 1000L
+        else -> value
     }
 
     private suspend fun fetchPageWithCursor(sessionId: String, limit: Int, before: String?): Pair<String, String?> =
