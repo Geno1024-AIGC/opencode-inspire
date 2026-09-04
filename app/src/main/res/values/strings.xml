@@ -138,6 +138,7 @@
     <string name="stats_tab_monthly">Monthly</string>
     <string name="stats_tab_weekly">Weekly</string>
     <string name="stats_total">Total</string>
+    <string name="stats_week_dialog_title">Week %1$d‑W%2$02d</string>
     <string name="settings_token_history">Usage calendar</string>
     <string name="settings_token_history_sub">Daily token usage &amp; time</string>
 

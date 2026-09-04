@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +37,7 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -241,25 +243,57 @@ private fun MonthColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale
 private fun WeekColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale) {
     val sorted = buckets.toSortedMap()
     val periods = sorted.keys.toList()
-    val labels = periods.mapIndexed { i, key ->
-        val date = runCatching { LocalDate.parse(key) }.getOrNull()
-        if (date == null) {
-            key
-        } else {
-            val prev = if (i > 0) runCatching { LocalDate.parse(periods[i - 1]) }.getOrNull() else null
-            if (prev == null || date.year != prev.year) {
-                date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd", locale))
-            } else {
-                date.format(DateTimeFormatter.ofPattern("MM-dd", locale))
-            }
-        }
+    var clickedWeek by remember { mutableStateOf<LocalDate?>(null) }
+    val labels = periods.map { key ->
+        runCatching {
+            val date = LocalDate.parse(key)
+            val week = date.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+            "%d-W%02d".format(Locale.ROOT, date.year, week)
+        }.getOrDefault(key)
     }
     PeriodColumns(
         periods = sorted.map { it.key to it.value },
         labels = labels,
         circle = 24.dp,
         gap = 2.dp,
+        onLabelClick = { _, key ->
+            runCatching { clickedWeek = LocalDate.parse(key) }
+        },
     )
+    clickedWeek?.let { start ->
+        val days = (0 until 7).map { start.plusDays(it.toLong()) }
+        AlertDialog(
+            onDismissRequest = { clickedWeek = null },
+            title = {
+                val week = start.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+                Text(stringResource(R.string.stats_week_dialog_title, start.year, week), fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    days.forEach { d ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                d.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale),
+                                fontFamily = MonoFontFamily,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(30.dp),
+                            )
+                            Text(
+                                d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd", locale)),
+                                fontFamily = MonoFontFamily,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { clickedWeek = null }) { Text(stringResource(R.string.drawer_close)) }
+            },
+        )
+    }
 }
 
 private val PeriodHeaderH = 14.dp
@@ -270,6 +304,7 @@ private fun PeriodColumns(
     labels: List<String>,
     circle: androidx.compose.ui.unit.Dp,
     gap: androidx.compose.ui.unit.Dp,
+    onLabelClick: ((index: Int, key: String) -> Unit)? = null,
 ) {
     val mono = MonoFontFamily
     val primary = MaterialTheme.colorScheme.primary
@@ -308,18 +343,22 @@ private fun PeriodColumns(
         Spacer(Modifier.width(4.dp))
         Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.Top) {
-                periods.forEachIndexed { index, (_, m) ->
+                periods.forEachIndexed { index, (key, m) ->
                     Column(
                         Modifier.padding(end = 3.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text(
-                            labels.getOrElse(index) { "" },
-                            fontSize = 9.sp,
-                            color = labelColor,
-                            maxLines = 1,
-                            modifier = Modifier.height(PeriodHeaderH),
-                        )
+                        val labelModifier = if (onLabelClick != null) {
+                            Modifier.clickable(enabled = true) { onLabelClick(index, key) }
+                        } else Modifier
+                        Box(modifier = labelModifier.height(PeriodHeaderH), contentAlignment = Alignment.Center) {
+                            Text(
+                                labels.getOrElse(index) { "" },
+                                fontSize = 9.sp,
+                                color = if (onLabelClick != null) MaterialTheme.colorScheme.primary else labelColor,
+                                maxLines = 1,
+                            )
+                        }
                         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                             for (hour in 0 until 24) {
                                 HourCircle(value = m[hour] ?: 0L, max = max, size = circle, gap = gap, mono = mono, primary = primary)
