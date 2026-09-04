@@ -1060,6 +1060,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         send(lastUserMessage.text)
     }
 
+    fun compactSession() {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        if (_sending.value) return
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { c.executeCommand(sid, "compact") }
+            } catch (e: Exception) {
+                _messages.value = _messages.value + ChatMessage(
+                    id = "err-compact-${System.currentTimeMillis()}",
+                    role = "error",
+                    text = e.message ?: getAppString(R.string.compact_failed),
+                )
+            }
+        }
+    }
+
     fun sendWithFile(text: String, fileName: String, content: String) {
         if (text.isBlank() && content.isBlank()) return
         val c = client ?: return
