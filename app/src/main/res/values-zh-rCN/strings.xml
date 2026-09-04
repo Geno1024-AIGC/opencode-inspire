@@ -25,6 +25,7 @@
     <!-- Drawer -->
     <string name="drawer_close">关闭</string>
     <string name="drawer_settings">设置</string>
+    <string name="favorite_toggle">切换收藏</string>
     <string name="drawer_servers">服务器</string>
     <string name="drawer_projects">项目</string>
     <string name="drawer_refresh">刷新</string>

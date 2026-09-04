@@ -46,6 +46,7 @@ class SettingsRepository(private val context: Context) {
         val USER_BUBBLE_COLOR = longPreferencesKey("user_bubble_color")
         val ASSIST_BUBBLE_COLOR = longPreferencesKey("assistant_bubble_color")
         val AUTO_UPDATE_TIMING = booleanPreferencesKey("auto_update_timing")
+        val FAVORITES = stringPreferencesKey("favorites")
         val HISTORY_STATS = stringPreferencesKey("history_stats")
         val TOKEN_HISTORY = stringPreferencesKey("token_history")
         val TOKEN_ELAPSED = stringPreferencesKey("token_elapsed")
@@ -81,6 +82,11 @@ class SettingsRepository(private val context: Context) {
     val userBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.USER_BUBBLE_COLOR] ?: -1L }
     val assistantBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.ASSIST_BUBBLE_COLOR] ?: -1L }
     val autoUpdateTiming: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_UPDATE_TIMING] ?: false }
+    val favorites: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.FAVORITES]?.let { raw ->
+            runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
+        } ?: emptySet()
+    }
     val historyStats: Flow<Map<String, StoredHistoryStats>> =
         context.dataStore.data.map { prefs ->
             prefs[Keys.HISTORY_STATS]?.let { raw ->
@@ -148,6 +154,17 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAutoUpdateTiming(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_UPDATE_TIMING] = enabled }
+    }
+
+    suspend fun toggleFavorite(sessionId: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.FAVORITES]?.let { raw ->
+                runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
+            } ?: emptySet()
+            prefs[Keys.FAVORITES] = json.encodeToString(
+                if (sessionId in current) current - sessionId else current + sessionId
+            )
+        }
     }
 
     suspend fun saveTokenHistory(tokens: Map<String, Long>, elapsed: Map<String, Long>) {

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -189,6 +190,7 @@ private fun DrawerContent(
     val activeSessionTotalElapsed by viewModel.sessionTotalElapsed.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val storedStats by viewModel.storedStats.collectAsStateWithLifecycle()
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
 
     ModalDrawerSheet {
         Column(
@@ -246,8 +248,10 @@ private fun DrawerContent(
                         activeSessionTotalElapsed = activeSessionTotalElapsed,
                         storedStats = storedStats,
                         shortTokens = shortTokens,
+                        favorites = favorites,
                         onOpenSession = { viewModel.openSession(it) },
                         onNewSession = { viewModel.newSession(project.worktree) },
+                        onToggleFavorite = { viewModel.toggleFavorite(it) },
                     )
                 }
             }
@@ -273,10 +277,15 @@ private fun ExpandableProject(
     activeSessionTotalElapsed: Long? = null,
     storedStats: Map<String, StoredHistoryStats> = emptyMap(),
     shortTokens: Boolean = true,
+    favorites: Set<String> = emptySet(),
     onOpenSession: (String) -> Unit,
     onNewSession: () -> Unit,
+    onToggleFavorite: (String) -> Unit,
 ) {
     var expanded by rememberSaveable(project.id) { mutableStateOf(project.sessions.isEmpty()) }
+    val orderedSessions = remember(project.sessions, favorites) {
+        project.sessions.sortedByDescending { it.id in favorites }
+    }
     Column {
         Row(
             modifier = Modifier
@@ -308,14 +317,16 @@ private fun ExpandableProject(
             Icon(if (expanded) painterResource(R.drawable.ic_expand_less) else painterResource(R.drawable.ic_expand_more), null)
         }
         if (expanded) {
-            project.sessions.forEach { s ->
+            orderedSessions.forEach { s ->
                 val storedElapsed = storedStats[s.id]?.totalElapsed ?: 0L
                 SessionRow(
                     s = s,
                     isActive = s.id == activeSessionId,
+                    isFavorite = s.id in favorites,
                     totalElapsed = if (storedElapsed > 0L) storedElapsed else null,
                     shortTokens = shortTokens,
                     onClick = { onOpenSession(s.id) },
+                    onToggleFavorite = { onToggleFavorite(s.id) },
                 )
             }
             Row(
@@ -341,15 +352,17 @@ private fun ExpandableProject(
 private fun SessionRow(
     s: Session,
     isActive: Boolean,
+    isFavorite: Boolean = false,
     totalElapsed: Long? = null,
     shortTokens: Boolean = true,
     onClick: () -> Unit,
+    onToggleFavorite: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 40.dp, vertical = 6.dp),
+            .padding(start = 40.dp, end = 24.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -394,6 +407,19 @@ private fun SessionRow(
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
+        }
+        Spacer(Modifier.padding(horizontal = 4.dp))
+        IconButton(
+            onClick = onToggleFavorite,
+            modifier = Modifier.size(28.dp),
+        ) {
+            Icon(
+                Icons.Filled.Star,
+                stringResource(R.string.favorite_toggle),
+                tint = if (isFavorite) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
