@@ -186,10 +186,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val tokenHistoryLoading: StateFlow<Boolean> = _tokenHistoryLoading.asStateFlow()
     private val _tokenElapsed = MutableStateFlow<Map<String, Long>>(emptyMap())
     val tokenElapsed: StateFlow<Map<String, Long>> = _tokenElapsed.asStateFlow()
-    private val _hourMonth = MutableStateFlow<Map<Int, Long>>(emptyMap())
-    val hourMonth: StateFlow<Map<Int, Long>> = _hourMonth.asStateFlow()
-    private val _hourWeek = MutableStateFlow<Map<Int, Long>>(emptyMap())
-    val hourWeek: StateFlow<Map<Int, Long>> = _hourWeek.asStateFlow()
+    private val _hourByMonth = MutableStateFlow<Map<String, Map<Int, Long>>>(emptyMap())
+    val hourByMonth: StateFlow<Map<String, Map<Int, Long>>> = _hourByMonth.asStateFlow()
+    private val _hourByWeek = MutableStateFlow<Map<String, Map<Int, Long>>>(emptyMap())
+    val hourByWeek: StateFlow<Map<String, Map<Int, Long>>> = _hourByWeek.asStateFlow()
 
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
@@ -442,14 +442,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val c = client ?: return@withContext
                 val tokens = mutableMapOf<String, Long>()
                 val elapsed = mutableMapOf<String, Long>()
-                val hourMonth = mutableMapOf<Int, Long>()
-                val hourWeek = mutableMapOf<Int, Long>()
                 val zone = java.time.ZoneId.systemDefault()
                 val now = java.time.LocalDate.now(zone)
                 val firstDow = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value
-                val weekStart = now.with(
+                val currentWeekStart = now.with(
                     java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
                 )
+                val monthBuckets = mutableMapOf<String, MutableMap<Int, Long>>()
+                val monthKeys = (0 until 12).map { java.time.YearMonth.now().minusMonths(it.toLong()).toString() }
+                monthKeys.forEach { monthBuckets[it] = mutableMapOf() }
+                val weekBuckets = mutableMapOf<String, MutableMap<Int, Long>>()
+                val weekStartDates = (0 until 16).map { currentWeekStart.minusWeeks(it.toLong()) }
+                weekStartDates.forEach { weekBuckets[it.toString()] = mutableMapOf() }
+                val weekStartSet = weekBuckets.keys.toSet()
                 c.sessions().forEach { s ->
                     val messages = runCatching { c.sessionMessagesAll(s.id) }.getOrNull() ?: return@forEach
                     var turnStart = 0L
@@ -467,11 +472,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         if (total > 0L) {
                             tokens[day.toString()] = (tokens[day.toString()] ?: 0L) + total
                             val hour = zdt.hour
-                            if (day.year == now.year && day.month == now.month) {
-                                hourMonth[hour] = (hourMonth[hour] ?: 0L) + total
-                            }
-                            if (!day.isBefore(weekStart) && day.isBefore(weekStart.plusDays(7))) {
-                                hourWeek[hour] = (hourWeek[hour] ?: 0L) + total
+                            monthBuckets[day.toString().substring(0, 7)]?.let { it[hour] = (it[hour] ?: 0L) + total }
+                            val ws = day.with(
+                                java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
+                            ).toString()
+                            if (ws in weekStartSet) {
+                                val it2 = weekBuckets[ws]!!
+                                it2[hour] = (it2[hour] ?: 0L) + total
                             }
                         }
                         if (msg.role == "user") {
@@ -492,8 +499,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 _tokenHistory.value = tokens
                 _tokenElapsed.value = elapsed
-                _hourMonth.value = hourMonth
-                _hourWeek.value = hourWeek
+                _hourByMonth.value = monthBuckets
+                _hourByWeek.value = weekBuckets
                 if (coroutineContext.isActive) settings.saveTokenHistory(tokens, elapsed)
             }
             } finally {
