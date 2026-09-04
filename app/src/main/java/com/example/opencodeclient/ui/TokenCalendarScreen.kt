@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,10 +15,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,6 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,8 +72,8 @@ fun TokenCalendarScreen(
     BackHandler(onBack = onBack)
     val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
     val elapsed by viewModel.tokenElapsed.collectAsStateWithLifecycle()
-    val hourMonth by viewModel.hourMonth.collectAsStateWithLifecycle()
-    val hourWeek by viewModel.hourWeek.collectAsStateWithLifecycle()
+    val hourByMonth by viewModel.hourByMonth.collectAsStateWithLifecycle()
+    val hourByWeek by viewModel.hourByWeek.collectAsStateWithLifecycle()
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -137,8 +139,8 @@ fun TokenCalendarScreen(
                     onNext = { shownMonth = shownMonth.plusMonths(1) },
                     onSelect = { selected = it },
                 )
-                1 -> MonthHourCard(hours = hourMonth, locale = locale)
-                2 -> WeekHourCard(hours = hourWeek, locale = locale)
+                1 -> MonthColumnCard(buckets = hourByMonth, locale = locale)
+                2 -> WeekColumnCard(buckets = hourByWeek, locale = locale)
             }
         }
     }
@@ -220,83 +222,149 @@ private fun DailyCalendarTab(
 }
 
 @Composable
-private fun MonthHourCard(hours: Map<Int, Long>, locale: Locale) {
-    HourHistogram(
-        hours = hours,
-        locale = locale,
-        periodLabel = stringResource(R.string.stats_hour_month, YearMonth.now().format(DateTimeFormatter.ofPattern("yyyy-MM", locale))),
+private fun MonthColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale) {
+    val periods = buckets.toSortedMap().map { (key, m) -> key to m }
+    PeriodColumns(
+        periods = periods,
+        labelFor = { key, _ ->
+            runCatching {
+                YearMonth.parse(key).format(DateTimeFormatter.ofPattern("MMM", locale))
+            }.getOrDefault(key)
+        },
     )
 }
 
 @Composable
-private fun WeekHourCard(hours: Map<Int, Long>, locale: Locale) {
-    val firstDow = WeekFields.of(locale).firstDayOfWeek
-    val today = LocalDate.now()
-    val weekStart = today.with(java.time.temporal.TemporalAdjusters.previousOrSame(firstDow))
-    val weekEnd = weekStart.plusDays(6)
-    HourHistogram(
-        hours = hours,
-        locale = locale,
-        periodLabel = stringResource(
-            R.string.stats_hour_week,
-            weekStart.format(DateTimeFormatter.ofPattern("MM-dd", locale)),
-            weekEnd.format(DateTimeFormatter.ofPattern("MM-dd", locale)),
-        ),
+private fun WeekColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale) {
+    val periods = buckets.toSortedMap().map { (key, m) -> key to m }
+    PeriodColumns(
+        periods = periods,
+        labelFor = { key, _ ->
+            runCatching {
+                LocalDate.parse(key).format(DateTimeFormatter.ofPattern("MM-dd", locale))
+            }.getOrDefault(key)
+        },
     )
 }
 
+private val PeriodHeaderH = 15.dp
+
 @Composable
-private fun HourHistogram(hours: Map<Int, Long>, locale: Locale, periodLabel: String) {
-    val max = (hours.values.maxOrNull() ?: 0L).coerceAtLeast(1L)
+private fun PeriodColumns(
+    periods: List<Pair<String, Map<Int, Long>>>,
+    labelFor: (key: String, index: Int) -> String,
+) {
+    val circle = 36.dp
+    val gap = 4.dp
     val mono = MonoFontFamily
     val primary = MaterialTheme.colorScheme.primary
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(
-            periodLabel,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(8.dp))
-        for (hour in 0 until 24) {
-            val value = hours[hour] ?: 0L
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "%02d:00".format(Locale.ROOT, hour),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    fontFamily = mono,
-                    color = labelColor,
-                    modifier = Modifier.width(42.dp),
-                )
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .height(11.dp)
-                        .padding(end = 8.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    if (value > 0L) {
-                        val frac = (value.toDouble() / max).toFloat()
-                        Box(
-                            Modifier
-                                .fillMaxWidth(frac.coerceIn(0.04f, 1f))
-                                .height(11.dp)
-                                .background(primary.copy(alpha = (0.2f + 0.7f * frac).coerceIn(0.2f, 0.9f)), RoundedCornerShape(3.dp)),
+    val totals = LongArray(24)
+    var max = 0L
+    for ((_, m) in periods) {
+        for (h in 0 until 24) {
+            val v = m[h] ?: 0L
+            totals[h] += v
+            if (v > max) max = v
+        }
+    }
+    for (h in 0 until 24) if (totals[h] > max) max = totals[h]
+    max = max.coerceAtLeast(1L)
+
+    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Column(
+            Modifier.width(30.dp),
+            verticalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            Box(Modifier.height(PeriodHeaderH)) {}
+            for (hour in 0 until 24) {
+                Box(Modifier.height(circle), contentAlignment = Alignment.CenterStart) {
+                    if (hour % 6 == 0) {
+                        Text(
+                            "%02d".format(Locale.ROOT, hour),
+                            fontSize = 9.sp,
+                            fontFamily = mono,
+                            color = labelColor,
                         )
                     }
                 }
-                Text(
-                    if (value > 0L) formatTokensCompact(value) else "",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    fontFamily = mono,
-                    color = labelColor,
-                    modifier = Modifier.width(46.dp),
-                )
             }
+        }
+        Spacer(Modifier.width(4.dp))
+        Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+            Row(verticalAlignment = Alignment.Top) {
+                for ((key, m) in periods) {
+                    Column(
+                        Modifier.padding(end = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            labelFor(key, 0),
+                            fontSize = 10.sp,
+                            color = labelColor,
+                            maxLines = 1,
+                            modifier = Modifier.height(PeriodHeaderH),
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                            for (hour in 0 until 24) {
+                                HourCircle(value = m[hour] ?: 0L, max = max, size = circle, mono = mono, primary = primary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        VerticalDivider()
+        Spacer(Modifier.width(6.dp))
+        Column(
+            Modifier.padding(start = 2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                stringResource(R.string.stats_total),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = labelColor,
+                modifier = Modifier.height(PeriodHeaderH),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                for (hour in 0 until 24) {
+                    HourCircle(value = totals[hour], max = max, size = circle, mono = mono, primary = primary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HourCircle(
+    value: Long,
+    max: Long,
+    size: androidx.compose.ui.unit.Dp,
+    mono: androidx.compose.ui.text.font.FontFamily,
+    primary: Color,
+) {
+    val text = if (value > 0L) formatTokensCompact(value) else ""
+    val bg = if (value > 0L) {
+        val frac = (value.toDouble() / max.toDouble()).toFloat().coerceIn(0f, 1f)
+        primary.copy(alpha = (0.18f + 0.72f * frac).coerceIn(0.18f, 0.9f))
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    }
+    Box(
+        Modifier.size(size).background(bg, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (text.isNotEmpty()) {
+            Text(
+                text,
+                fontSize = if (text.length <= 3) 11.sp else 8.sp,
+                fontFamily = mono,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+            )
         }
     }
 }
