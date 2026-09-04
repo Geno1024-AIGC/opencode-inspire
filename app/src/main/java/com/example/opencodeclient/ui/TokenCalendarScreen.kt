@@ -121,11 +121,6 @@ fun TokenCalendarScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            PrimaryTabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_daily)) })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
-                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
-            }
             val monthToks = history.filterKeys { isInMonth(it, shownMonth) }.values.sum()
             val monthElapsed = elapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
             SummaryTable(
@@ -151,6 +146,11 @@ fun TokenCalendarScreen(
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 )
+            }
+            PrimaryTabRow(selectedTabIndex = tab) {
+                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_daily)) })
+                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
+                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
             }
             when (tab) {
                 0 -> Column(
