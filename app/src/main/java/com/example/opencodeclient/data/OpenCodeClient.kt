@@ -116,7 +116,15 @@ class OpenCodeClient(
     suspend fun listFiles(path: String? = null): List<FileNode> =
         execute("GET", "/file?path=${java.net.URLEncoder.encode(path ?: "", "UTF-8")}") { text ->
             if (text.isBlank()) emptyList()
-            else json.decodeFromString(ListSerializer(FileNode.serializer()), text)
+            else {
+                val root = json.parseToJsonElement(text)
+                if (root is JsonArray) {
+                    json.decodeFromJsonElement(ListSerializer(FileNode.serializer()), root)
+                } else {
+                    val node = json.decodeFromJsonElement(FileNode.serializer(), root)
+                    node.children ?: listOf(node)
+                }
+            }
         }
 
     suspend fun createSession(directory: String? = null, parentId: String? = null, title: String? = null): Session =
