@@ -249,6 +249,8 @@
     <string name="history_stats_title">Historical time stats</string>
     <string name="history_stats_total">Total conversation time: %.1fs</string>
     <string name="history_stats_messages">Messages: %1$d</string>
+    <string name="history_stats_user">Sent by me: %1$d</string>
+    <string name="history_stats_assistant">Sent by assistant: %1$d</string>
     <string name="history_stats_first5">First 5 messages</string>
     <string name="history_stats_unavailable">No historical data available for this session.</string>
     <string name="history_stats_computing">Computing history stats</string>

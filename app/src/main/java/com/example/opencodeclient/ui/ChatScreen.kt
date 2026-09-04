@@ -664,6 +664,16 @@ private fun HistoryStatsDialog(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Text(
+                        stringResource(R.string.history_stats_user, stats.userMessages),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        stringResource(R.string.history_stats_assistant, stats.assistantMessages),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     if (stats.lastTimestamp > 0L) {
                         Text(
                             stringResource(R.string.history_stats_latest, formatMillis(stats.lastTimestamp)),

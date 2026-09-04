@@ -71,6 +71,8 @@ data class PartUi(
 data class HistoryStats(
     val totalElapsed: Long,
     val messageCount: Long,
+    val userMessages: Long = 0L,
+    val assistantMessages: Long = 0L,
     val firstMessages: List<String> = emptyList(),
     val computed: Boolean,
     val error: String? = null,
@@ -1262,6 +1264,8 @@ text = e.message ?: getAppString(R.string.send_failed),
     private fun StoredHistoryStats.toHistoryStats() = HistoryStats(
         totalElapsed = totalElapsed,
         messageCount = messageCount,
+        userMessages = userMessages,
+        assistantMessages = assistantMessages,
         firstMessages = firstMessages,
         computed = true,
         lastTimestamp = lastTimestamp,
@@ -1273,16 +1277,20 @@ text = e.message ?: getAppString(R.string.send_failed),
         var turnStart = 0L
         var turnEnd = 0L
         var latest = 0L
+        var userCount = 0L
+        var assistantCount = 0L
         for ((msg, parts) in newTail) {
             val created = serverTimeToMillis(msg.time?.created)
             val completed = serverTimeToMillis(msg.time?.completed)
             if (created > latest) latest = created
             if (completed > latest) latest = completed
             if (msg.role == "user") {
+                userCount++
                 if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
                 turnStart = created
                 turnEnd = created
             } else {
+                if (msg.role == "assistant") assistantCount++
                 if (turnStart > 0L && completed > turnEnd) turnEnd = completed
             }
         }
@@ -1295,6 +1303,8 @@ text = e.message ?: getAppString(R.string.send_failed),
         return HistoryStats(
             totalElapsed = stored.totalElapsed + total,
             messageCount = stored.messageCount + newTail.size.toLong(),
+            userMessages = stored.userMessages + userCount,
+            assistantMessages = stored.assistantMessages + assistantCount,
             firstMessages = stored.firstMessages,
             computed = true,
             lastTimestamp = maxOf(stored.lastTimestamp, latest, lastCompleted, lastCreated),
@@ -1308,12 +1318,15 @@ text = e.message ?: getAppString(R.string.send_failed),
         var turnEnd = 0L
         var latest = 0L
         val firstMessages = mutableListOf<String>()
+        var userCount = 0L
+        var assistantCount = 0L
         for ((msg, parts) in tail) {
             val created = serverTimeToMillis(msg.time?.created)
             val completed = serverTimeToMillis(msg.time?.completed)
             if (created > latest) latest = created
             if (completed > latest) latest = completed
             if (msg.role == "user") {
+                userCount++
                 if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
                 turnStart = created
                 turnEnd = created
@@ -1322,6 +1335,7 @@ text = e.message ?: getAppString(R.string.send_failed),
                     firstMessages.add(t.take(120))
                 }
             } else {
+                if (msg.role == "assistant") assistantCount++
                 if (turnStart > 0L && completed > turnEnd) turnEnd = completed
             }
         }
@@ -1333,6 +1347,7 @@ text = e.message ?: getAppString(R.string.send_failed),
         }
         return HistoryStats(
             totalElapsed = total, messageCount = tail.size.toLong(),
+            userMessages = userCount, assistantMessages = assistantCount,
             firstMessages = firstMessages, computed = true,
             lastTimestamp = maxOf(latest, lastCompleted, lastCreated),
             lastMessageId = lastMsg.id,
@@ -1347,6 +1362,8 @@ text = e.message ?: getAppString(R.string.send_failed),
             return HistoryStats(
                 totalElapsed = stored.totalElapsed,
                 messageCount = tail.size.toLong(),
+                userMessages = stored.userMessages,
+                assistantMessages = stored.assistantMessages,
                 firstMessages = stored.firstMessages,
                 computed = true,
                 lastTimestamp = stored.lastTimestamp,
@@ -1357,16 +1374,20 @@ text = e.message ?: getAppString(R.string.send_failed),
         var turnStart = 0L
         var turnEnd = 0L
         var latest = 0L
+        var userCount = 0L
+        var assistantCount = 0L
         for ((msg, parts) in newMessages) {
             val created = serverTimeToMillis(msg.time?.created)
             val completed = serverTimeToMillis(msg.time?.completed)
             if (created > latest) latest = created
             if (completed > latest) latest = completed
             if (msg.role == "user") {
+                userCount++
                 if (turnStart > 0L && turnEnd > turnStart) total += turnEnd - turnStart
                 turnStart = created
                 turnEnd = created
             } else {
+                if (msg.role == "assistant") assistantCount++
                 if (turnStart > 0L && completed > turnEnd) turnEnd = completed
             }
         }
@@ -1379,6 +1400,8 @@ text = e.message ?: getAppString(R.string.send_failed),
         return HistoryStats(
             totalElapsed = stored.totalElapsed + total,
             messageCount = tail.size.toLong(),
+            userMessages = stored.userMessages + userCount,
+            assistantMessages = stored.assistantMessages + assistantCount,
             firstMessages = stored.firstMessages,
             computed = true,
             lastTimestamp = maxOf(stored.lastTimestamp, latest, lastCompleted, lastCreated),
@@ -1392,6 +1415,8 @@ text = e.message ?: getAppString(R.string.send_failed),
             StoredHistoryStats(
                 totalElapsed = stats.totalElapsed,
                 messageCount = stats.messageCount,
+                userMessages = stats.userMessages,
+                assistantMessages = stats.assistantMessages,
                 firstMessages = stats.firstMessages,
                 lastTimestamp = stats.lastTimestamp,
                 lastMessageId = stats.lastMessageId,
