@@ -654,7 +654,7 @@ private fun HistoryStatsDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (stats.computed) {
-                    StatText(stringResource(R.string.history_stats_total, stats.totalElapsed / 1000.0), bold = true)
+                    StatText(stringResource(R.string.history_stats_total, stats.totalElapsed / 1000.0))
                     Text(
                         stringResource(R.string.history_stats_messages, stats.messageCount, stats.userMessages, stats.assistantMessages),
                         style = MaterialTheme.typography.bodySmall,
@@ -1945,7 +1945,7 @@ private fun SessionDetailsScreen(
                 val displayAssistant = hist?.assistantMessages ?: (stored?.assistantMessages ?: 0L)
 
                 if (displayElapsed > 0L) {
-                    StatText(stringResource(R.string.session_details_history_total, displayElapsed / 1000.0), bold = true)
+                    StatText(stringResource(R.string.session_details_history_total, displayElapsed / 1000.0))
                     if (displayMessages > 0L) {
                         Text(
                             stringResource(R.string.session_details_history_messages, displayMessages, displayUser, displayAssistant),
