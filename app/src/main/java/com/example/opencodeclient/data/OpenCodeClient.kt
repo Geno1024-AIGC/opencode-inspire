@@ -60,10 +60,12 @@ class OpenCodeClient(
         method: String,
         path: String,
         body: String? = null,
+        headers: Map<String, String> = emptyMap(),
         deserialize: (String) -> T,
     ): T = suspendCancellableCoroutine { cont ->
         val reqBuilder = Request.Builder().url("$base$path")
         authHeader?.let { reqBuilder.header("Authorization", it) }
+        headers.forEach { (k, v) -> reqBuilder.header(k, v) }
         val bodyProvider: () -> okhttp3.RequestBody =
             { (body ?: "").toRequestBody(jsonMedia) }
         when (method) {
@@ -116,7 +118,9 @@ class OpenCodeClient(
     suspend fun listDirectory(locationDir: String? = null, path: String? = null): List<FileNode> =
         execute(
             "GET",
-            "/api/fs/list${queryOf(mapOf("location.directory" to locationDir, "path" to path))}",
+            "/api/fs/list${queryOf(mapOf("directory" to locationDir, "path" to path))}",
+            headers = if (locationDir.isNullOrBlank()) emptyMap()
+            else mapOf("x-opencode-directory" to locationDir),
         ) { text ->
             if (text.isBlank()) emptyList()
             else {
