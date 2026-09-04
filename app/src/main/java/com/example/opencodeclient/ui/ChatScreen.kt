@@ -1500,6 +1500,7 @@ private fun buildToolDetails(part: PartUi, labels: ToolLabels): ToolDetails {
         "write", "edit" -> fileEditDetails(tool, inputObj, trimmed, outputStr, labels)
         "websearch" -> webSearchDetails(trimmed)
         "webfetch" -> webFetchDetails(inputObj, trimmed)
+        "grep", "rg" -> grepDetails(trimmed, outputStr)
         else -> genericDetails(trimmed, outputStr)
     }
 }
@@ -1552,6 +1553,16 @@ private fun summarizeInput(tool: String, o: JsonObject): String {
     }
     val url = o["url"]?.jsonPrimitive?.contentOrNull
     if (url != null) return url
+    val pattern = o["pattern"]?.jsonPrimitive?.contentOrNull
+    if (pattern != null) {
+        val include = o["include"]?.jsonPrimitive?.contentOrNull ?: o["glob"]?.jsonPrimitive?.contentOrNull
+        val gpath = o["path"]?.jsonPrimitive?.contentOrNull
+        return buildString {
+            append("🔎 $pattern")
+            if (!include.isNullOrBlank() && include != "**/*") append("  (in $include)")
+            if (!gpath.isNullOrBlank()) append("  @ $gpath")
+        }
+    }
     val path = o["path"]?.jsonPrimitive?.contentOrNull
     if (path != null) return path
     return prettyText(o.toString())
@@ -1622,6 +1633,12 @@ private fun webFetchDetails(inputObj: JsonObject?, trimmed: String): ToolDetails
         outputPrefix = if (url != null) "↗ $url" else null,
         outputText = summarizeText(trimmed),
     )
+}
+
+private fun grepDetails(trimmed: String, raw: String): ToolDetails {
+    val lines = trimmed.lineSequence().filter { it.isNotBlank() }.toList()
+    val note = if (lines.isEmpty()) null else "${lines.size} matches"
+    return ToolDetails(outputText = summarizeText(trimmed), note = note)
 }
 
 private fun genericDetails(trimmed: String, raw: String): ToolDetails {
