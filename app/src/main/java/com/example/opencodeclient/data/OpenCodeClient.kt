@@ -117,6 +117,7 @@ class OpenCodeClient(
         execute("GET", "/file?path=${java.net.URLEncoder.encode(path ?: "", "UTF-8")}") { text ->
             if (text.isBlank()) emptyList()
             else {
+                android.util.Log.d("FileBrowser", "raw /file body: $text")
                 val root = json.parseToJsonElement(text)
                 if (root is JsonArray) {
                     json.decodeFromJsonElement(ListSerializer(FileNode.serializer()), root)
