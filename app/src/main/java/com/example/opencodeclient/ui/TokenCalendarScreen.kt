@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -406,12 +407,15 @@ private fun PeriodColumns(
                 }
             }
         }
-        Spacer(Modifier.width(8.dp))
-        Column(
+        Spacer(Modifier.width(10.dp))
+        Box(
             Modifier
-                .padding(4.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                .padding(horizontal = 4.dp, vertical = 2.dp),
+                .width(1.dp)
+                .fillMaxHeight()
+                .background(labelColor.copy(alpha = 0.4f)),
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
