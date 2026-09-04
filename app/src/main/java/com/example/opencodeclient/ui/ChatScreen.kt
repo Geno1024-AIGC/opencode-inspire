@@ -497,17 +497,14 @@ fun ChatScreen(
          }
      }
 
-      if (showFiles) {
-        val directory = activeSession?.directory
-        if (directory != null) {
+       if (showFiles) {
             ModalBottomSheet(onDismissRequest = { showFiles = false }) {
                 FileBrowserSheet(
-                    root = directory,
+                    root = "/",
                     viewModel = viewModel,
                     onClose = { showFiles = false },
                 )
             }
-        }
     }
 
     if (pendingQuestions.isNotEmpty()) {

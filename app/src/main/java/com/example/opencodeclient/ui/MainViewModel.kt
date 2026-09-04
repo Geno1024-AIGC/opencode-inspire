@@ -1592,10 +1592,7 @@ text = e.message ?: getAppString(R.string.send_failed),
 
     suspend fun listFiles(path: String): List<com.example.opencodeclient.data.FileNode> {
         val c = client ?: return emptyList()
-        android.util.Log.d("FileBrowser", "listFiles path=$path")
-        val result = withContext(Dispatchers.IO) { c.listFiles(path) }
-        android.util.Log.d("FileBrowser", "listFiles result count=${result.size} -> ${result.map { it.name }}")
-        return result
+        return withContext(Dispatchers.IO) { c.listFiles(path) }
     }
 
     fun openFileInChat(path: String) {
