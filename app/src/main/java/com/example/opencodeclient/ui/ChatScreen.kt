@@ -166,6 +166,7 @@ fun ChatScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     var input by rememberSaveable { mutableStateOf("") }
+    var commandMenuOpen by remember { mutableStateOf(false) }
     var showFiles by rememberSaveable { mutableStateOf(false) }
     var userScrolledAway by remember { mutableStateOf(false) }
     var rawMessage by remember { mutableStateOf<ChatMessage?>(null) }
@@ -379,7 +380,7 @@ fun ChatScreen(
             ) {
                 Box(modifier = Modifier.weight(1f)) {
                     val trimmed = input.trimStart()
-                    val showCommands = input.startsWith("/") && !trimmed.contains(" ")
+                    val showCommands = commandMenuOpen && input.startsWith("/") && !trimmed.contains(" ")
                     if (attachedFile != null) {
                         Row(
                             modifier = Modifier
@@ -408,14 +409,17 @@ fun ChatScreen(
                     }
                     OutlinedTextField(
                         value = input,
-                        onValueChange = { input = it },
+                        onValueChange = {
+                            input = it
+                            if (it.startsWith("/") && !it.trimStart().contains(" ")) commandMenuOpen = true
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text(stringResource(R.string.chat_placeholder)) },
                     )
                     if (showCommands) {
                         DropdownMenu(
                             expanded = true,
-                            onDismissRequest = { input = "" },
+                            onDismissRequest = { commandMenuOpen = false },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (commands.isEmpty()) {
