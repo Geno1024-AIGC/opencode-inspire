@@ -25,6 +25,7 @@
     <!-- Drawer -->
     <string name="drawer_close">Close</string>
     <string name="drawer_settings">Settings</string>
+    <string name="favorite_toggle">Toggle favorite</string>
     <string name="drawer_servers">Servers</string>
     <string name="drawer_projects">Projects</string>
     <string name="drawer_refresh">Refresh</string>
