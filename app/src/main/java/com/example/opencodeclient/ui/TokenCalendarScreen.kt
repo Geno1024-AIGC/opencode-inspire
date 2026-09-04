@@ -383,7 +383,7 @@ private fun PeriodColumns(
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                             for (hour in 0 until 24) {
-                                HourCircle(value = m[hour] ?: 0L, max = max, size = circle, gap = gap, mono = mono, primary = primary)
+                                HourCircle(value = m[hour] ?: 0L, max = max, size = circle, gap = gap, primary = primary)
                             }
                         }
                     }
@@ -408,7 +408,7 @@ private fun PeriodColumns(
             )
             Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                 for (hour in 0 until 24) {
-                    HourCircle(value = totals[hour], max = max, size = circle, gap = gap, mono = mono, primary = primary)
+                    HourCircle(value = totals[hour], max = max, size = circle, gap = gap, primary = primary)
                 }
             }
         }
@@ -421,7 +421,6 @@ private fun HourCircle(
     max: Long,
     size: androidx.compose.ui.unit.Dp,
     gap: androidx.compose.ui.unit.Dp,
-    mono: androidx.compose.ui.text.font.FontFamily,
     primary: Color,
 ) {
     val text = if (value > 0L) formatTokensCompact(value) else ""
@@ -439,7 +438,6 @@ private fun HourCircle(
             Text(
                 text,
                 fontSize = if (text.length <= 3) 9.sp else 7.sp,
-                fontFamily = mono,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
             )
