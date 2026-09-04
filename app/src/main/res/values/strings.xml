@@ -244,7 +244,7 @@
     <string name="session_details_history_full">Full</string>
     <string name="session_details_history_total">Cumulative time: %.1fs</string>
     <string name="session_details_history_upto">Through: %1$s</string>
-    <string name="session_details_history_messages">Messages: %1$d</string>
+    <string name="session_details_history_messages">Messages: %1$d ↑%2$d ↓%3$d</string>
     <string name="session_details_history_exchanges">Exchanges: %1$d</string>
     <string name="session_details_history_user">By me: %1$d</string>
     <string name="session_details_history_assistant">By assistant: %1$d</string>
@@ -254,7 +254,7 @@
     <string name="history_stats_title">History stats</string>
     <string name="history_stats_exchanges">Exchanges: %1$d</string>
     <string name="history_stats_total">Total conversation time: %.1fs</string>
-    <string name="history_stats_messages">Messages: %1$d</string>
+    <string name="history_stats_messages">Messages: %1$d ↑%2$d ↓%3$d</string>
     <string name="history_stats_user">Sent by me: %1$d</string>
     <string name="history_stats_assistant">Sent by assistant: %1$d</string>
     <string name="history_stats_first5">First 5 messages</string>
