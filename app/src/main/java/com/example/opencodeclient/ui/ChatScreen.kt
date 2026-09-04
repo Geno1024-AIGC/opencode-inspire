@@ -226,7 +226,8 @@ fun ChatScreen(
     }
 
     var liveElapsed by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(sending) {
+    val latestUserKey = messages.lastOrNull { it.role == "user" && it.text.isNotBlank() }?.id ?: ""
+    LaunchedEffect(sending, latestUserKey) {
         if (sending) {
             val start = System.currentTimeMillis()
             liveElapsed = 0L
