@@ -612,23 +612,36 @@ private fun ServerFolderBrowser(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var currentPath by rememberSaveable { mutableStateOf("/") }
+    var baseDir by remember { mutableStateOf<String?>(null) }
+    var currentPath by rememberSaveable { mutableStateOf("") }
     var entries by remember { mutableStateOf(emptyList<com.example.opencodeclient.data.FileNode>()) }
-    var loading by remember { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(currentPath) {
+    LaunchedEffect(Unit) {
+        baseDir = viewModel.currentWorkingDir()
+        loading = false
+    }
+
+    LaunchedEffect(baseDir, currentPath) {
+        if (baseDir == null) return@LaunchedEffect
         loading = true
-        entries = viewModel.listServerFiles(currentPath)
+        entries = viewModel.listServerFiles(baseDir, currentPath)
         loading = false
     }
 
     val dirs = entries.filter { it.type == "directory" || it.children != null }
+    val absBase = baseDir
+    val displayPath = buildString {
+        if (!absBase.isNullOrBlank()) append(absBase.trimEnd('/'))
+        if (currentPath.isNotEmpty() && currentPath != "/") append("/").append(currentPath.trimStart('/'))
+        if (isEmpty()) append("/")
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                currentPath,
+                displayPath,
                 style = MaterialTheme.typography.bodyMedium,
                 fontFamily = MonoFontFamily,
                 maxLines = 1,
@@ -636,52 +649,55 @@ private fun ServerFolderBrowser(
             )
         },
         text = {
-            if (loading) {
-                Text(stringResource(R.string.connecting), style = MaterialTheme.typography.bodySmall)
-            } else if (dirs.isEmpty()) {
-                Text(stringResource(R.string.add_project_browse_empty), style = MaterialTheme.typography.bodySmall)
-            } else {
-                LazyColumn {
-                    if (currentPath != "/") {
-                        item {
+            when {
+                loading -> Text(stringResource(R.string.connecting), style = MaterialTheme.typography.bodySmall)
+                baseDir == null -> Text(stringResource(R.string.add_project_browse_empty), style = MaterialTheme.typography.bodySmall)
+                dirs.isEmpty() -> Text(stringResource(R.string.add_project_browse_empty), style = MaterialTheme.typography.bodySmall)
+                else -> {
+                    LazyColumn {
+                        if (currentPath.isNotEmpty()) {
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { currentPath = parentOfRelative(currentPath) }
+                                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(painterResource(R.drawable.ic_folder), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.padding(horizontal = 4.dp))
+                                    Text("..", style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                        items(dirs) { node ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
-                                        val parent = currentPath.trimEnd('/').substringBeforeLast('/')
-                                        currentPath = parent.ifBlank { "/" }
-                                    }
+                                    .clickable { currentPath = node.path }
                                     .padding(vertical = 10.dp, horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(painterResource(R.drawable.ic_folder), null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(painterResource(R.drawable.ic_folder), null, tint = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.padding(horizontal = 4.dp))
-                                Text("..", style = MaterialTheme.typography.bodyMedium)
+                                Text(node.name, style = MaterialTheme.typography.bodyMedium)
                             }
-                        }
-                    }
-                    items(dirs) { node ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    currentPath = node.path.ifBlank { "${currentPath.trimEnd('/')}/${node.name}" }
-                                }
-                                .padding(vertical = 10.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-            Icon(painterResource(R.drawable.ic_folder), null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.padding(horizontal = 4.dp))
-                            Text(node.name, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onPick(currentPath) }) {
-                Text(stringResource(R.string.open))
-            }
+            TextButton(
+                enabled = baseDir != null,
+                onClick = {
+                    val abs = buildString {
+                        append(baseDir?.trimEnd('/') ?: "")
+                        if (currentPath.isNotEmpty() && currentPath != "/") append("/").append(currentPath.trimStart('/'))
+                    }
+                    onPick(abs)
+                },
+            ) { Text(stringResource(R.string.open)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
@@ -689,4 +705,11 @@ private fun ServerFolderBrowser(
             }
         },
     )
+}
+
+private fun parentOfRelative(path: String): String {
+    val p = path.trimEnd('/')
+    val idx = p.lastIndexOf('/')
+    if (idx <= 0) return ""
+    return p.substring(0, idx)
 }
