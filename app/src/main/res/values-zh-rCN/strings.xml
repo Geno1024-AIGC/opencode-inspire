@@ -141,7 +141,7 @@
     <string name="stats_tab_monthly">月度</string>
     <string name="stats_tab_weekly">周度</string>
     <string name="stats_total">总计</string>
-    <string name="stats_week_dialog_title">第 %1$d 年 第%2$d 周</string>
+    <string name="stats_week_dialog_title">%1$d年第%2$d周</string>
     <string name="settings_token_history">使用日历</string>
     <string name="settings_token_history_sub">每日 Token 用量与耗时</string>
 
