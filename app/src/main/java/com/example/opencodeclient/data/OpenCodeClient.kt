@@ -77,6 +77,7 @@ class OpenCodeClient(
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 if (cont.isCancelled) return
+                android.util.Log.d("ApiError", "network failure for $path", e)
                 cont.resumeWithException(e)
             }
 
@@ -85,6 +86,7 @@ class OpenCodeClient(
                 response.use {
                     val text = it.body?.string().orEmpty()
                     if (!it.isSuccessful) {
+                        android.util.Log.d("ApiError", "HTTP ${it.code} for $path: $text")
                         cont.resumeWithException(IOException("HTTP ${it.code}: $text"))
                         return
                     }
