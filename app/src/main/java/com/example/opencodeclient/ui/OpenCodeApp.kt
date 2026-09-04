@@ -459,6 +459,7 @@ private fun ServersDialog(
     var url by rememberSaveable { mutableStateOf("") }
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var adding by rememberSaveable { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -484,38 +485,46 @@ private fun ServersDialog(
                         }
                     }
                 }
-                HorizontalDivider()
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = { url = it },
-                    label = { Text(stringResource(R.string.server_new_url)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = { Text(stringResource(R.string.server_username)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text(stringResource(R.string.server_password)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                TextButton(
-                    enabled = url.isNotBlank(),
-                    onClick = {
-                        viewModel.saveServerProfile(ServerProfile(url.trim(), username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }))
-                        url = ""
-                        username = ""
-                        password = ""
-                    },
-                    modifier = Modifier.align(Alignment.End),
-                ) { Text(stringResource(R.string.server_save)) }
+                if (adding) {
+                    HorizontalDivider()
+                    OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it },
+                        label = { Text(stringResource(R.string.server_new_url)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = { username = it },
+                        label = { Text(stringResource(R.string.server_username)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text(stringResource(R.string.server_password)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    TextButton(
+                        enabled = url.isNotBlank(),
+                        onClick = {
+                            viewModel.saveServerProfile(ServerProfile(url.trim(), username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }))
+                            url = ""
+                            username = ""
+                            password = ""
+                            adding = false
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                    ) { Text(stringResource(R.string.server_save)) }
+                } else {
+                    TextButton(
+                        onClick = { adding = true },
+                        modifier = Modifier.align(Alignment.End),
+                    ) { Text("+  ${stringResource(R.string.server_add)}") }
+                }
             }
         },
         confirmButton = {
