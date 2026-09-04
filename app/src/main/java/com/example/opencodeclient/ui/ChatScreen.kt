@@ -1680,26 +1680,32 @@ private fun TokenStatsBar(
             .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                horizontalAlignment = Alignment.Start,
-                verticalArrangement = Arrangement.spacedBy(1.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                TokenStatLine(label = "in", value = input, short = shortTokens)
-                TokenStatLine(label = "out", value = output, short = shortTokens)
-            }
-            Text(
-                formatTokens(total, shortTokens),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontFamily = MonoFontFamily,
-            )
-            if (contextWindow > 0 && (total > 0 || promptTokens > 0)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.spacedBy(1.dp),
+                    ) {
+                        TokenStatLine(label = "in", value = input, short = shortTokens)
+                        TokenStatLine(label = "out", value = output, short = shortTokens)
+                        TokenStatLine(label = "infer", value = reasoning, short = shortTokens)
+                    }
+                    Text(
+                        formatTokens(total, shortTokens),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = MonoFontFamily,
+                    )
+                }
+                if (contextWindow > 0 && (total > 0 || promptTokens > 0)) {
                 Column(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(1.dp),
