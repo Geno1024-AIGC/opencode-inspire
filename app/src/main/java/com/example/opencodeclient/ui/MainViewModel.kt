@@ -193,6 +193,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val hourByWeek: StateFlow<Map<String, Map<Int, Long>>> = _hourByWeek.asStateFlow()
 
     private val _tokenSync = MutableStateFlow(0L)
+
+    private val _tokenSyncedAt = MutableStateFlow(0L)
+
+    val tokenSyncedAt: StateFlow<Long> = _tokenSyncedAt.asStateFlow()
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
     private var sendingWatchdog: Job? = null
@@ -333,6 +337,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             settings.tokenSync.collect { _tokenSync.value = it }
         }
+        viewModelScope.launch {
+            settings.tokenSyncedAt.collect { _tokenSyncedAt.value = it }
+        }
         createNotificationChannel()
     }
 
@@ -448,8 +455,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun incrementTokenHistory() = runTokenLoad(incremental = true)
 
-    fun refreshTokenHistory() = runTokenLoad(incremental = _tokenSync.value > 0L)
-
     private fun runTokenLoad(incremental: Boolean) {
         if (_tokenHistoryLoading.value) return
         _tokenHistoryLoading.value = true
@@ -542,6 +547,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _tokenSync.value = maxMsgMs
                     if (coroutineContext.isActive) {
                         val todayStr = now.toString()
+                        val syncedAtMs = System.currentTimeMillis()
+                        _tokenSyncedAt.value = syncedAtMs
                         settings.saveTokenHistory(
                             tokens.filterKeys { it != todayStr },
                             elapsed.filterKeys { it != todayStr },
@@ -550,6 +557,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             monthOut.filterKeys { it != currentMonth },
                             weekOut.filterKeys { it != currentWeekStart.toString() },
                             maxMsgMs,
+                            syncedAtMs,
                         )
                     }
                 }

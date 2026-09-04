@@ -129,6 +129,7 @@
     <string name="calendar_title">Usage calendar</string>
     <string name="calendar_incremental">Incremental</string>
     <string name="calendar_full">Full</string>
+    <string name="calendar_last_updated">Cached data as of: %1$s</string>
     <string name="calendar_table_total">Total</string>
     <string name="calendar_table_month">Month</string>
     <string name="calendar_table_token">Token</string>
