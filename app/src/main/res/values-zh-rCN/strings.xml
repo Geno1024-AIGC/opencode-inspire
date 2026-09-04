@@ -144,6 +144,7 @@
     <string name="stats_week_dialog_title">%1$d 年 第 %2$d 周</string>
     <string name="settings_token_history">使用日历</string>
     <string name="settings_token_history_sub">每日 Token 用量与耗时</string>
+    <string name="settings_open_calendar">查看</string>
 
     <!-- Updates -->
     <string name="settings_updates">更新</string>
