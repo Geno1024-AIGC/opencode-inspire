@@ -13,6 +13,14 @@ your phone.
 - Browse the server filesystem to choose a project / working directory
 - Normal chat conversation with OpenCode, including tool-call display and the
   ability to abort a running turn
+- Per-session file browser: list the session's project files, preview a file's
+  content, then send it to OpenCode as a prompt (send only happens on a tap of
+  **Send to AI**)
+- Compact a running session via `executeCommand(sid, "compact")`
+- Per-session history stats (messages, tool calls, tokens, elapsed time) with
+  cumulative delta arrows
+- Bookmark / star sessions to pin them at the top of the drawer
+- Streaming notification while OpenCode is responding
 - Dark / light theme
 
 ## Requirements
