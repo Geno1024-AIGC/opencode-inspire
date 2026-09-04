@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,7 +37,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -223,39 +223,54 @@ private fun DailyCalendarTab(
 
 @Composable
 private fun MonthColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale) {
-    val periods = buckets.toSortedMap().map { (key, m) -> key to m }
+    val sorted = buckets.toSortedMap()
+    val periods = sorted.keys.toList()
+    val labels = periods.map { key ->
+        runCatching { YearMonth.parse(key).format(DateTimeFormatter.ofPattern("yyyy-MM", locale)) }
+            .getOrDefault(key)
+    }
     PeriodColumns(
-        periods = periods,
-        labelFor = { key, _ ->
-            runCatching {
-                YearMonth.parse(key).format(DateTimeFormatter.ofPattern("MMM", locale))
-            }.getOrDefault(key)
-        },
+        periods = sorted.map { it.key to it.value },
+        labels = labels,
+        circle = 24.dp,
+        gap = 2.dp,
     )
 }
 
 @Composable
 private fun WeekColumnCard(buckets: Map<String, Map<Int, Long>>, locale: Locale) {
-    val periods = buckets.toSortedMap().map { (key, m) -> key to m }
+    val sorted = buckets.toSortedMap()
+    val periods = sorted.keys.toList()
+    val labels = periods.mapIndexed { i, key ->
+        val date = runCatching { LocalDate.parse(key) }.getOrNull()
+        if (date == null) {
+            key
+        } else {
+            val prev = if (i > 0) runCatching { LocalDate.parse(periods[i - 1]) }.getOrNull() else null
+            if (prev == null || date.year != prev.year) {
+                date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd", locale))
+            } else {
+                date.format(DateTimeFormatter.ofPattern("MM-dd", locale))
+            }
+        }
+    }
     PeriodColumns(
-        periods = periods,
-        labelFor = { key, _ ->
-            runCatching {
-                LocalDate.parse(key).format(DateTimeFormatter.ofPattern("MM-dd", locale))
-            }.getOrDefault(key)
-        },
+        periods = sorted.map { it.key to it.value },
+        labels = labels,
+        circle = 24.dp,
+        gap = 2.dp,
     )
 }
 
-private val PeriodHeaderH = 15.dp
+private val PeriodHeaderH = 14.dp
 
 @Composable
 private fun PeriodColumns(
     periods: List<Pair<String, Map<Int, Long>>>,
-    labelFor: (key: String, index: Int) -> String,
+    labels: List<String>,
+    circle: androidx.compose.ui.unit.Dp,
+    gap: androidx.compose.ui.unit.Dp,
 ) {
-    val circle = 36.dp
-    val gap = 4.dp
     val mono = MonoFontFamily
     val primary = MaterialTheme.colorScheme.primary
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -274,41 +289,40 @@ private fun PeriodColumns(
 
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
         Column(
-            Modifier.width(30.dp),
+            Modifier.width(24.dp),
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
             Box(Modifier.height(PeriodHeaderH)) {}
             for (hour in 0 until 24) {
                 Box(Modifier.height(circle), contentAlignment = Alignment.CenterStart) {
-                    if (hour % 6 == 0) {
-                        Text(
-                            "%02d".format(Locale.ROOT, hour),
-                            fontSize = 9.sp,
-                            fontFamily = mono,
-                            color = labelColor,
-                        )
-                    }
+                    Text(
+                        "%02d".format(Locale.ROOT, hour),
+                        fontSize = 8.sp,
+                        fontFamily = mono,
+                        color = labelColor,
+                        maxLines = 1,
+                    )
                 }
             }
         }
         Spacer(Modifier.width(4.dp))
         Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.Top) {
-                for ((key, m) in periods) {
+                periods.forEachIndexed { index, (_, m) ->
                     Column(
-                        Modifier.padding(end = 4.dp),
+                        Modifier.padding(end = 3.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
-                            labelFor(key, 0),
-                            fontSize = 10.sp,
+                            labels.getOrElse(index) { "" },
+                            fontSize = 9.sp,
                             color = labelColor,
                             maxLines = 1,
                             modifier = Modifier.height(PeriodHeaderH),
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                             for (hour in 0 until 24) {
-                                HourCircle(value = m[hour] ?: 0L, max = max, size = circle, mono = mono, primary = primary)
+                                HourCircle(value = m[hour] ?: 0L, max = max, size = circle, gap = gap, mono = mono, primary = primary)
                             }
                         }
                     }
@@ -316,24 +330,58 @@ private fun PeriodColumns(
             }
         }
         Spacer(Modifier.width(8.dp))
-        VerticalDivider()
-        Spacer(Modifier.width(6.dp))
         Column(
-            Modifier.padding(start = 2.dp),
+            Modifier
+                .padding(4.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                .padding(horizontal = 4.dp, vertical = 2.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
                 stringResource(R.string.stats_total),
-                fontSize = 10.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
-                color = labelColor,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.height(PeriodHeaderH),
             )
             Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                 for (hour in 0 until 24) {
-                    HourCircle(value = totals[hour], max = max, size = circle, mono = mono, primary = primary)
+                    HourCircle(value = totals[hour], max = max, size = circle, gap = gap, mono = mono, primary = primary)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HourCircle(
+    value: Long,
+    max: Long,
+    size: androidx.compose.ui.unit.Dp,
+    gap: androidx.compose.ui.unit.Dp,
+    mono: androidx.compose.ui.text.font.FontFamily,
+    primary: Color,
+) {
+    val text = if (value > 0L) formatTokensCompact(value) else ""
+    val bg = if (value > 0L) {
+        val frac = (value.toDouble() / max.toDouble()).toFloat().coerceIn(0f, 1f)
+        primary.copy(alpha = (0.18f + 0.72f * frac).coerceIn(0.18f, 0.9f))
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    }
+    Box(
+        Modifier.size(size).padding(gap / 2).background(bg, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (text.isNotEmpty()) {
+            Text(
+                text,
+                fontSize = if (text.length <= 3) 9.sp else 7.sp,
+                fontFamily = mono,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+            )
         }
     }
 }
