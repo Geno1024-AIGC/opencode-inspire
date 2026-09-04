@@ -116,50 +116,50 @@ fun TokenCalendarScreen(
             )
         },
     ) { padding ->
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            val monthToks = history.filterKeys { isInMonth(it, shownMonth) }.values.sum()
-            val monthElapsed = elapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
-            SummaryTable(
-                totalTokens = totalTokens,
-                monthTokens = monthToks,
-                totalElapsed = totalElapsed,
-                monthElapsed = monthElapsed,
-            )
-            if (syncedAt > 0L && !hiddenSyncAt) {
-                Text(
-                    stringResource(
-                        R.string.calendar_last_updated,
-                        java.time.Instant.ofEpochMilli(syncedAt)
-                            .atZone(java.time.ZoneId.systemDefault())
-                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", locale)),
-                    ),
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            val viewportH = maxHeight
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                val monthToks = history.filterKeys { isInMonth(it, shownMonth) }.values.sum()
+                val monthElapsed = elapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
+                SummaryTable(
+                    totalTokens = totalTokens,
+                    monthTokens = monthToks,
+                    totalElapsed = totalElapsed,
+                    monthElapsed = monthElapsed,
                 )
-            }
-            if (loading) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-            }
-            PrimaryTabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_daily)) })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
-                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
-            }
-            when (tab) {
-                0 -> Column(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    DailyCalendarTab(
+                if (syncedAt > 0L && !hiddenSyncAt) {
+                    Text(
+                        stringResource(
+                            R.string.calendar_last_updated,
+                            java.time.Instant.ofEpochMilli(syncedAt)
+                                .atZone(java.time.ZoneId.systemDefault())
+                                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", locale)),
+                        ),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                }
+                if (loading) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                }
+                PrimaryTabRow(selectedTabIndex = tab) {
+                    Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_daily)) })
+                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
+                    Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
+                }
+                when (tab) {
+                    0 -> DailyCalendarTab(
                         history = history,
                         elapsed = elapsed,
                         shownMonth = shownMonth,
@@ -169,9 +169,9 @@ fun TokenCalendarScreen(
                         onNext = { shownMonth = shownMonth.plusMonths(1) },
                         onSelect = { selected = it },
                     )
+                    1 -> MonthColumnCard(buckets = hourByMonth, locale = locale, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    2 -> WeekColumnCard(buckets = hourByWeek, locale = locale, modifier = Modifier.fillMaxWidth().height(viewportH))
                 }
-                1 -> MonthColumnCard(buckets = hourByMonth, locale = locale, modifier = Modifier.weight(1f))
-                2 -> WeekColumnCard(buckets = hourByWeek, locale = locale, modifier = Modifier.weight(1f))
             }
         }
     }
