@@ -923,10 +923,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    suspend fun listServerFiles(path: String? = null): List<com.example.opencodeclient.data.FileNode> {
+    suspend fun currentWorkingDir(): String? {
+        val c = client ?: return null
+        return try {
+            withContext(Dispatchers.IO) { c.currentProject()?.worktree }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    suspend fun listServerFiles(locationDir: String?, path: String? = null): List<com.example.opencodeclient.data.FileNode> {
         val c = client ?: return emptyList()
         return try {
-            withContext(Dispatchers.IO) { c.listDirectory(null, path) }
+            withContext(Dispatchers.IO) { c.listDirectory(locationDir, path) }
         } catch (_: Exception) {
             emptyList()
         }
