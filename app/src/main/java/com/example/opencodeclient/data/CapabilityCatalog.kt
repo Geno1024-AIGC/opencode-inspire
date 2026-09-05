@@ -213,11 +213,17 @@ object CapabilityCatalog {
         ),
     )
 
-    fun stateFor(spec: FeatureSpec, report: CapabilityReport?, commandNames: Set<String>): CapabilityState {
+    fun stateFor(
+        spec: FeatureSpec,
+        report: CapabilityReport?,
+        commandNames: Set<String>?,
+        serverVersion: String?,
+    ): CapabilityState {
         if (spec.builtin) return CapabilityState.BUILTIN
         report?.let { r ->
             val verified = when {
-                spec.slashName != null -> if (spec.slashName in commandNames) true else false
+                spec.slashName != null ->
+                    if (commandNames == null) null else spec.slashName in commandNames
                 spec.reportKey != null && r.apiPaths.isEmpty() && r.probedV1 -> r.probeValue(spec.reportKey)
                 spec.routeKey != null && r.apiPaths.isNotEmpty() ->
                     r.apiPaths.any { it.contains(spec.routeKey) }
@@ -227,7 +233,7 @@ object CapabilityCatalog {
                 return if (verified) CapabilityState.VERIFIED_SUPPORTED else CapabilityState.VERIFIED_UNSUPPORTED
             }
         }
-        val version = Version.parse(report?.version)
+        val version = Version.parse(report?.version) ?: Version.parse(serverVersion)
         if (version != null && spec.minVersion != null) {
             return if (version >= spec.minVersion) CapabilityState.ESTIMATED_SUPPORTED
             else CapabilityState.ESTIMATED_UNSUPPORTED
@@ -235,6 +241,10 @@ object CapabilityCatalog {
         return CapabilityState.UNKNOWN
     }
 
-    fun stateForAll(report: CapabilityReport?, commandNames: Set<String>): List<FeatureStatus> =
-        features.map { FeatureStatus(it, stateFor(it, report, commandNames)) }
+    fun stateForAll(
+        report: CapabilityReport?,
+        commandNames: Set<String>?,
+        serverVersion: String?,
+    ): List<FeatureStatus> =
+        features.map { FeatureStatus(it, stateFor(it, report, commandNames, serverVersion)) }
 }

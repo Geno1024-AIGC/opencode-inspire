@@ -241,6 +241,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _capabilitiesDetecting = MutableStateFlow(false)
     val capabilitiesDetecting: StateFlow<Boolean> = _capabilitiesDetecting.asStateFlow()
 
+    private val _serverVersion = MutableStateFlow<String?>(null)
+    val serverVersion: StateFlow<String?> = _serverVersion.asStateFlow()
+
+    private val _commandsLoaded = MutableStateFlow(false)
+
     private val _downloadPercent = MutableStateFlow(-1)
     val downloadPercent: StateFlow<Int> = _downloadPercent.asStateFlow()
     private val _downloadDone = MutableStateFlow(0L)
@@ -295,8 +300,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val assistantBubbleColor: StateFlow<Long> = _assistantBubbleColor.asStateFlow()
 
     val featureStatus: StateFlow<List<FeatureStatus>> =
-        combine(_capabilities, _commands) { report, cmds ->
-            CapabilityCatalog.stateForAll(report, cmds.map { it.name }.toSet())
+        combine(_capabilities, _commands, _commandsLoaded, _serverVersion) {
+                report, cmds, loaded, version ->
+            CapabilityCatalog.stateForAll(
+                report,
+                if (loaded) cmds.map { it.name }.toSet() else null,
+                version,
+            )
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     init {
@@ -627,6 +637,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val cli = OpenCodeClient(serverUrl, username, password)
                 val health = withContext(Dispatchers.IO) { cli.health() }
                 if (!health.healthy) throw IllegalStateException("Server is not healthy")
+                _serverVersion.value = health.version
                 client = cli
                 _activeSession.value = null
                 _messages.value = emptyList()
@@ -794,7 +805,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         return@launch
                     }
                     val cli = OpenCodeClient(saved, _authUsername.value, _authPassword.value)
-                    cli.health()
+                    _serverVersion.value = cli.health().version
                     client = cli
                     probeCapabilities(cli)
                 }
@@ -829,6 +840,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _commands.value = withContext(Dispatchers.IO) {
                 c.commands(_activeSession.value?.directory)
             }
+            _commandsLoaded.value = true
         }
         runCatching {
             _models.value = withContext(Dispatchers.IO) {
