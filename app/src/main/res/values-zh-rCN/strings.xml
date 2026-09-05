@@ -173,6 +173,8 @@
 
     <!-- Updates -->
     <string name="settings_updates">更新</string>
+    <string name="settings_about">关于</string>
+    <string name="about_repo">开源仓库</string>
     <string name="channel_release">正式版</string>
     <string name="channel_canary">Canary</string>
     <string name="settings_ghproxy">镜像下载 (ghproxy)</string>

@@ -1,5 +1,7 @@
 package com.example.opencodeclient.ui
 
+import android.content.Intent
+import android.net.Uri
 import com.example.opencodeclient.BuildConfig
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -55,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -298,6 +301,38 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Token History ──
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    SectionLabel(R.string.settings_token_history)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onOpenCalendar)
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_token_history), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(R.string.settings_token_history_sub),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.settings_open_calendar),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
+            }
+
             // ── Updates ──
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -352,42 +387,47 @@ fun SettingsScreen(
                             color = if (updateInfo != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Text(
-                        "v${BuildConfig.VERSION_NAME}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = MonoFontFamily,
-                    )
                 }
             }
 
-            // ── Token History ──
+            // ── About ──
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    SectionLabel(R.string.settings_token_history)
+                    val context = LocalContext.current
+                    SectionLabel(R.string.settings_about)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(onClick = onOpenCalendar)
+                            .clickable {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(
+                                            Intent.ACTION_VIEW,
+                                            Uri.parse("https://github.com/Geno1024-AIGC/opencode-inspire"),
+                                        ),
+                                    )
+                                }
+                            }
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_token_history), style = MaterialTheme.typography.bodyLarge)
+                            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                stringResource(R.string.settings_token_history_sub),
+                                stringResource(R.string.about_repo),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Text(
-                            stringResource(R.string.settings_open_calendar),
+                            "v${BuildConfig.VERSION_NAME} · ${BuildConfig.GIT_COMMIT.take(7)}",
                             color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = MonoFontFamily,
                         )
                     }
                 }
