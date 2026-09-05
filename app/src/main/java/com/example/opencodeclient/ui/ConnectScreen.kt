@@ -83,6 +83,12 @@ fun ConnectScreen(
         }
 
         if (adding) {
+            Text(
+                stringResource(R.string.host_label),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
@@ -90,7 +96,6 @@ fun ConnectScreen(
                 OutlinedTextField(
                     value = host,
                     onValueChange = { host = it },
-                    label = { Text(stringResource(R.string.host_label)) },
                     placeholder = { Text(stringResource(R.string.host_hint)) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
@@ -98,7 +103,6 @@ fun ConnectScreen(
                 OutlinedTextField(
                     value = port,
                     onValueChange = { port = it },
-                    label = { Text(stringResource(R.string.port_label)) },
                     placeholder = { Text(stringResource(R.string.port_hint_default)) },
                     modifier = Modifier.width(132.dp),
                     singleLine = true,
@@ -106,10 +110,15 @@ fun ConnectScreen(
                 )
             }
             Spacer(Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.username_label_optional),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text(stringResource(R.string.username_label_optional)) },
                 placeholder = if (password.isNotEmpty()) {
                     { Text(stringResource(R.string.username_hint_default)) }
                 } else null,
@@ -117,10 +126,15 @@ fun ConnectScreen(
                 singleLine = true,
             )
             Spacer(Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.password_label_optional),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text(stringResource(R.string.password_label_optional)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
