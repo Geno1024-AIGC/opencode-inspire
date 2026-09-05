@@ -1,7 +1,9 @@
 package com.example.opencodeclient.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +20,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -201,18 +205,23 @@ private fun DrawerContent(
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val storedStats by viewModel.storedStats.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    var menuExpanded by remember { mutableStateOf(false) }
 
     ModalDrawerSheet {
         Column(
             modifier = Modifier.fillMaxWidth(1f),
         ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onServers() }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = { onServers() },
+                        onLongClick = { menuExpanded = true },
+                    )
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 serverUrl?.let {
@@ -220,6 +229,19 @@ private fun DrawerContent(
                 }
             }
             IconButton(onClick = onClose) { Icon(Icons.Filled.Close, stringResource(R.string.drawer_close)) }
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.drawer_capabilities)) },
+                    onClick = {
+                        menuExpanded = false
+                        onCapabilities()
+                    },
+                )
+            }
         }
         HorizontalDivider()
 
@@ -268,14 +290,6 @@ private fun DrawerContent(
         }
 
         HorizontalDivider()
-        Text(
-            stringResource(R.string.drawer_capabilities),
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onCapabilities)
-                .padding(16.dp),
-        )
         Text(
             stringResource(R.string.drawer_settings),
             style = MaterialTheme.typography.labelLarge,
