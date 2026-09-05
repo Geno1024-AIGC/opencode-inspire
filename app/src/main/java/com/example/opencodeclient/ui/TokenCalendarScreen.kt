@@ -579,6 +579,9 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
     val monthLabel = stringResource(R.string.calendar_table_month)
     val totalLabel = stringResource(R.string.calendar_table_total)
     val labels = listOf(
+        stringResource(R.string.calendar_table_msgs),
+        stringResource(R.string.calendar_table_msgs_sent),
+        stringResource(R.string.calendar_table_msgs_rcv),
         stringResource(R.string.calendar_table_time),
         stringResource(R.string.calendar_table_token),
         stringResource(R.string.calendar_table_in),
@@ -610,13 +613,16 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
                 modifier = Modifier.weight(1f),
             )
         }
-        SummaryRow(labelWidth, labels[0], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
-        SummaryRow(labelWidth, labels[1], fmtTokens(selectMetric(month, metric), short), fmtTokens(selectMetric(total, metric), short), mono, labelColor)
-        SummaryRow(labelWidth, labels[2], fmtTokens(month.input, short), fmtTokens(total.input, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[3], fmtTokens(month.output, short), fmtTokens(total.output, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[4], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[5], fmtTokens(month.cacheRead, short), fmtTokens(total.cacheRead, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[6], fmtTokens(month.cacheWrite, short), fmtTokens(total.cacheWrite, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[0], fmtTokens(month.msgs, short), fmtTokens(total.msgs, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[1], fmtTokens(month.msgsSent, short), fmtTokens(total.msgsSent, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[2], fmtTokens(month.msgsReceived, short), fmtTokens(total.msgsReceived, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[3], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
+        SummaryRow(labelWidth, labels[4], fmtTokens(selectMetric(month, metric), short), fmtTokens(selectMetric(total, metric), short), mono, labelColor)
+        SummaryRow(labelWidth, labels[5], fmtTokens(month.input, short), fmtTokens(total.input, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[6], fmtTokens(month.output, short), fmtTokens(total.output, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[7], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[8], fmtTokens(month.cacheRead, short), fmtTokens(total.cacheRead, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[9], fmtTokens(month.cacheWrite, short), fmtTokens(total.cacheWrite, short), mono, labelColor)
     }
 }
 
