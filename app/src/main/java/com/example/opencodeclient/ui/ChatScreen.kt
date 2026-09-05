@@ -1713,12 +1713,15 @@ private fun TokenStatsBar(
     messageCount: Long? = null,
 ) {
     if (tokens == null && contextWindow <= 0) return
-    val io = (tokens?.input ?: 0L) + (tokens?.output ?: 0L) + (tokens?.reasoning ?: 0L)
+    val input = tokens?.input ?: 0L
+    val output = tokens?.output ?: 0L
+    val reasoning = tokens?.reasoning ?: 0L
     val cacheRead = tokens?.cache?.read ?: 0L
     val cacheWrite = tokens?.cache?.write ?: 0L
+    val fresh = input + output + reasoning
     val rawTotal = tokens?.total ?: 0L
-    val total = if (rawTotal > 0L) rawTotal else io + cacheRead + cacheWrite
-    val ctx = if (promptTokens > 0) promptTokens else io
+    val total = if (rawTotal > 0L) rawTotal else fresh + cacheRead + cacheWrite
+    val ctx = if (promptTokens > 0) promptTokens else fresh
     val ratio = if (contextWindow > 0) (ctx.toFloat() / contextWindow).coerceIn(0f, 1f) else 0f
     Column(
         modifier = Modifier
@@ -1726,28 +1729,43 @@ private fun TokenStatsBar(
             .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        if (contextWindow > 0 && (io > 0 || promptTokens > 0)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.End,
+                horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(1.dp),
             ) {
-                Text(
-                    "${formatTokens(ctx, shortTokens)} / ${formatTokens(contextWindow, shortTokens)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontFamily = MonoFontFamily,
-                    maxLines = 1,
-                )
-                Text(
-                    "${(ratio * 100).toInt()}%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontFamily = MonoFontFamily,
-                )
+                TokenStatLine(label = "in", value = input, short = shortTokens)
+                TokenStatLine(label = "out", value = output, short = shortTokens)
+                TokenStatLine(label = "infer", value = reasoning, short = shortTokens)
+                TokenStatLine(label = "crd", value = cacheRead, short = shortTokens)
+                TokenStatLine(label = "cwr", value = cacheWrite, short = shortTokens)
+            }
+            if (contextWindow > 0 && (fresh > 0 || promptTokens > 0)) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    Text(
+                        "${formatTokens(ctx, shortTokens)} / ${formatTokens(contextWindow, shortTokens)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = MonoFontFamily,
+                        maxLines = 1,
+                    )
+                    Text(
+                        "${(ratio * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontFamily = MonoFontFamily,
+                    )
+                }
             }
         }
-        if (contextWindow > 0 && io > 0) {
+        if (contextWindow > 0 && fresh > 0) {
             LinearProgressIndicator(
                 progress = { ratio },
                 modifier = Modifier
@@ -1757,15 +1775,36 @@ private fun TokenStatsBar(
         }
         val elapsedMs = totalElapsed ?: 0L
         val msgs = messageCount ?: 0L
-        if (elapsedMs > 0L || msgs > 0L || io > 0L || total > 0L) {
+        if (elapsedMs > 0L || msgs > 0L || fresh > 0L || total > 0L) {
             Text(
-                stringResource(R.string.session_stats_line, elapsedMs / 1000.0, msgs, io, total),
+                stringResource(R.string.session_stats_line, elapsedMs / 1000.0, msgs, fresh, total),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 fontFamily = MonoFontFamily,
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun TokenStatLine(label: String, value: Long, short: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontFamily = MonoFontFamily,
+        )
+        Text(
+            formatTokens(value, short),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontFamily = MonoFontFamily,
+        )
     }
 }
 
