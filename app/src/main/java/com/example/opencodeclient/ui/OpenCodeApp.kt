@@ -30,6 +30,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -687,6 +688,8 @@ private fun AddProjectDialog(
     onDismiss: () -> Unit,
 ) {
     var directory by rememberSaveable { mutableStateOf("") }
+    var gitUrl by rememberSaveable { mutableStateOf("") }
+    var cloneMode by rememberSaveable { mutableStateOf(false) }
     val workspaceState by viewModel.workspaceState.collectAsStateWithLifecycle()
     var showBrowser by rememberSaveable { mutableStateOf(false) }
 
@@ -701,19 +704,56 @@ private fun AddProjectDialog(
         )
     }
 
+    val targetDir = if (cloneMode && gitUrl.isNotBlank() && directory.isNotBlank()) {
+        "${directory.trimEnd('/')}/${viewModel.repoNameFromUrl(gitUrl)}"
+    } else {
+        directory
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.add_project_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    stringResource(R.string.add_project_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = !cloneMode,
+                        onClick = { cloneMode = false },
+                        label = { Text(stringResource(R.string.add_project_mode_existing)) },
+                    )
+                    FilterChip(
+                        selected = cloneMode,
+                        onClick = { cloneMode = true },
+                        label = { Text(stringResource(R.string.add_project_mode_clone)) },
+                    )
+                }
+                if (cloneMode) {
+                    OutlinedTextField(
+                        value = gitUrl,
+                        onValueChange = { gitUrl = it },
+                        label = { Text(stringResource(R.string.git_url_label)) },
+                        placeholder = { Text(stringResource(R.string.git_url_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (cloneMode) {
+                    Text(
+                        stringResource(R.string.add_project_clone_into),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                } else {
+                    Text(
+                        stringResource(R.string.add_project_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 OutlinedTextField(
                     value = directory,
                     onValueChange = { directory = it },
-                    label = { Text(stringResource(R.string.directory_label)) },
+                    label = {
+                        Text(if (cloneMode) stringResource(R.string.add_project_clone_into) else stringResource(R.string.directory_label))
+                    },
                     placeholder = { Text(stringResource(R.string.directory_hint)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -722,6 +762,15 @@ private fun AddProjectDialog(
                     Icon(painterResource(R.drawable.ic_folder), null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.padding(horizontal = 4.dp))
                     Text(stringResource(R.string.add_project_browse))
+                }
+                if (cloneMode) {
+                    Text(
+                        targetDir,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = MonoFontFamily,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 if (workspaceState is UiState.Loading) {
                     Text(
@@ -739,11 +788,16 @@ private fun AddProjectDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = directory.isNotBlank() && workspaceState !is UiState.Loading,
+                enabled = workspaceState !is UiState.Loading &&
+                    targetDir.isNotBlank() && if (cloneMode) gitUrl.isNotBlank() else true,
                 onClick = {
-                    viewModel.newSession(directory.trim(), onDone = onDismiss)
+                    if (cloneMode) {
+                        viewModel.cloneProject(gitUrl.trim(), directory, onDone = onDismiss)
+                    } else {
+                        viewModel.newSession(directory.trim(), onDone = onDismiss)
+                    }
                 },
-            ) { Text(stringResource(R.string.open)) }
+            ) { Text(stringResource(if (cloneMode) R.string.add_project_clone else R.string.open)) }
         },
         dismissButton = {
             TextButton(

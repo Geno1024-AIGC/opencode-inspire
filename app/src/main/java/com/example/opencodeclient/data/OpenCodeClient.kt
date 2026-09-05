@@ -33,6 +33,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 
+data class ShellResult(val status: String, val output: String)
+
 class OpenCodeClient(
     serverUrl: String,
     private val username: String? = null,
@@ -191,6 +193,26 @@ class OpenCodeClient(
                 if (title != null) put("title", title)
             }.toString(),
         ) { json.decodeFromString(Session.serializer(), it) }
+
+    suspend fun runShell(sessionId: String, command: String, agent: String = "general"): ShellResult =
+        execute(
+            "POST",
+            "/session/$sessionId/shell",
+            body = buildJsonObject {
+                put("agent", JsonPrimitive(agent))
+                put("command", JsonPrimitive(command))
+            }.toString(),
+        ) { text ->
+            if (text.isBlank()) return@execute ShellResult("completed", "")
+            runCatching {
+                val parts = json.parseToJsonElement(text).jsonObject["parts"]?.jsonArray ?: emptyList()
+                val tool = parts.firstOrNull { it.jsonObject["type"]?.jsonPrimitive?.content == "tool" }
+                val state = tool?.jsonObject?.get("state")?.jsonObject ?: return@runCatching ShellResult("completed", "")
+                val status = state["status"]?.jsonPrimitive?.contentOrNull ?: "completed"
+                val output = state["metadata"]?.jsonObject?.get("output")?.jsonPrimitive?.contentOrNull.orEmpty()
+                ShellResult(status, output)
+            }.getOrElse { ShellResult("completed", text) }
+        }
 
     suspend fun sessions(): List<Session> =
         execute("GET", "/api/session?limit=1000&order=desc") { text ->
