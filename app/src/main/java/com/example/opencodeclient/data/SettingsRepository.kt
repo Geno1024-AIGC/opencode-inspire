@@ -107,14 +107,26 @@ class SettingsRepository(private val context: Context) {
             runCatching { json.decodeFromString<Map<String, Long>>(raw) }.getOrNull()
         } ?: emptyMap()
     }
-    val tokenMonth: Flow<Map<String, Map<Int, Long>>> = context.dataStore.data.map { prefs ->
+    val tokenMonth: Flow<Map<String, Map<Int, TokenDay>>> = context.dataStore.data.map { prefs ->
         prefs[Keys.TOKEN_MONTH]?.let { raw ->
-            runCatching { json.decodeFromString<Map<String, Map<Int, Long>>>(raw) }.getOrNull()
+            runCatching { json.decodeFromString<Map<String, Map<Int, TokenDay>>>(raw) }.getOrElse {
+                runCatching {
+                    json.decodeFromString<Map<String, Map<Int, Long>>>(raw).mapValues { (_, m) ->
+                        m.mapValues { (_, v) -> TokenDay(total = v) }
+                    }
+                }.getOrNull()
+            }
         } ?: emptyMap()
     }
-    val tokenWeek: Flow<Map<String, Map<Int, Long>>> = context.dataStore.data.map { prefs ->
+    val tokenWeek: Flow<Map<String, Map<Int, TokenDay>>> = context.dataStore.data.map { prefs ->
         prefs[Keys.TOKEN_WEEK]?.let { raw ->
-            runCatching { json.decodeFromString<Map<String, Map<Int, Long>>>(raw) }.getOrNull()
+            runCatching { json.decodeFromString<Map<String, Map<Int, TokenDay>>>(raw) }.getOrElse {
+                runCatching {
+                    json.decodeFromString<Map<String, Map<Int, Long>>>(raw).mapValues { (_, m) ->
+                        m.mapValues { (_, v) -> TokenDay(total = v) }
+                    }
+                }.getOrNull()
+            }
         } ?: emptyMap()
     }
     val tokenSync: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC] ?: 0L }
@@ -179,8 +191,8 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun saveTokenCalendar(
-        month: Map<String, Map<Int, Long>>,
-        week: Map<String, Map<Int, Long>>,
+        month: Map<String, Map<Int, TokenDay>>,
+        week: Map<String, Map<Int, TokenDay>>,
         syncMs: Long,
         syncedAtMs: Long = 0L,
     ) {

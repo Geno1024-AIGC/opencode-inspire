@@ -199,11 +199,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val tokenHistoryLoading: StateFlow<Boolean> = _tokenHistoryLoading.asStateFlow()
     private val _tokenElapsed = MutableStateFlow<Map<String, Long>>(emptyMap())
     val tokenElapsed: StateFlow<Map<String, Long>> = _tokenElapsed.asStateFlow()
-    private val _hourByMonth = MutableStateFlow<Map<String, Map<Int, Long>>>(emptyMap())
-    val hourByMonth: StateFlow<Map<String, Map<Int, Long>>> = _hourByMonth.asStateFlow()
-    private val _hourByWeek = MutableStateFlow<Map<String, Map<Int, Long>>>(emptyMap())
-
-    val hourByWeek: StateFlow<Map<String, Map<Int, Long>>> = _hourByWeek.asStateFlow()
+    private val _hourByMonth = MutableStateFlow<Map<String, Map<Int, TokenDay>>>(emptyMap())
+    val hourByMonth: StateFlow<Map<String, Map<Int, TokenDay>>> = _hourByMonth.asStateFlow()
+    private val _hourByWeek = MutableStateFlow<Map<String, Map<Int, TokenDay>>>(emptyMap())
+    val hourByWeek: StateFlow<Map<String, Map<Int, TokenDay>>> = _hourByWeek.asStateFlow()
 
     private val _tokenSync = MutableStateFlow(0L)
 
@@ -588,13 +587,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 val hour = zdt.hour
                                 val mKey = dayKey.substring(0, 7)
                                 val mBuckets = month.getOrPut(mKey) { mutableMapOf() }
-                                mBuckets[hour] = (mBuckets[hour] ?: 0L) + total
+                                mBuckets[hour] = (mBuckets[hour] ?: TokenDay()) +
+                                    TokenDay(total = total, input = input, output = output, reasoning = reasoning, cacheRead = cacheRead, cacheWrite = cacheWrite)
                                 val ws = day.with(
                                     java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
                                 ).toString()
                                 if (ws in weekStartSet) {
                                     val wBuckets = week.getOrPut(ws) { mutableMapOf() }
-                                    wBuckets[hour] = (wBuckets[hour] ?: 0L) + total
+                                    wBuckets[hour] = (wBuckets[hour] ?: TokenDay()) +
+                                        TokenDay(total = total, input = input, output = output, reasoning = reasoning, cacheRead = cacheRead, cacheWrite = cacheWrite)
                                 }
                             }
                             if (msg.role == "user") {
