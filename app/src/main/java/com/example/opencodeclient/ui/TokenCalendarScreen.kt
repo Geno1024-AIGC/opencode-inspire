@@ -219,8 +219,8 @@ fun TokenCalendarScreen(
                         onNext = { shownMonth = shownMonth.plusMonths(1) },
                         onSelect = { selected = it },
                     )
-                    1 -> WeekColumnCard(buckets = hourByWeek, locale = locale, modifier = Modifier.fillMaxWidth().height(viewportH))
-                    2 -> MonthColumnCard(buckets = hourByMonth, locale = locale, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    1 -> WeekColumnCard(buckets = hourByWeek, locale = locale, fresh = showFresh, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    2 -> MonthColumnCard(buckets = hourByMonth, locale = locale, fresh = showFresh, modifier = Modifier.fillMaxWidth().height(viewportH))
                 }
             }
         }
@@ -317,8 +317,9 @@ private fun DailyCalendarTab(
 
 @Composable
 private fun MonthColumnCard(
-    buckets: Map<String, Map<Int, Long>>,
+    buckets: Map<String, Map<Int, TokenDay>>,
     locale: Locale,
+    fresh: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val sorted = buckets.toSortedMap()
@@ -330,14 +331,16 @@ private fun MonthColumnCard(
     PeriodColumns(
         periods = sorted.map { it.key to it.value },
         labels = labels,
+        fresh = fresh,
         modifier = modifier,
     )
 }
 
 @Composable
 private fun WeekColumnCard(
-    buckets: Map<String, Map<Int, Long>>,
+    buckets: Map<String, Map<Int, TokenDay>>,
     locale: Locale,
+    fresh: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val sorted = buckets.toSortedMap()
@@ -353,6 +356,7 @@ private fun WeekColumnCard(
     PeriodColumns(
         periods = sorted.map { it.key to it.value },
         labels = labels,
+        fresh = fresh,
         modifier = modifier,
         onLabelClick = { _, key ->
             runCatching { clickedWeek = LocalDate.parse(key) }
@@ -398,20 +402,22 @@ private val PeriodHeaderH = 20.dp
 
 @Composable
 private fun PeriodColumns(
-    periods: List<Pair<String, Map<Int, Long>>>,
+    periods: List<Pair<String, Map<Int, TokenDay>>>,
     labels: List<String>,
+    fresh: Boolean,
     modifier: Modifier = Modifier,
     onLabelClick: ((index: Int, key: String) -> Unit)? = null,
 ) {
     val mono = MonoFontFamily
     val primary = MaterialTheme.colorScheme.primary
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val metric = { it: TokenDay -> if (fresh) it.fresh else it.total }
 
     val totals = LongArray(24)
     var max = 0L
     for ((_, m) in periods) {
         for (h in 0 until 24) {
-            val v = m[h] ?: 0L
+            val v = m[h]?.let(metric) ?: 0L
             totals[h] += v
             if (v > max) max = v
         }
@@ -462,7 +468,7 @@ private fun PeriodColumns(
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                             for (hour in 0 until 24) {
-                                HourCircle(value = m[hour] ?: 0L, max = max, size = circle, gap = gap, primary = primary)
+                                HourCircle(value = m[hour]?.let(metric) ?: 0L, max = max, size = circle, gap = gap, primary = primary)
                             }
                         }
                     }
