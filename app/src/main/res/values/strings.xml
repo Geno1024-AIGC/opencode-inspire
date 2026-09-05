@@ -306,4 +306,25 @@
     <string name="error_content_filter">Response was blocked by content filter</string>
     <string name="error_api">Model request failed</string>
     <string name="error_model_failed">Session failed</string>
+
+    <!-- Instance capabilities -->
+    <string name="drawer_capabilities">Instance capabilities</string>
+    <string name="capabilities_title">Instance capabilities</string>
+    <string name="capabilities_version">Version</string>
+    <string name="capabilities_unknown">unknown</string>
+    <string name="capabilities_probing">Probing the capabilities of this server…</string>
+    <string name="capabilities_retry">Re-probe</string>
+    <string name="capabilities_active_fs">File listing endpoint</string>
+    <string name="capabilities_degraded">File browsing degraded to the legacy /file endpoint (v2 unavailable).</string>
+    <string name="capabilities_supported">supported</string>
+    <string name="capabilities_unsupported">unsupported</string>
+    <string name="capability_fs_list_v2">File listing (v2) — /api/fs/list</string>
+    <string name="capability_file_list_v1">File listing (legacy) — /file</string>
+    <string name="capability_file_content_v1">File read — /file/content</string>
+    <string name="capability_commands">Slash commands — /command</string>
+    <string name="capability_event_stream">Live push — /global/event</string>
+    <string name="capability_projects">Projects — /project</string>
+    <string name="capability_sessions_v2">Sessions (v2) — /api/session</string>
+    <string name="capability_sessions_v1">Sessions (legacy) — /session</string>
+    <string name="capability_permissions">Permission approval — /permission</string>
 </resources>

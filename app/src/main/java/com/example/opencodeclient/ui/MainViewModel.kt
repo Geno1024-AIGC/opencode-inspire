@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.opencodeclient.BuildConfig
 import com.example.opencodeclient.R
 import java.util.Locale
+import com.example.opencodeclient.data.CapabilityReport
 import com.example.opencodeclient.data.Command
 import com.example.opencodeclient.data.Message
 import com.example.opencodeclient.data.ModelInfo
@@ -228,6 +229,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _commands = MutableStateFlow<List<Command>>(emptyList())
     val commands: StateFlow<List<Command>> = _commands.asStateFlow()
+
+    private val _capabilities = MutableStateFlow<CapabilityReport?>(null)
+    val capabilities: StateFlow<CapabilityReport?> = _capabilities.asStateFlow()
 
     private val _downloadPercent = MutableStateFlow(-1)
     val downloadPercent: StateFlow<Int> = _downloadPercent.asStateFlow()
@@ -630,6 +634,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _connectionState.value = UiState.Idle
                 observeEvents()
                 loadWorkspace()
+                probeCapabilities(cli)
                 onSuccess()
                 checkForUpdates(notifyLatest = false)
             } catch (e: Exception) {
@@ -644,6 +649,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removeServerProfile(url: String) {
         viewModelScope.launch { settings.removeServer(url) }
+    }
+
+    private fun probeCapabilities(cli: OpenCodeClient) {
+        viewModelScope.launch {
+            try {
+                val report = withContext(Dispatchers.IO) { cli.probeCapabilities() }
+                _capabilities.value = report
+            } catch (e: Exception) {
+                _capabilities.value = null
+            }
+        }
+    }
+
+    fun refreshCapabilities() {
+        val c = client ?: return
+        probeCapabilities(c)
     }
 
     fun replyQuestions(q: QuestionRequest, answers: List<List<String>>) {
