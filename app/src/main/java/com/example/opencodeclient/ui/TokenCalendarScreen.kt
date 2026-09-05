@@ -417,30 +417,47 @@ private fun PeriodColumns(
 ) {
     val mono = MonoFontFamily
     val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val totals = LongArray(24)
+    val columnTotals = LongArray(periods.size)
     var max = 0L
-    for ((_, m) in periods) {
+    for ((i, entry) in periods.withIndex()) {
+        val m = entry.second
+        var sum = 0L
         for (h in 0 until 24) {
             val v = m[h]?.let { selectMetric(it, metric) } ?: 0L
             totals[h] += v
+            sum += v
             if (v > max) max = v
         }
+        columnTotals[i] = sum
     }
     max = max.coerceAtLeast(1L)
     val totalsMax = (totals.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    val columnTotalsMax = (columnTotals.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    val grandTotal = columnTotals.sum()
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val gap = 2.dp
         val vPad = 16.dp
-        val circle = (((maxHeight - PeriodHeaderH - vPad).value - 46f) / 24f).dp.coerceAtLeast(10.dp)
+        val circle = (((maxHeight - PeriodHeaderH - vPad).value - 46f) / 25f).dp.coerceAtLeast(8.dp)
         Row(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
         Column(
             Modifier.width(24.dp),
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
             Box(Modifier.height(PeriodHeaderH)) {}
+            Box(Modifier.size(circle), contentAlignment = Alignment.CenterStart) {
+                Text(
+                    "Σ",
+                    fontSize = 8.sp,
+                    fontFamily = mono,
+                    color = labelColor,
+                    maxLines = 1,
+                )
+            }
             for (hour in 0 until 24) {
                 Box(Modifier.height(circle), contentAlignment = Alignment.CenterStart) {
                     Text(
@@ -472,6 +489,14 @@ private fun PeriodColumns(
                                 maxLines = 1,
                             )
                         }
+                        HourCircle(
+                            value = columnTotals[index],
+                            max = columnTotalsMax,
+                            size = circle,
+                            gap = gap,
+                            mono = mono,
+                            color = tertiary,
+                        )
                         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                             for (hour in 0 until 24) {
                                 HourCircle(value = m[hour]?.let { selectMetric(it, metric) } ?: 0L, max = max, size = circle, gap = gap, primary = primary)
@@ -498,6 +523,14 @@ private fun PeriodColumns(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.height(PeriodHeaderH),
+            )
+            HourCircle(
+                value = grandTotal,
+                max = columnTotalsMax,
+                size = circle,
+                gap = gap,
+                mono = mono,
+                color = tertiary,
             )
             Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                 for (hour in 0 until 24) {
@@ -544,24 +577,25 @@ private fun HourCircle(
     value: Long,
     max: Long,
     size: androidx.compose.ui.unit.Dp,
+    gap: androidx.compose.ui.unit.Dp,
     mono: androidx.compose.ui.text.font.FontFamily,
-    primary: Color,
+    color: Color,
 ) {
     val text = if (value > 0L) formatTokensCompact(value) else ""
     val bg = if (value > 0L) {
         val frac = (value.toDouble() / max.toDouble()).toFloat().coerceIn(0f, 1f)
-        primary.copy(alpha = (0.18f + 0.72f * frac).coerceIn(0.18f, 0.9f))
+        color.copy(alpha = (0.18f + 0.72f * frac).coerceIn(0.18f, 0.9f))
     } else {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
     }
     Box(
-        Modifier.size(size).background(bg, CircleShape),
+        Modifier.size(size).padding(gap / 2).background(bg, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         if (text.isNotEmpty()) {
             Text(
                 text,
-                fontSize = if (text.length <= 3) 11.sp else 8.sp,
+                fontSize = if (text.length <= 3) 9.sp else 7.sp,
                 fontFamily = mono,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
