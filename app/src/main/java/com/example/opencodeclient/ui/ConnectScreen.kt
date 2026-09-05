@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -37,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -53,7 +56,8 @@ fun ConnectScreen(
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     val state by viewModel.connectionState.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
-    var url by rememberSaveable { mutableStateOf("") }
+    var host by rememberSaveable { mutableStateOf("") }
+    var port by rememberSaveable { mutableStateOf("") }
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
 
@@ -79,19 +83,36 @@ fun ConnectScreen(
         }
 
         if (adding) {
-            OutlinedTextField(
-                value = url,
-                onValueChange = { url = it },
-                label = { Text(stringResource(R.string.url_label)) },
-                placeholder = { Text(stringResource(R.string.url_hint)) },
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
+            ) {
+                OutlinedTextField(
+                    value = host,
+                    onValueChange = { host = it },
+                    label = { Text(stringResource(R.string.host_label)) },
+                    placeholder = { Text(stringResource(R.string.host_hint)) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = port,
+                    onValueChange = { port = it },
+                    label = { Text(stringResource(R.string.port_label)) },
+                    placeholder = { Text(stringResource(R.string.port_hint_default)) },
+                    modifier = Modifier.width(132.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+            }
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
                 label = { Text(stringResource(R.string.username_label_optional)) },
+                placeholder = if (password.isNotEmpty()) {
+                    { Text(stringResource(R.string.username_hint_default)) }
+                } else null,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -121,14 +142,22 @@ fun ConnectScreen(
             }
             Button(
                 onClick = {
+                    val hostTrim = host.trim()
+                    val portTrim = port.trim().ifBlank { "4096" }
+                    val base = if (
+                        hostTrim.startsWith("http://") || hostTrim.startsWith("https://")
+                    ) hostTrim else "http://$hostTrim"
+                    val url = "$base:$portTrim"
+                    val user = username.trim().takeIf { it.isNotEmpty() }
+                        ?: if (password.isNotEmpty()) "opencode" else null
                     viewModel.connect(
-                        url.trim(),
-                        username = username.trim().takeIf { it.isNotEmpty() },
+                        url,
+                        username = user,
                         password = password.takeIf { it.isNotEmpty() },
                         onSuccess = onConnected,
                     )
                 },
-                enabled = url.isNotBlank() && state !is UiState.Loading,
+                enabled = host.isNotBlank() && state !is UiState.Loading,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.connect_save))
@@ -137,7 +166,8 @@ fun ConnectScreen(
             TextButton(
                 onClick = {
                     adding = false
-                    url = ""
+                    host = ""
+                    port = ""
                     username = ""
                     password = ""
                 },
