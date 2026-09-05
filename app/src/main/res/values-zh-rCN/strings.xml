@@ -12,7 +12,7 @@
     <string name="connect_guide_point1">记下那台机器的局域网 IP，在上方服务器地址填入该 IP（端口默认 4096）。</string>
     <string name="connect_guide_point2">省略 --port 时，服务器使用 4096 端口；若被占用，则改用随机空闲端口。</string>
     <string name="connect_guide_point3">不传 --hostname 0.0.0.0 时仅监听 127.0.0.1，手机无法连接。</string>
-    <string name="connect_guide_point4">如需登录验证，先设置环境变量 OPENCODE_SERVER_PASSWORD，再在上方输入该密码；用户名留空时默认使用 opencode。</string>
+    <string name="connect_guide_point4">如需登录验证，先设置环境变量再运行 serve：OPENCODE_SERVER_PASSWORD 为登录密码，OPENCODE_SERVER_USERNAME 为用户名（不设置时默认 opencode）。随后在上方输入该密码，用户名留空则使用默认 opencode。</string>
     <string name="connect_add">添加服务器</string>
     <string name="connect_save">连接并保存</string>
     <string name="connect_cancel">取消</string>
