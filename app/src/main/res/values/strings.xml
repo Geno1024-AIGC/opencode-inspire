@@ -19,7 +19,6 @@
     <string name="connect_connected">Connected</string>
     <string name="connect_remove">Remove server</string>
     <string name="host_label">Server address</string>
-    <string name="host_hint">192.168.1.10</string>
     <string name="port_label">Port</string>
     <string name="port_hint_default">4096</string>
     <string name="username_label_optional">Username (optional)</string>

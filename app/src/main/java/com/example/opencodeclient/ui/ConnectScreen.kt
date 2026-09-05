@@ -96,7 +96,6 @@ fun ConnectScreen(
                 OutlinedTextField(
                     value = host,
                     onValueChange = { host = it },
-                    placeholder = { Text(stringResource(R.string.host_hint)) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                 )
