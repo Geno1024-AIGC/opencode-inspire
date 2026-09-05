@@ -30,6 +30,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,9 +49,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -86,6 +90,8 @@ fun TokenCalendarScreen(
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     var hiddenSyncAt by remember { mutableStateOf(false) }
+    var showFresh by rememberSaveable { mutableStateOf(false) }
+    var metricMenu by remember { mutableStateOf(false) }
 
     val totalDay = history.values.fold(TokenDay()) { acc, t -> acc + t }
     val totalElapsed = elapsed.values.sum()
@@ -141,6 +147,7 @@ fun TokenCalendarScreen(
                     monthElapsed = monthElapsed,
                     totalElapsed = totalElapsed,
                     short = shortTokens,
+                    fresh = showFresh,
                 )
                 if (syncedAt > 0L && !hiddenSyncAt) {
                     Text(
@@ -160,6 +167,40 @@ fun TokenCalendarScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                     )
                 }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.calendar_stats_metric_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        Text(
+                            stringResource(if (showFresh) R.string.calendar_stats_fresh else R.string.calendar_stats_total),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { metricMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = metricMenu, onDismissRequest = { metricMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.calendar_stats_total), fontFamily = MonoFontFamily) },
+                                onClick = { showFresh = false; metricMenu = false },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.calendar_stats_fresh), fontFamily = MonoFontFamily) },
+                                onClick = { showFresh = true; metricMenu = false },
+                            )
+                        }
+                    }
+                }
                 PrimaryTabRow(selectedTabIndex = tab) {
                     Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_daily)) })
                     Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
@@ -173,6 +214,7 @@ fun TokenCalendarScreen(
                         selected = selected,
                         locale = locale,
                         shortTokens = shortTokens,
+                        showFresh = showFresh,
                         onPrev = { shownMonth = shownMonth.minusMonths(1) },
                         onNext = { shownMonth = shownMonth.plusMonths(1) },
                         onSelect = { selected = it },
@@ -193,6 +235,7 @@ private fun DailyCalendarTab(
     selected: LocalDate?,
     locale: Locale,
     shortTokens: Boolean,
+    showFresh: Boolean,
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onSelect: (LocalDate) -> Unit,
@@ -223,6 +266,7 @@ private fun DailyCalendarTab(
             shownMonth = shownMonth,
             selected = selected,
             locale = locale,
+            showFresh = showFresh,
             onSelect = onSelect,
         )
         HorizontalDivider()
@@ -247,7 +291,7 @@ private fun DailyCalendarTab(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    stringResource(R.string.calendar_day_detail_tokens, fmtTokens(selDay.total, shortTokens)),
+                    stringResource(R.string.calendar_day_detail_tokens, fmtTokens(if (showFresh) selDay.fresh else selDay.total, shortTokens)),
                     style = MaterialTheme.typography.bodyMedium,
                     fontFamily = MonoFontFamily,
                 )
@@ -514,7 +558,7 @@ private fun HourCircle(
     }
 }
 @Composable
-private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean) {
+private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean, fresh: Boolean) {
     val mono = MonoFontFamily
     val onSurface = MaterialTheme.colorScheme.onSurface
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -555,7 +599,7 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
             )
         }
         SummaryRow(labelWidth, labels[0], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
-        SummaryRow(labelWidth, labels[1], fmtTokens(month.total, short), fmtTokens(total.total, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[1], fmtTokens(if (fresh) month.fresh else month.total, short), fmtTokens(if (fresh) total.fresh else total.total, short), mono, labelColor)
         SummaryRow(labelWidth, labels[2], fmtTokens(month.input, short), fmtTokens(total.input, short), mono, labelColor)
         SummaryRow(labelWidth, labels[3], fmtTokens(month.output, short), fmtTokens(total.output, short), mono, labelColor)
         SummaryRow(labelWidth, labels[4], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
@@ -598,6 +642,7 @@ private fun CalendarGrid(
     shownMonth: YearMonth,
     selected: LocalDate?,
     locale: Locale,
+    showFresh: Boolean,
     onSelect: (LocalDate) -> Unit,
 ) {
     val today = LocalDate.now()
@@ -606,10 +651,11 @@ private fun CalendarGrid(
     val leading = (first.dayOfWeek.value - firstDayOfWeek + 7) % 7
     val gridStart = first.minusDays(leading.toLong())
 
+    val forShow = { it: TokenDay -> if (showFresh) it.fresh else it.total }
     val monthTokens = history
         .filterKeys { runCatching { LocalDate.parse(it).let { d -> d.year == shownMonth.year && d.month == shownMonth.month } }.getOrDefault(false) }
         .values
-        .map { it.total }
+        .map { forShow(it) }
     val monthMax = (monthTokens.maxOrNull() ?: 0L).coerceAtLeast(1L)
 
     val startDow = DayOfWeek.of(firstDayOfWeek)
@@ -630,7 +676,7 @@ private fun CalendarGrid(
                 for (c in 0 until 7) {
                     val date = gridStart.plusDays((r * 7 + c).toLong())
                     val inMonth = date.month == first.month && date.year == first.year
-                    val tokens = history[date.toString()]?.total ?: 0L
+                    val tokens = history[date.toString()]?.let { forShow(it) } ?: 0L
                     val dayElapsed = elapsed[date.toString()] ?: 0L
                     CalendarDayCell(
                         date = date,

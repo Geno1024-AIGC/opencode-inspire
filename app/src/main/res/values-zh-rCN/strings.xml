@@ -155,6 +155,9 @@
     <string name="calendar_full">全量</string>
     <string name="calendar_last_updated">缓存数据截至：%1$s</string>
 <string name="calendar_table_total">总计</string>
+    <string name="calendar_stats_metric_label">显示:</string>
+    <string name="calendar_stats_total">Total</string>
+    <string name="calendar_stats_fresh">Fresh</string>
     <string name="calendar_table_month">月度</string>
     <string name="calendar_table_token">Token</string>
     <string name="calendar_table_time">时间</string>
