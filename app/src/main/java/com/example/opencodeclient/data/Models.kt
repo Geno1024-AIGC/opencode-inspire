@@ -108,6 +108,28 @@ data class TokenCache(
 val Tokens.promptTokens: Long
     get() = input + (cache?.read ?: 0L)
 
+val Tokens.freshTokens: Long
+    get() = input + output + reasoning
+
+@Serializable
+data class TokenDay(
+    val total: Long = 0L,
+    val input: Long = 0L,
+    val output: Long = 0L,
+    val reasoning: Long = 0L,
+    val cacheRead: Long = 0L,
+    val cacheWrite: Long = 0L,
+) {
+    operator fun plus(other: TokenDay): TokenDay = TokenDay(
+        total = total + other.total,
+        input = input + other.input,
+        output = output + other.output,
+        reasoning = reasoning + other.reasoning,
+        cacheRead = cacheRead + other.cacheRead,
+        cacheWrite = cacheWrite + other.cacheWrite,
+    )
+}
+
 @Serializable
 data class TodoInfo(
     val id: String = "",

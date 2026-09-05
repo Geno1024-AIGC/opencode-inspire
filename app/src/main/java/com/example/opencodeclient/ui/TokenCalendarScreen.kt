@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
+import com.example.opencodeclient.data.TokenDay
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -85,7 +86,7 @@ fun TokenCalendarScreen(
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
     var hiddenSyncAt by remember { mutableStateOf(false) }
 
-    val totalTokens = history.values.sum()
+    val totalDay = history.values.fold(TokenDay()) { acc, t -> acc + t }
     val totalElapsed = elapsed.values.sum()
     val locale = Locale.getDefault()
     val today = LocalDate.now()
@@ -131,13 +132,13 @@ fun TokenCalendarScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState()),
             ) {
-                val monthToks = history.filterKeys { isInMonth(it, shownMonth) }.values.sum()
+                val monthDay = history.filterKeys { isInMonth(it, shownMonth) }.values.fold(TokenDay()) { acc, t -> acc + t }
                 val monthElapsed = elapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
                 SummaryTable(
-                    totalTokens = totalTokens,
-                    monthTokens = monthToks,
-                    totalElapsed = totalElapsed,
+                    month = monthDay,
+                    total = totalDay,
                     monthElapsed = monthElapsed,
+                    totalElapsed = totalElapsed,
                 )
                 if (syncedAt > 0L && !hiddenSyncAt) {
                     Text(
@@ -183,7 +184,7 @@ fun TokenCalendarScreen(
 
 @Composable
 private fun DailyCalendarTab(
-    history: Map<String, Long>,
+    history: Map<String, TokenDay>,
     elapsed: Map<String, Long>,
     shownMonth: YearMonth,
     selected: LocalDate?,
@@ -231,7 +232,7 @@ private fun DailyCalendarTab(
             )
         } else {
             val d = selDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale))
-            val selTokens = history[selDate.toString()] ?: 0L
+            val selDay = history[selDate.toString()] ?: TokenDay()
             val selElapsed = elapsed[selDate.toString()] ?: 0L
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Text(
@@ -242,9 +243,19 @@ private fun DailyCalendarTab(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    stringResource(R.string.calendar_day_detail_tokens, selTokens),
+                    stringResource(R.string.calendar_day_detail_tokens, formatTokensCompact(selDay.total)),
                     style = MaterialTheme.typography.bodyMedium,
                     fontFamily = MonoFontFamily,
+                )
+                Text(
+                    "${stringResource(R.string.calendar_day_detail_in, formatTokensCompact(selDay.input))} · " +
+                        "${stringResource(R.string.calendar_day_detail_out, formatTokensCompact(selDay.output))} · " +
+                        "${stringResource(R.string.calendar_day_detail_reasoning, formatTokensCompact(selDay.reasoning))} · " +
+                        "${stringResource(R.string.calendar_day_detail_cache_read, formatTokensCompact(selDay.cacheRead))} · " +
+                        "${stringResource(R.string.calendar_day_detail_cache_write, formatTokensCompact(selDay.cacheWrite))}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = MonoFontFamily,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     stringResource(R.string.calendar_day_detail_elapsed, formatSeconds(selElapsed), formatClock(selElapsed)),
@@ -499,7 +510,7 @@ private fun HourCircle(
     }
 }
 @Composable
-private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Long, monthElapsed: Long) {
+private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long) {
     val mono = MonoFontFamily
     val onSurface = MaterialTheme.colorScheme.onSurface
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -507,10 +518,17 @@ private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Lon
     val labelStyle = MaterialTheme.typography.bodyMedium
     val monthLabel = stringResource(R.string.calendar_table_month)
     val totalLabel = stringResource(R.string.calendar_table_total)
-    val tokenLabel = stringResource(R.string.calendar_table_token)
-    val timeLabel = stringResource(R.string.calendar_table_time)
+    val labels = listOf(
+        stringResource(R.string.calendar_table_token),
+        stringResource(R.string.calendar_table_time),
+        stringResource(R.string.calendar_table_in),
+        stringResource(R.string.calendar_table_out),
+        stringResource(R.string.calendar_table_reasoning),
+        stringResource(R.string.calendar_table_cache_read),
+        stringResource(R.string.calendar_table_cache_write),
+    )
     val labelWidth = with(LocalDensity.current) {
-        listOf(tokenLabel, timeLabel).maxOfOrNull {
+        labels.maxOfOrNull {
             textMeasurer.measure(AnnotatedString(it), style = labelStyle).size.width.toDp()
         } ?: 0.dp
     } + 8.dp
@@ -532,26 +550,34 @@ private fun SummaryTable(totalTokens: Long, monthTokens: Long, totalElapsed: Lon
                 modifier = Modifier.weight(1f),
             )
         }
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            Text(
-                tokenLabel,
-                color = labelColor,
-                maxLines = 1,
-                modifier = Modifier.width(labelWidth),
-            )
-            Text(monthTokens.toString(), fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
-            Text(totalTokens.toString(), fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
-        }
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            Text(
-                timeLabel,
-                color = labelColor,
-                maxLines = 1,
-                modifier = Modifier.width(labelWidth),
-            )
-            Text(formatClock(monthElapsed), fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
-            Text(formatClock(totalElapsed), fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
-        }
+        SummaryRow(labelWidth, labels[0], formatTokensCompact(month.total), formatTokensCompact(total.total), mono, labelColor)
+        SummaryRow(labelWidth, labels[1], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
+        SummaryRow(labelWidth, labels[2], formatTokensCompact(month.input), formatTokensCompact(total.input), mono, labelColor)
+        SummaryRow(labelWidth, labels[3], formatTokensCompact(month.output), formatTokensCompact(total.output), mono, labelColor)
+        SummaryRow(labelWidth, labels[4], formatTokensCompact(month.reasoning), formatTokensCompact(total.reasoning), mono, labelColor)
+        SummaryRow(labelWidth, labels[5], formatTokensCompact(month.cacheRead), formatTokensCompact(total.cacheRead), mono, labelColor)
+        SummaryRow(labelWidth, labels[6], formatTokensCompact(month.cacheWrite), formatTokensCompact(total.cacheWrite), mono, labelColor)
+    }
+}
+
+@Composable
+private fun SummaryRow(
+    labelWidth: androidx.compose.ui.unit.Dp,
+    label: String,
+    month: String,
+    total: String,
+    mono: androidx.compose.ui.text.font.FontFamily,
+    labelColor: Color,
+) {
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        Text(
+            label,
+            color = labelColor,
+            maxLines = 1,
+            modifier = Modifier.width(labelWidth),
+        )
+        Text(month, fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f), maxLines = 1)
+        Text(total, fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f), maxLines = 1)
     }
 }
 
@@ -563,7 +589,7 @@ private fun isInMonth(day: String, month: YearMonth): Boolean =
 
 @Composable
 private fun CalendarGrid(
-    history: Map<String, Long>,
+    history: Map<String, TokenDay>,
     elapsed: Map<String, Long>,
     shownMonth: YearMonth,
     selected: LocalDate?,
@@ -579,6 +605,7 @@ private fun CalendarGrid(
     val monthTokens = history
         .filterKeys { runCatching { LocalDate.parse(it).let { d -> d.year == shownMonth.year && d.month == shownMonth.month } }.getOrDefault(false) }
         .values
+        .map { it.total }
     val monthMax = (monthTokens.maxOrNull() ?: 0L).coerceAtLeast(1L)
 
     val startDow = DayOfWeek.of(firstDayOfWeek)
@@ -599,7 +626,7 @@ private fun CalendarGrid(
                 for (c in 0 until 7) {
                     val date = gridStart.plusDays((r * 7 + c).toLong())
                     val inMonth = date.month == first.month && date.year == first.year
-                    val tokens = history[date.toString()] ?: 0L
+                    val tokens = history[date.toString()]?.total ?: 0L
                     val dayElapsed = elapsed[date.toString()] ?: 0L
                     CalendarDayCell(
                         date = date,

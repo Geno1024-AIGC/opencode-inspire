@@ -32,8 +32,12 @@ val tokensFile = File(rootProject.projectDir, "tokens.txt")
 val tokenLines = runCatching { tokensFile.readLines() }.getOrDefault(emptyList())
 fun tokenAt(index: Int): Long = tokenLines.getOrNull(index)?.trim()?.toLongOrNull() ?: 0L
 val tokensTotal = tokenAt(0)
-val tokensFresh = tokenAt(1)
-val tokensCached = tokenAt(2)
+val tokensInput = tokenAt(1)
+val tokensOutput = tokenAt(2)
+val tokensReasoning = tokenAt(3)
+val tokensCacheRead = tokenAt(4)
+val tokensCacheWrite = tokenAt(5)
+val tokensModels = tokenLines.drop(6).joinToString("\n") { it.trim() }.trim('\n')
 
 val appVersionName = "0.1.$pack.$build.$commitSha"
 
@@ -51,8 +55,12 @@ android {
         buildConfigField("int", "PACK", "$pack")
         buildConfigField("int", "BUILD", "$build")
         buildConfigField("long", "TOKENS_TOTAL", "${tokensTotal}L")
-        buildConfigField("long", "TOKENS_FRESH", "${tokensFresh}L")
-        buildConfigField("long", "TOKENS_CACHED", "${tokensCached}L")
+        buildConfigField("long", "TOKENS_INPUT", "${tokensInput}L")
+        buildConfigField("long", "TOKENS_OUTPUT", "${tokensOutput}L")
+        buildConfigField("long", "TOKENS_REASONING", "${tokensReasoning}L")
+        buildConfigField("long", "TOKENS_CACHE_READ", "${tokensCacheRead}L")
+        buildConfigField("long", "TOKENS_CACHE_WRITE", "${tokensCacheWrite}L")
+        buildConfigField("String", "TOKENS_MODELS", "\"${tokensModels.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\"")
     }
 
     buildTypes {
