@@ -57,7 +57,7 @@ fun ConnectScreen(
     val state by viewModel.connectionState.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
     var host by rememberSaveable { mutableStateOf("") }
-    var port by rememberSaveable { mutableStateOf("") }
+    var port by rememberSaveable { mutableStateOf("4096") }
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
 
@@ -167,7 +167,7 @@ fun ConnectScreen(
                 onClick = {
                     adding = false
                     host = ""
-                    port = ""
+                    port = "4096"
                     username = ""
                     password = ""
                 },
