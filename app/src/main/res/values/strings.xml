@@ -181,6 +181,7 @@
     <string name="about_license_text">MIT License</string>
     <string name="about_acknowledgments">Acknowledgments</string>
     <string name="about_ack_text">Written entirely by OpenCode free models: first DeepSeek V4 Flash, then big-pickle. Built on Jetpack Compose, Ktor, and Kotlin.</string>
+    <string name="about_tokens_used">Tokens used</string>
     <string name="channel_release">Release</string>
     <string name="channel_canary">Canary</string>
     <string name="settings_ghproxy">Mirror download (ghproxy)</string>

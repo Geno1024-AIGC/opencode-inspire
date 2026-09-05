@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.opencodeclient.BuildConfig
 import com.example.opencodeclient.R
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +81,21 @@ fun AboutScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = MonoFontFamily,
             )
+            Text(
+                stringResource(R.string.about_tokens_used),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                formatCount(BuildConfig.TOKENS_TOTAL),
+                style = MaterialTheme.typography.headlineSmall,
+                fontFamily = MonoFontFamily,
+            )
+            Text(
+                "${formatCount(BuildConfig.TOKENS_FRESH)} + ${formatCount(BuildConfig.TOKENS_CACHED)} (input · cached)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             HorizontalDivider()
             AboutRow(
                 title = stringResource(R.string.about_repo),
@@ -115,6 +131,8 @@ fun AboutScreen(onBack: () -> Unit) {
         }
     }
 }
+
+private fun formatCount(value: Long): String = String.format(Locale.US, "%,d", value)
 
 @Composable
 private fun AboutRow(
