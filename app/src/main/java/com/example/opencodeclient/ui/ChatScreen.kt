@@ -225,18 +225,16 @@ fun ChatScreen(
         }
     }
 
-    var liveElapsed by remember { mutableLongStateOf(0L) }
-    val latestUserKey = messages.lastOrNull { it.role == "user" && it.text.isNotBlank() }?.id ?: ""
-    LaunchedEffect(sending, latestUserKey) {
-        if (sending) {
-            val start = System.currentTimeMillis()
-            liveElapsed = 0L
+    var now by remember { mutableLongStateOf(0L) }
+    val lastUserTime = messages.lastOrNull { it.role == "user" && it.text.isNotBlank() }?.time ?: 0L
+    LaunchedEffect(sending, lastUserTime) {
+        if (sending && lastUserTime > 0L) {
             while (isActive) {
+                now = System.currentTimeMillis()
                 delay(1000)
-                liveElapsed = System.currentTimeMillis() - start
             }
         } else {
-            liveElapsed = 0L
+            now = 0L
         }
     }
 
@@ -341,8 +339,8 @@ fun ChatScreen(
                 }
                 itemsIndexed(filteredMessages, key = { idx, item -> item.id }) { index, msg ->
                     val prevCumulative = if (index + 1 < reversedMessages.size) reversedMessages[index + 1].cumulativeTokens else null
-                    val responseTime = if (sending && index == 0 && msg.role == "assistant") {
-                        liveElapsed
+                    val responseTime = if (sending && index == 0 && msg.role == "assistant" && lastUserTime > 0L) {
+                        (now - lastUserTime).coerceAtLeast(0L)
                     } else if (msg.role == "assistant" && msg.time > 0L) {
                         val precedingUserTime = (index + 1 until reversedMessages.size)
                             .firstOrNull { reversedMessages[it].role == "user" && reversedMessages[it].time > 0L }
