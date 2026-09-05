@@ -523,8 +523,8 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
     val monthLabel = stringResource(R.string.calendar_table_month)
     val totalLabel = stringResource(R.string.calendar_table_total)
     val labels = listOf(
-        stringResource(R.string.calendar_table_token),
         stringResource(R.string.calendar_table_time),
+        stringResource(R.string.calendar_table_token),
         stringResource(R.string.calendar_table_in),
         stringResource(R.string.calendar_table_out),
         stringResource(R.string.calendar_table_reasoning),
@@ -554,8 +554,8 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
                 modifier = Modifier.weight(1f),
             )
         }
-        SummaryRow(labelWidth, labels[0], fmtTokens(month.total, short), fmtTokens(total.total, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[1], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
+        SummaryRow(labelWidth, labels[0], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
+        SummaryRow(labelWidth, labels[1], fmtTokens(month.total, short), fmtTokens(total.total, short), mono, labelColor)
         SummaryRow(labelWidth, labels[2], fmtTokens(month.input, short), fmtTokens(total.input, short), mono, labelColor)
         SummaryRow(labelWidth, labels[3], fmtTokens(month.output, short), fmtTokens(total.output, short), mono, labelColor)
         SummaryRow(labelWidth, labels[4], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
@@ -580,8 +580,8 @@ private fun SummaryRow(
             maxLines = 1,
             modifier = Modifier.width(labelWidth),
         )
-        Text(month, fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f), maxLines = 1)
-        Text(total, fontFamily = mono, textAlign = TextAlign.Center, modifier = Modifier.weight(1f), maxLines = 1)
+        Text(month, fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth().weight(1f), maxLines = 1)
+        Text(total, fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth().weight(1f), maxLines = 1)
     }
 }
 

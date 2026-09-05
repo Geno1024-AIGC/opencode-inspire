@@ -79,7 +79,7 @@
     <string name="chat_reject_all">全部拒绝</string>
     <string name="scroll_to_bottom">滚动到底部</string>
     <string name="session_elapsed">回复耗时 %.1fs</string>
-    <string name="session_stats_line">time %1$.1f s，msgs %2$d，fresh %3$d，total %4$d</string>
+    <string name="session_stats_line">time %1$.1f s，msgs %2$d</string>
     <string name="chat_working">工作中…</string>
     <string name="chat_abort">中止</string>
     <string name="chat_refresh">刷新</string>

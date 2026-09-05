@@ -1734,15 +1734,39 @@ private fun TokenStatsBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
-                horizontalAlignment = Alignment.Start,
-                verticalArrangement = Arrangement.spacedBy(1.dp),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                TokenStatLine(label = "in", value = input, short = shortTokens)
-                TokenStatLine(label = "out", value = output, short = shortTokens)
-                TokenStatLine(label = "infer", value = reasoning, short = shortTokens)
-                TokenStatLine(label = "crd", value = cacheRead, short = shortTokens)
-                TokenStatLine(label = "cwr", value = cacheWrite, short = shortTokens)
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    TokenStatLine(label = "in", value = input, short = shortTokens)
+                    TokenStatLine(label = "out", value = output, short = shortTokens)
+                    TokenStatLine(label = "infer", value = reasoning, short = shortTokens)
+                    TokenStatLine(label = "crd", value = cacheRead, short = shortTokens)
+                    TokenStatLine(label = "cwr", value = cacheWrite, short = shortTokens)
+                }
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    Text(
+                        "fresh ${formatTokens(fresh, shortTokens)}",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontFamily = MonoFontFamily,
+                    )
+                    Text(
+                        "total ${formatTokens(total, shortTokens)}",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontFamily = MonoFontFamily,
+                    )
+                }
             }
             if (contextWindow > 0 && (fresh > 0 || promptTokens > 0)) {
                 Column(
@@ -1775,9 +1799,9 @@ private fun TokenStatsBar(
         }
         val elapsedMs = totalElapsed ?: 0L
         val msgs = messageCount ?: 0L
-        if (elapsedMs > 0L || msgs > 0L || fresh > 0L || total > 0L) {
+        if (elapsedMs > 0L || msgs > 0L) {
             Text(
-                stringResource(R.string.session_stats_line, elapsedMs / 1000.0, msgs, fresh, total),
+                stringResource(R.string.session_stats_line, elapsedMs / 1000.0, msgs),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 fontFamily = MonoFontFamily,
