@@ -79,8 +79,7 @@
     <string name="chat_reject_all">Reject all</string>
     <string name="scroll_to_bottom">Scroll to bottom</string>
     <string name="session_elapsed">Replied in %.1fs</string>
-    <string name="session_total_elapsed">Total time %.1fs</string>
-    <string name="session_total_messages">%1$d messages</string>
+    <string name="session_stats_line">time %1$.1f s, msgs %2$d, io %3$d, total %4$d</string>
     <string name="chat_working">Working…</string>
     <string name="chat_abort">Abort</string>
     <string name="chat_refresh">Refresh</string>
@@ -285,7 +284,6 @@
     <string name="session_details_title_label">Title</string>
     <string name="session_details_id">Session ID</string>
     <string name="session_details_created">Created</string>
-    <string name="session_details_context">Context window</string>
     <string name="session_details_tokens">Token</string>
     <string name="session_details_tokens_in">In %s</string>
     <string name="session_details_tokens_out">Out %s</string>
