@@ -216,6 +216,7 @@
     <string name="about_token_cache_write">Cache write</string>
     <string name="about_msgs">Messages</string>
     <string name="about_tokens_note">Total includes cached context tokens.</string>
+    <string name="about_tokens_project_note">Stats cover all sessions of this project only.</string>
     <string name="about_tokens_by_model">By model</string>
     <string name="channel_release">Release</string>
     <string name="channel_canary">Canary</string>

@@ -103,6 +103,11 @@ fun AboutScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Text(
+                stringResource(R.string.about_tokens_project_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             HorizontalDivider()
             Text(
                 stringResource(R.string.about_tokens_by_model),
