@@ -174,8 +174,6 @@ fun TokenCalendarScreen(
                     monthElapsed = monthElapsed,
                     totalElapsed = totalElapsed,
                     short = shortTokens,
-                    metricMonth = selectMetric(monthDay, category, tokenMetric, msgMetric),
-                    metricTotal = selectMetric(totalDay, category, tokenMetric, msgMetric),
                 )
                 if (syncedAt > 0L && !hiddenSyncAt) {
                     Text(
@@ -673,7 +671,7 @@ private fun HourCircle(
     }
 }
 @Composable
-private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean, metricMonth: Long, metricTotal: Long) {
+private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean) {
     val mono = MonoFontFamily
     val onSurface = MaterialTheme.colorScheme.onSurface
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -720,7 +718,7 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
         SummaryRow(labelWidth, labels[1], fmtTokens(month.msgsSent, short), fmtTokens(total.msgsSent, short), mono, labelColor)
         SummaryRow(labelWidth, labels[2], fmtTokens(month.msgsReceived, short), fmtTokens(total.msgsReceived, short), mono, labelColor)
         SummaryRow(labelWidth, labels[3], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
-        SummaryRow(labelWidth, labels[4], fmtTokens(metricMonth, short), fmtTokens(metricTotal, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[4], fmtTokens(month.total, short), fmtTokens(total.total, short), mono, labelColor)
         SummaryRow(labelWidth, labels[5], fmtTokens(month.input, short), fmtTokens(total.input, short), mono, labelColor)
         SummaryRow(labelWidth, labels[6], fmtTokens(month.output, short), fmtTokens(total.output, short), mono, labelColor)
         SummaryRow(labelWidth, labels[7], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
