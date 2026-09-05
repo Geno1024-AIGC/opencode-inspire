@@ -75,6 +75,7 @@ sealed class Screen {
     data object Main : Screen()
     data object Settings : Screen()
     data object Calendar : Screen()
+    data object About : Screen()
 
     val key: String
         get() = when (this) {
@@ -82,6 +83,7 @@ sealed class Screen {
             Main -> "main"
             Settings -> "settings"
             Calendar -> "calendar"
+            About -> "about"
         }
 
     companion object {
@@ -89,6 +91,7 @@ sealed class Screen {
             "main" -> Main
             "settings" -> Settings
             "calendar" -> Calendar
+            "about" -> About
             else -> Connect
         }
     }
@@ -130,11 +133,17 @@ fun OpenCodeApp(viewModel: MainViewModel) {
                 viewModel = viewModel,
                 onBack = { screenKey = Screen.Main.key },
                 onOpenCalendar = { screenKey = Screen.Calendar.key },
+                onOpenAbout = { screenKey = Screen.About.key },
             )
         }
         is Screen.Calendar -> saveableStateHolder.SaveableStateProvider(Screen.Calendar.key) {
             TokenCalendarScreen(
                 viewModel = viewModel,
+                onBack = { screenKey = Screen.Settings.key },
+            )
+        }
+        is Screen.About -> saveableStateHolder.SaveableStateProvider(Screen.About.key) {
+            AboutScreen(
                 onBack = { screenKey = Screen.Settings.key },
             )
         }
