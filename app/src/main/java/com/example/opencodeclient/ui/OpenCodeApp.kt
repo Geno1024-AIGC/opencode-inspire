@@ -11,15 +11,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DrawerValue
@@ -45,6 +49,8 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -53,6 +59,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
+import com.example.opencodeclient.data.CapabilityState
+import com.example.opencodeclient.data.FeatureGroup
+import com.example.opencodeclient.data.FeatureStatus
 import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.StoredHistoryStats
@@ -571,67 +580,62 @@ private fun CapabilitiesDialog(
     onDismiss: () -> Unit,
 ) {
     val report by viewModel.capabilities.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) {
-        viewModel.refreshCapabilities()
-    }
+    val statuses by viewModel.featureStatus.collectAsStateWithLifecycle()
+    val detecting by viewModel.capabilitiesDetecting.collectAsStateWithLifecycle()
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.capabilities_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (report == null) {
-                    Text(stringResource(R.string.capabilities_probing), style = MaterialTheme.typography.bodySmall)
-                    TextButton(onClick = { viewModel.refreshCapabilities() }) {
-                        Text(stringResource(R.string.capabilities_retry))
-                    }
-                    return@Column
-                }
-                val r = report!!
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    stringResource(R.string.capabilities_version) + ": " + (r.version ?: stringResource(R.string.capabilities_unknown)),
+                    stringResource(R.string.capabilities_version) + ": " +
+                        (report?.version ?: stringResource(R.string.capabilities_unknown)),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
                 )
-                val fsEndpoint = if (r.fsListV2) "v2 /api/fs/list" else "v1 /file"
                 Text(
-                    stringResource(R.string.capabilities_active_fs) + ": " + fsEndpoint,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    stringResource(R.string.capabilities_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
                 )
-                if (!r.fsListV2 && r.fileListV1) {
-                    Text(stringResource(R.string.capabilities_degraded), style = MaterialTheme.typography.bodySmall)
-                }
-                HorizontalDivider()
-                val items = listOf(
-                    R.string.capability_fs_list_v2 to r.fsListV2,
-                    R.string.capability_file_list_v1 to r.fileListV1,
-                    R.string.capability_file_content_v1 to r.fileContentV1,
-                    R.string.capability_commands to r.commands,
-                    R.string.capability_event_stream to r.eventStream,
-                    R.string.capability_projects to r.projectsV1,
-                    R.string.capability_sessions_v2 to r.sessionsListV2,
-                    R.string.capability_sessions_v1 to r.sessionsListV1,
-                    R.string.capability_permissions to r.permissions,
-                )
-                items.forEach { (label, supported) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            if (supported) Icons.Filled.Check else Icons.Filled.Close,
-                            null,
-                            tint = if (supported) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
-                        Text(stringResource(label), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                        Text(
-                            stringResource(if (supported) R.string.capabilities_supported else R.string.capabilities_unsupported),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (supported) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                        )
+                val r = report
+                if (r != null) {
+                    val fsEndpoint = if (r.fsListV2) "v2 /api/fs/list" else "v1 /file"
+                    Text(
+                        stringResource(R.string.capabilities_active_fs) + ": " + fsEndpoint,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    if (!r.fsListV2 && r.fileListV1) {
+                        Text(stringResource(R.string.capabilities_degraded), style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                TextButton(onClick = { viewModel.refreshCapabilities() }, modifier = Modifier.align(Alignment.End)) {
-                    Text(stringResource(R.string.capabilities_retry))
+                HorizontalDivider()
+                val grouped = statuses.groupBy { it.spec.group }
+                FeatureGroup.values().forEach { group ->
+                    val items = grouped[group].orEmpty()
+                    if (items.isEmpty()) return@forEach
+                    Text(
+                        stringResource(group.labelRes()),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    items.forEach { CapabilityRow(it) }
+                }
+                TextButton(
+                    onClick = { viewModel.refreshCapabilities() },
+                    enabled = !detecting,
+                    modifier = Modifier.align(Alignment.End),
+                ) {
+                    if (detecting) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(
+                        stringResource(if (detecting) R.string.capabilities_detecting else R.string.capabilities_detect),
+                    )
                 }
             }
         },
@@ -639,6 +643,37 @@ private fun CapabilitiesDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
         },
     )
+}
+
+@Composable
+private fun CapabilityRow(status: FeatureStatus) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        when (status.state) {
+            CapabilityState.VERIFIED_SUPPORTED -> CapabilityIcon(Icons.Filled.Check, MaterialTheme.colorScheme.primary)
+            CapabilityState.VERIFIED_UNSUPPORTED -> CapabilityIcon(Icons.Filled.Close, MaterialTheme.colorScheme.outline)
+            CapabilityState.ESTIMATED_SUPPORTED ->
+                CapabilityIcon(Icons.Filled.CheckCircle, MaterialTheme.colorScheme.tertiary)
+            CapabilityState.ESTIMATED_UNSUPPORTED ->
+                CapabilityIcon(Icons.Filled.Close, MaterialTheme.colorScheme.tertiary)
+            CapabilityState.BUILTIN -> CapabilityIcon(Icons.Filled.Info, MaterialTheme.colorScheme.secondary)
+            CapabilityState.UNKNOWN -> CapabilityIcon(Icons.Filled.Info, MaterialTheme.colorScheme.outline)
+        }
+        Text(
+            stringResource(status.spec.labelRes),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            stringResource(status.state.labelRes()),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline,
+        )
+    }
+}
+
+@Composable
+private fun CapabilityIcon(icon: ImageVector, tint: Color) {
+    Icon(icon, null, tint = tint, modifier = Modifier.padding(end = 8.dp))
 }
 
 @Composable
