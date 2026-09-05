@@ -139,6 +139,12 @@
     <string name="color_hue">色相</string>
     <string name="color_saturation">饱和度</string>
     <string name="color_brightness">亮度</string>
+    <string name="color_red">红</string>
+    <string name="color_green">绿</string>
+    <string name="color_blue">蓝</string>
+    <string name="color_hex">Hex #RRGGBB</string>
+    <string name="color_space_rgb">RGB</string>
+    <string name="color_space_hsv">HSV</string>
     <string name="color_apply">应用</string>
     <string name="color_cancel">取消</string>
     <string name="color_your_title">你的消息颜色</string>

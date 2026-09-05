@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,6 +32,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,7 +48,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -57,6 +58,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.opencodeclient.R
@@ -195,7 +197,7 @@ fun SettingsScreen(
 
                         fun updateCustomColor(key: String, value: Long) {
                             val updated = customColors.toMutableMap()
-                            updated[key] = value
+                            if (value < 0L) updated.remove(key) else updated[key] = value
                             val json = kotlinx.serialization.json.Json.encodeToString(
                                 kotlinx.serialization.builtins.MapSerializer(
                                     String.serializer(),
@@ -251,6 +253,7 @@ fun SettingsScreen(
                                     }
                                 ),
                                 initial = customColors[key] ?: defaultColor,
+                                defaultColor = defaultColor,
                                 onPick = { c ->
                                     updateCustomColor(key, c)
                                     customPicking = null
@@ -531,23 +534,19 @@ private fun ColorPreviewRow(
 private fun ColorPickerDialog(
     title: String,
     initial: Long,
+    defaultColor: Long = -1L,
     onPick: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val initialColor = Color(if (initial >= 0) initial.toInt() else android.graphics.Color.WHITE)
-    val initialHsv = remember {
-        val hsv = floatArrayOf(0f, 0f, 0f)
-        android.graphics.Color.colorToHSV(initialColor.toArgb(), hsv)
-        hsv
-    }
     var currentColor by remember { mutableStateOf(initialColor) }
-    var hue by remember { mutableFloatStateOf(initialHsv[0]) }
-    var sat by remember { mutableFloatStateOf(initialHsv[1]) }
-    var value by remember { mutableFloatStateOf(initialHsv[2]) }
+    var rgbSpace by remember { mutableStateOf(true) }
+    var hex by remember { mutableStateOf("#%06X".format(initialColor.toArgb() and 0xFFFFFF)) }
 
-    fun hsvToColor(): Color {
-        val c = android.graphics.Color.HSVToColor(floatArrayOf(hue, sat, value))
-        return Color(c)
+    fun applyColor(c: Color) {
+        val argb = c.toArgb() or (0xFF shl 24)
+        currentColor = Color(argb)
+        hex = "#%06X".format(argb and 0xFFFFFF)
     }
 
     AlertDialog(
@@ -566,12 +565,15 @@ private fun ColorPickerDialog(
                         Box(
                             modifier = Modifier
                                 .aspectRatio(1f)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                .background(
+                                    if (defaultColor >= 0L) Color(defaultColor.toInt()) else MaterialTheme.colorScheme.surfaceVariant,
+                                    CircleShape,
+                                )
                                 .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                                 .clickable { onPick(-1L) },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(stringResource(R.string.color_default), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.color_default), color = contrastColor(Color(defaultColor.toInt())), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                     items(presetColors) { c ->
@@ -579,12 +581,7 @@ private fun ColorPickerDialog(
                             modifier = Modifier
                                 .aspectRatio(1f)
                                 .background(Color(c.toInt()), CircleShape)
-                                .clickable {
-                                    currentColor = Color(c.toInt())
-                                    val hsv = floatArrayOf(0f, 0f, 0f)
-                                    android.graphics.Color.colorToHSV(c.toInt(), hsv)
-                                    hue = hsv[0]; sat = hsv[1]; value = hsv[2]
-                                },
+                                .clickable { applyColor(Color(c.toInt())) },
                         )
                     }
                 }
@@ -599,11 +596,61 @@ private fun ColorPickerDialog(
                         .background(currentColor, RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("#%06X".format((currentColor.toArgb() and 0xFFFFFF)), color = contrastColor(currentColor), fontFamily = MonoFontFamily)
+                    Text(hex, color = contrastColor(currentColor), fontFamily = MonoFontFamily)
                 }
-                SliderRow(stringResource(R.string.color_hue), hue, { hue = it })
-                SliderRow(stringResource(R.string.color_saturation), sat, { sat = it })
-                SliderRow(stringResource(R.string.color_brightness), value, { value = it })
+                OutlinedTextField(
+                    value = hex,
+                    onValueChange = { input ->
+                        var s = input.trim().removePrefix("#")
+                            .filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+                            .take(6)
+                        hex = "#$s"
+                        if (s.length == 6) {
+                            applyColor(Color((0xFF shl 24) or s.toLong(16).toInt()))
+                        }
+                    },
+                    label = { Text(stringResource(R.string.color_hex)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = rgbSpace,
+                        onClick = { rgbSpace = true },
+                        label = { Text(stringResource(R.string.color_space_rgb)) },
+                    )
+                    FilterChip(
+                        selected = !rgbSpace,
+                        onClick = { rgbSpace = false },
+                        label = { Text(stringResource(R.string.color_space_hsv)) },
+                    )
+                }
+
+                if (rgbSpace) {
+                    val r = currentColor.red
+                    val g = currentColor.green
+                    val b = currentColor.blue
+                    SliderRow(stringResource(R.string.color_red), r, { applyColor(Color(it, g, b)) })
+                    SliderRow(stringResource(R.string.color_green), g, { applyColor(Color(r, it, b)) })
+                    SliderRow(stringResource(R.string.color_blue), b, { applyColor(Color(r, g, it)) })
+                } else {
+                    val hsv = remember(currentColor) {
+                        val arr = floatArrayOf(0f, 0f, 0f)
+                        android.graphics.Color.colorToHSV(currentColor.toArgb(), arr)
+                        arr
+                    }
+                    val h = hsv[0]; val s = hsv[1]; val v = hsv[2]
+                    SliderRow(
+                        stringResource(R.string.color_hue),
+                        h,
+                        { applyColor(Color(android.graphics.Color.HSVToColor(floatArrayOf(it, s, v)))) },
+                        valueRange = 0f..360f,
+                    )
+                    SliderRow(stringResource(R.string.color_saturation), s, { applyColor(Color(android.graphics.Color.HSVToColor(floatArrayOf(h, it, v)))) })
+                    SliderRow(stringResource(R.string.color_brightness), v, { applyColor(Color(android.graphics.Color.HSVToColor(floatArrayOf(h, s, it)))) })
+                }
             }
         },
         dismissButton = {
@@ -612,7 +659,7 @@ private fun ColorPickerDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val argb = hsvToColor().toArgb() and 0xFFFFFF
+                    val argb = currentColor.toArgb() and 0xFFFFFF
                     onPick(0xFF000000L or argb.toLong())
                 },
             ) { Text(stringResource(R.string.color_apply)) }
@@ -625,13 +672,14 @@ private fun SliderRow(
     label: String,
     value: Float,
     onChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.size(80.dp))
         Slider(
             value = value,
             onValueChange = onChange,
-            valueRange = 0f..1f,
+            valueRange = valueRange,
             modifier = Modifier.weight(1f),
         )
     }

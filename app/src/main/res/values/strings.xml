@@ -139,6 +139,12 @@
     <string name="color_hue">Hue</string>
     <string name="color_saturation">Saturation</string>
     <string name="color_brightness">Brightness</string>
+    <string name="color_red">Red</string>
+    <string name="color_green">Green</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_hex">Hex #RRGGBB</string>
+    <string name="color_space_rgb">RGB</string>
+    <string name="color_space_hsv">HSV</string>
     <string name="color_apply">Apply</string>
     <string name="color_cancel">Cancel</string>
     <string name="color_your_title">Your messages color</string>
