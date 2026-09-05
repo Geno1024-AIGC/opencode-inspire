@@ -12,7 +12,7 @@
     <string name="connect_guide_point1">Find the machine LAN IP and enter it in the Server address field above (the port defaults to 4096).</string>
     <string name="connect_guide_point2">When --port is omitted, the server uses port 4096; if taken, a random free port is used.</string>
     <string name="connect_guide_point3">Without --hostname 0.0.0.0 the server only listens on 127.0.0.1, unreachable from a phone.</string>
-    <string name="connect_guide_point4">To require login, set OPENCODE_SERVER_PASSWORD before running serve, then enter it above; if username is left blank it defaults to opencode.</string>
+    <string name="connect_guide_point4">To require login, set the environment variables before running serve: OPENCODE_SERVER_PASSWORD sets the login password, and OPENCODE_SERVER_USERNAME sets the username (defaults to opencode if omitted). Then enter the password above; leave the username blank to use the default.</string>
     <string name="connect_add">Add server</string>
     <string name="connect_save">Connect &amp; Save</string>
     <string name="connect_cancel">Cancel</string>
