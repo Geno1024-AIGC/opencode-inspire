@@ -75,12 +75,25 @@ import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
 
-private enum class Metric(val labelRes: Int) {
-    TOTAL(R.string.calendar_stats_total),
-    FRESH(R.string.calendar_stats_fresh),
-    MSGS(R.string.calendar_stats_msgs),
-    MSGS_SENT(R.string.calendar_stats_msgs_sent),
-    MSGS_RECV(R.string.calendar_stats_msgs_rcv),
+private enum class TokenCategory(val labelRes: Int) {
+    TOKEN(R.string.calendar_cat_token),
+    MSGS(R.string.calendar_cat_msgs),
+}
+
+private enum class TokenMetric(val labelRes: Int) {
+    TOTAL(R.string.calendar_token_total),
+    FRESH(R.string.calendar_token_fresh),
+    INPUT(R.string.calendar_token_in),
+    OUTPUT(R.string.calendar_token_out),
+    REASONING(R.string.calendar_token_infer),
+    CACHE_READ(R.string.calendar_token_crd),
+    CACHE_WRITE(R.string.calendar_token_cwr),
+}
+
+private enum class MsgMetric(val labelRes: Int) {
+    TOTAL(R.string.calendar_msgs_total),
+    USER(R.string.calendar_msgs_user),
+    ASSISTANT(R.string.calendar_msgs_assistant),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -98,9 +111,14 @@ fun TokenCalendarScreen(
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     var hiddenSyncAt by remember { mutableStateOf(false) }
-    var metricName by rememberSaveable { mutableStateOf(Metric.TOTAL.name) }
-    var metric = Metric.valueOf(metricName)
+    var categoryName by rememberSaveable { mutableStateOf(TokenCategory.TOKEN.name) }
+    var tokenMetricName by rememberSaveable { mutableStateOf(TokenMetric.TOTAL.name) }
+    var msgMetricName by rememberSaveable { mutableStateOf(MsgMetric.TOTAL.name) }
+    var catMenu by remember { mutableStateOf(false) }
     var metricMenu by remember { mutableStateOf(false) }
+    val category = TokenCategory.valueOf(categoryName)
+    val tokenMetric = TokenMetric.valueOf(tokenMetricName)
+    val msgMetric = MsgMetric.valueOf(msgMetricName)
 
     val totalDay = history.values.fold(TokenDay()) { acc, t -> acc + t }
     val totalElapsed = elapsed.values.sum()
@@ -156,7 +174,8 @@ fun TokenCalendarScreen(
                     monthElapsed = monthElapsed,
                     totalElapsed = totalElapsed,
                     short = shortTokens,
-                    metric = metric,
+                    metricMonth = selectMetric(monthDay, category, tokenMetric, msgMetric),
+                    metricTotal = selectMetric(totalDay, category, tokenMetric, msgMetric),
                 )
                 if (syncedAt > 0L && !hiddenSyncAt) {
                     Text(
@@ -187,25 +206,59 @@ fun TokenCalendarScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                     Box {
-Text(
-                        stringResource(metric.labelRes),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontFamily = MonoFontFamily,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable { metricMenu = true }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
-                    DropdownMenu(expanded = metricMenu, onDismissRequest = { metricMenu = false }) {
-                        Metric.entries.forEach { m ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(m.labelRes), fontFamily = MonoFontFamily) },
-                                onClick = { metricName = m.name; metricMenu = false },
-                            )
+                        Text(
+                            stringResource(category.labelRes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { catMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = catMenu, onDismissRequest = { catMenu = false }) {
+                            TokenCategory.entries.forEach { c ->
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(c.labelRes), fontFamily = MonoFontFamily) },
+                                    onClick = { categoryName = c.name; catMenu = false },
+                                )
+                            }
                         }
                     }
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        val currentMetricRes = when (TokenCategory.valueOf(categoryName)) {
+                            TokenCategory.TOKEN -> TokenMetric.valueOf(tokenMetricName).labelRes
+                            TokenCategory.MSGS -> MsgMetric.valueOf(msgMetricName).labelRes
+                        }
+                        Text(
+                            stringResource(currentMetricRes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { metricMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = metricMenu, onDismissRequest = { metricMenu = false }) {
+                            when (TokenCategory.valueOf(categoryName)) {
+                                TokenCategory.TOKEN -> TokenMetric.entries.forEach { m ->
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(m.labelRes), fontFamily = MonoFontFamily) },
+                                        onClick = { tokenMetricName = m.name; metricMenu = false },
+                                    )
+                                }
+                                TokenCategory.MSGS -> MsgMetric.entries.forEach { m ->
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(m.labelRes), fontFamily = MonoFontFamily) },
+                                        onClick = { msgMetricName = m.name; metricMenu = false },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 PrimaryTabRow(selectedTabIndex = tab) {
@@ -221,13 +274,15 @@ Text(
                         selected = selected,
                         locale = locale,
                         shortTokens = shortTokens,
-                        metric = metric,
+                        category = category,
+                        tokenMetric = tokenMetric,
+                        msgMetric = msgMetric,
                         onPrev = { shownMonth = shownMonth.minusMonths(1) },
                         onNext = { shownMonth = shownMonth.plusMonths(1) },
                         onSelect = { selected = it },
                     )
-                    1 -> WeekColumnCard(buckets = hourByWeek, locale = locale, metric = metric, modifier = Modifier.fillMaxWidth().height(viewportH))
-                    2 -> MonthColumnCard(buckets = hourByMonth, locale = locale, metric = metric, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    1 -> WeekColumnCard(buckets = hourByWeek, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    2 -> MonthColumnCard(buckets = hourByMonth, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
                 }
             }
         }
@@ -242,7 +297,9 @@ private fun DailyCalendarTab(
     selected: LocalDate?,
     locale: Locale,
     shortTokens: Boolean,
-    metric: Metric,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onSelect: (LocalDate) -> Unit,
@@ -273,7 +330,9 @@ private fun DailyCalendarTab(
             shownMonth = shownMonth,
             selected = selected,
             locale = locale,
-            metric = metric,
+            category = category,
+            tokenMetric = tokenMetric,
+            msgMetric = msgMetric,
             onSelect = onSelect,
         )
         HorizontalDivider()
@@ -298,7 +357,7 @@ private fun DailyCalendarTab(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    stringResource(R.string.calendar_day_detail_tokens, fmtTokens(selectMetric(selDay, metric), shortTokens)),
+                    stringResource(R.string.calendar_day_detail_tokens, fmtTokens(selectMetric(selDay, category, tokenMetric, msgMetric), shortTokens)),
                     style = MaterialTheme.typography.bodyMedium,
                     fontFamily = MonoFontFamily,
                 )
@@ -326,7 +385,9 @@ private fun DailyCalendarTab(
 private fun MonthColumnCard(
     buckets: Map<String, Map<Int, TokenDay>>,
     locale: Locale,
-    metric: Metric,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
     modifier: Modifier = Modifier,
 ) {
     val sorted = buckets.toSortedMap()
@@ -338,7 +399,9 @@ private fun MonthColumnCard(
     PeriodColumns(
         periods = sorted.map { it.key to it.value },
         labels = labels,
-        metric = metric,
+        category = category,
+        tokenMetric = tokenMetric,
+        msgMetric = msgMetric,
         modifier = modifier,
     )
 }
@@ -347,7 +410,9 @@ private fun MonthColumnCard(
 private fun WeekColumnCard(
     buckets: Map<String, Map<Int, TokenDay>>,
     locale: Locale,
-    metric: Metric,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
     modifier: Modifier = Modifier,
 ) {
     val sorted = buckets.toSortedMap()
@@ -363,7 +428,9 @@ private fun WeekColumnCard(
     PeriodColumns(
         periods = sorted.map { it.key to it.value },
         labels = labels,
-        metric = metric,
+        category = category,
+        tokenMetric = tokenMetric,
+        msgMetric = msgMetric,
         modifier = modifier,
         onLabelClick = { _, key ->
             runCatching { clickedWeek = LocalDate.parse(key) }
@@ -411,7 +478,9 @@ private val PeriodHeaderH = 20.dp
 private fun PeriodColumns(
     periods: List<Pair<String, Map<Int, TokenDay>>>,
     labels: List<String>,
-    metric: Metric,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
     modifier: Modifier = Modifier,
     onLabelClick: ((index: Int, key: String) -> Unit)? = null,
 ) {
@@ -427,7 +496,7 @@ private fun PeriodColumns(
         val m = entry.second
         var sum = 0L
         for (h in 0 until 24) {
-            val v = m[h]?.let { selectMetric(it, metric) } ?: 0L
+            val v = m[h]?.let { selectMetric(it, category, tokenMetric, msgMetric) } ?: 0L
             totals[h] += v
             sum += v
             if (v > max) max = v
@@ -499,7 +568,7 @@ private fun PeriodColumns(
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                             for (hour in 0 until 24) {
-                                HourCircle(value = m[hour]?.let { selectMetric(it, metric) } ?: 0L, max = max, size = circle, gap = gap, primary = primary)
+                                HourCircle(value = m[hour]?.let { selectMetric(it, category, tokenMetric, msgMetric) } ?: 0L, max = max, size = circle, gap = gap, primary = primary)
                             }
                         }
                     }
@@ -604,7 +673,7 @@ private fun HourCircle(
     }
 }
 @Composable
-private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean, metric: Metric) {
+private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean, metricMonth: Long, metricTotal: Long) {
     val mono = MonoFontFamily
     val onSurface = MaterialTheme.colorScheme.onSurface
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -651,7 +720,7 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
         SummaryRow(labelWidth, labels[1], fmtTokens(month.msgsSent, short), fmtTokens(total.msgsSent, short), mono, labelColor)
         SummaryRow(labelWidth, labels[2], fmtTokens(month.msgsReceived, short), fmtTokens(total.msgsReceived, short), mono, labelColor)
         SummaryRow(labelWidth, labels[3], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
-        SummaryRow(labelWidth, labels[4], fmtTokens(selectMetric(month, metric), short), fmtTokens(selectMetric(total, metric), short), mono, labelColor)
+        SummaryRow(labelWidth, labels[4], fmtTokens(metricMonth, short), fmtTokens(metricTotal, short), mono, labelColor)
         SummaryRow(labelWidth, labels[5], fmtTokens(month.input, short), fmtTokens(total.input, short), mono, labelColor)
         SummaryRow(labelWidth, labels[6], fmtTokens(month.output, short), fmtTokens(total.output, short), mono, labelColor)
         SummaryRow(labelWidth, labels[7], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
@@ -694,7 +763,9 @@ private fun CalendarGrid(
     shownMonth: YearMonth,
     selected: LocalDate?,
     locale: Locale,
-    metric: Metric,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
     onSelect: (LocalDate) -> Unit,
 ) {
     val today = LocalDate.now()
@@ -706,7 +777,7 @@ private fun CalendarGrid(
     val monthTokens = history
         .filterKeys { runCatching { LocalDate.parse(it).let { d -> d.year == shownMonth.year && d.month == shownMonth.month } }.getOrDefault(false) }
         .values
-        .map { selectMetric(it, metric) }
+        .map { selectMetric(it, category, tokenMetric, msgMetric) }
     val monthMax = (monthTokens.maxOrNull() ?: 0L).coerceAtLeast(1L)
 
     val startDow = DayOfWeek.of(firstDayOfWeek)
@@ -727,7 +798,7 @@ private fun CalendarGrid(
                 for (c in 0 until 7) {
                     val date = gridStart.plusDays((r * 7 + c).toLong())
                     val inMonth = date.month == first.month && date.year == first.year
-                    val tokens = history[date.toString()]?.let { selectMetric(it, metric) } ?: 0L
+                    val tokens = history[date.toString()]?.let { selectMetric(it, category, tokenMetric, msgMetric) } ?: 0L
                     val dayElapsed = elapsed[date.toString()] ?: 0L
                     CalendarDayCell(
                         date = date,
@@ -813,12 +884,21 @@ private fun CalendarDayCell(
     }
 }
 
-private fun selectMetric(d: TokenDay, metric: Metric): Long = when (metric) {
-    Metric.TOTAL -> d.total
-    Metric.FRESH -> d.fresh
-    Metric.MSGS -> d.msgs
-    Metric.MSGS_SENT -> d.msgsSent
-    Metric.MSGS_RECV -> d.msgsReceived
+private fun selectMetric(d: TokenDay, cat: TokenCategory, token: TokenMetric, msg: MsgMetric): Long = when (cat) {
+    TokenCategory.TOKEN -> when (token) {
+        TokenMetric.TOTAL -> d.total
+        TokenMetric.FRESH -> d.fresh
+        TokenMetric.INPUT -> d.input
+        TokenMetric.OUTPUT -> d.output
+        TokenMetric.REASONING -> d.reasoning
+        TokenMetric.CACHE_READ -> d.cacheRead
+        TokenMetric.CACHE_WRITE -> d.cacheWrite
+    }
+    TokenCategory.MSGS -> when (msg) {
+        MsgMetric.TOTAL -> d.msgs
+        MsgMetric.USER -> d.msgsSent
+        MsgMetric.ASSISTANT -> d.msgsReceived
+    }
 }
 
 private fun fmtTokens(n: Long, short: Boolean): String =
