@@ -548,8 +548,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val weekStartDates = (0 until 16).map { currentWeekStart.minusWeeks(it.toLong()) }
                     val weekStartDatesStr = weekStartDates.map { it.toString() }
                     val weekStartSet = weekStartDatesStr.toSet()
-                    val dayKeys = (0 until 31).map { now.minusDays(it.toLong()).toString() }
-                    val daySet = dayKeys.toSet()
 
                     val baseSync = if (incremental) _tokenSync.value else 0L
                     val hasFreshCache = incremental && baseSync > 0L
@@ -600,14 +598,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 msgsSent = if (msg.role == "user") 1L else 0L,
                                 msgsReceived = if (msg.role == "assistant") 1L else 0L,
                             )
-                            val dayKey = day.toString()
+val dayKey = day.toString()
                             tokens[dayKey] = (tokens[dayKey] ?: TokenDay()) + frag
                             if (total > 0L) {
                                 val hour = zdt.hour
-                                if (dayKey in daySet) {
-                                    val dBuckets = dayHours.getOrPut(dayKey) { mutableMapOf() }
-                                    dBuckets[hour] = (dBuckets[hour] ?: TokenDay()) + frag
-                                }
+                                val dBuckets = dayHours.getOrPut(dayKey) { mutableMapOf() }
+                                dBuckets[hour] = (dBuckets[hour] ?: TokenDay()) + frag
                                 val mKey = dayKey.substring(0, 7)
                                 val mBuckets = month.getOrPut(mKey) { mutableMapOf() }
                                 mBuckets[hour] = (mBuckets[hour] ?: TokenDay()) + frag
@@ -638,7 +634,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                     val monthOut = month.filterKeys { it in monthKeys }
                     val weekOut = week.filterKeys { it in weekStartDatesStr }
-                    val dayOut = dayHours.filterKeys { it in daySet }
+                    val dayOut = dayHours
 
                     _tokenHistory.value = tokens
                     _tokenElapsed.value = elapsed
