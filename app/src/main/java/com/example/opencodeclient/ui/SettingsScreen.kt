@@ -1,7 +1,5 @@
 package com.example.opencodeclient.ui
 
-import android.content.Intent
-import android.net.Uri
 import com.example.opencodeclient.BuildConfig
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -57,7 +55,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -83,6 +80,7 @@ fun SettingsScreen(
     viewModel: MainViewModel,
     onBack: () -> Unit,
     onOpenCalendar: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
 
@@ -396,40 +394,26 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.padding(16.dp)) {
-                    val context = LocalContext.current
-                    SectionLabel(R.string.settings_about)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(
-                                            Intent.ACTION_VIEW,
-                                            Uri.parse("https://github.com/Geno1024-AIGC/opencode-inspire"),
-                                        ),
-                                    )
-                                }
-                            }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.bodyLarge)
-                            Text(
-                                stringResource(R.string.about_repo),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenAbout)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_about), style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            "v${BuildConfig.VERSION_NAME} · ${BuildConfig.GIT_COMMIT.take(7)}",
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontFamily = MonoFontFamily,
+                            "v${BuildConfig.VERSION_NAME}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    Text(
+                        stringResource(R.string.about_repo),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
             }
 
