@@ -655,6 +655,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val report = withContext(Dispatchers.IO) { cli.probeCapabilities() }
+                cli.applyCapabilities(report)
                 _capabilities.value = report
             } catch (e: Exception) {
                 _capabilities.value = null
