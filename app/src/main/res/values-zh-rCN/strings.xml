@@ -313,8 +313,6 @@
     <string name="capabilities_title">实例能力</string>
     <string name="capabilities_version">版本</string>
     <string name="capabilities_unknown">未知</string>
-    <string name="capabilities_probing">正在探测此服务器的能力…</string>
-    <string name="capabilities_retry">重新探测</string>
     <string name="capabilities_active_fs">文件列表接口</string>
     <string name="capabilities_degraded">文件浏览已降级到旧版 /file 接口（v2 不可用）。</string>
     <string name="capabilities_supported">支持</string>

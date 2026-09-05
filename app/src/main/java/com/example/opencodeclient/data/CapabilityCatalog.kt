@@ -27,7 +27,14 @@ enum class FeatureGroup {
     API,
     SLASH,
     AGENTS,
-    MODELS,
+    MODELS;
+
+    fun labelRes(): Int = when (this) {
+        API -> R.string.capability_group_api
+        SLASH -> R.string.capability_group_slash
+        AGENTS -> R.string.capability_group_agents
+        MODELS -> R.string.capability_group_models
+    }
 }
 
 enum class CapabilityState {
@@ -36,7 +43,16 @@ enum class CapabilityState {
     ESTIMATED_SUPPORTED,
     ESTIMATED_UNSUPPORTED,
     BUILTIN,
-    UNKNOWN,
+    UNKNOWN;
+
+    fun labelRes(): Int = when (this) {
+        VERIFIED_SUPPORTED -> R.string.capabilities_supported
+        VERIFIED_UNSUPPORTED -> R.string.capabilities_unsupported
+        ESTIMATED_SUPPORTED -> R.string.capabilities_estimated
+        ESTIMATED_UNSUPPORTED -> R.string.capabilities_estimated_unsupported
+        BUILTIN -> R.string.capabilities_builtin
+        UNKNOWN -> R.string.capabilities_unknown
+    }
 }
 
 data class FeatureSpec(
