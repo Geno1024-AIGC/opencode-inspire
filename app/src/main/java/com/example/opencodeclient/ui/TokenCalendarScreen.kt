@@ -127,7 +127,6 @@ fun TokenCalendarScreen(
     val today = LocalDate.now()
     var shownMonth by remember { mutableStateOf(YearMonth.now()) }
     var selected by remember { mutableStateOf<LocalDate?>(today) }
-    var dayCursor by remember { mutableStateOf(today) }
     var tab by remember { mutableIntStateOf(0) }
 
     Scaffold(
@@ -284,13 +283,10 @@ fun TokenCalendarScreen(
                     )
                     1 -> DayColumnCard(
                         buckets = hourByDay,
-                        day = dayCursor,
                         locale = locale,
                         category = category,
                         tokenMetric = tokenMetric,
                         msgMetric = msgMetric,
-                        onPrev = { dayCursor = dayCursor.minusDays(1) },
-                        onNext = { dayCursor = dayCursor.plusDays(1) },
                         modifier = Modifier.fillMaxWidth().height(viewportH),
                     )
                     2 -> WeekColumnCard(buckets = hourByWeek, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
@@ -396,44 +392,26 @@ private fun DailyCalendarTab(
 @Composable
 private fun DayColumnCard(
     buckets: Map<String, Map<Int, TokenDay>>,
-    day: LocalDate,
     locale: Locale,
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
-    onPrev: () -> Unit,
-    onNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onPrev) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Text(
-                day.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale)),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            IconButton(onClick = onNext) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        PeriodColumns(
-            periods = listOf(day.toString() to (buckets[day.toString()] ?: emptyMap())),
-            labels = listOf(day.format(DateTimeFormatter.ofPattern("MM-dd", locale))),
-            category = category,
-            tokenMetric = tokenMetric,
-            msgMetric = msgMetric,
-            modifier = modifier,
-        )
+    val sorted = buckets.toSortedMap()
+    val periods = sorted.keys.toList()
+    val labels = periods.map { key ->
+        runCatching { LocalDate.parse(key).format(DateTimeFormatter.ofPattern("MM-dd", locale)) }
+            .getOrDefault(key)
     }
+    PeriodColumns(
+        periods = sorted.map { it.key to it.value },
+        labels = labels,
+        category = category,
+        tokenMetric = tokenMetric,
+        msgMetric = msgMetric,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -737,10 +715,10 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
     val monthLabel = stringResource(R.string.calendar_table_month)
     val totalLabel = stringResource(R.string.calendar_table_total)
     val labels = listOf(
+        stringResource(R.string.calendar_table_time),
         stringResource(R.string.calendar_table_msgs),
         stringResource(R.string.calendar_table_msgs_sent),
         stringResource(R.string.calendar_table_msgs_rcv),
-        stringResource(R.string.calendar_table_time),
         stringResource(R.string.calendar_table_token),
         stringResource(R.string.calendar_table_in),
         stringResource(R.string.calendar_table_out),
@@ -771,10 +749,10 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
                 modifier = Modifier.weight(1f),
             )
         }
-        SummaryRow(labelWidth, labels[0], fmtTokens(month.msgs, short), fmtTokens(total.msgs, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[1], fmtTokens(month.msgsSent, short), fmtTokens(total.msgsSent, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[2], fmtTokens(month.msgsReceived, short), fmtTokens(total.msgsReceived, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[3], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
+        SummaryRow(labelWidth, labels[0], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
+        SummaryRow(labelWidth, labels[1], fmtTokens(month.msgs, short), fmtTokens(total.msgs, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[2], fmtTokens(month.msgsSent, short), fmtTokens(total.msgsSent, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[3], fmtTokens(month.msgsReceived, short), fmtTokens(total.msgsReceived, short), mono, labelColor)
         SummaryRow(labelWidth, labels[4], fmtTokens(month.total, short), fmtTokens(total.total, short), mono, labelColor)
         SummaryRow(labelWidth, labels[5], fmtTokens(month.input, short), fmtTokens(total.input, short), mono, labelColor)
         SummaryRow(labelWidth, labels[6], fmtTokens(month.output, short), fmtTokens(total.output, short), mono, labelColor)

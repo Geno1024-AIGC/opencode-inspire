@@ -156,8 +156,8 @@
     <string name="calendar_last_updated">缓存数据截至：%1$s</string>
 <string name="calendar_table_total">总计</string>
     <string name="calendar_table_msgs">总消息</string>
-    <string name="calendar_table_msgs_sent">我发的</string>
-    <string name="calendar_table_msgs_rcv">你发的</string>
+    <string name="calendar_table_msgs_sent">用户</string>
+    <string name="calendar_table_msgs_rcv">助手</string>
     <string name="calendar_stats_metric_label">显示:</string>
     <string name="calendar_cat_token">token</string>
     <string name="calendar_cat_msgs">msgs</string>
