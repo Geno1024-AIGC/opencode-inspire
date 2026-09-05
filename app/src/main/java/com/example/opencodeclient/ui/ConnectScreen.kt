@@ -207,11 +207,19 @@ private fun ServerGuide() {
                 .padding(horizontal = 12.dp, vertical = 10.dp),
         )
         Spacer(Modifier.height(8.dp))
-        Text(
-            stringResource(R.string.connect_guide_step2),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        listOf(
+            R.string.connect_guide_point1,
+            R.string.connect_guide_point2,
+            R.string.connect_guide_point3,
+            R.string.connect_guide_point4,
+        ).forEach { res ->
+            Text(
+                "• ${stringResource(res)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 2.dp),
+            )
+        }
     }
 }
 
