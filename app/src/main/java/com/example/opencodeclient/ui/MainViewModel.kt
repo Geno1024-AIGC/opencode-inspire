@@ -12,8 +12,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.opencodeclient.BuildConfig
 import com.example.opencodeclient.R
 import java.util.Locale
+import com.example.opencodeclient.data.CapabilityCatalog
 import com.example.opencodeclient.data.CapabilityReport
 import com.example.opencodeclient.data.Command
+import com.example.opencodeclient.data.FeatureStatus
 import com.example.opencodeclient.data.Message
 import com.example.opencodeclient.data.ModelInfo
 import com.example.opencodeclient.data.OpenCodeClient
@@ -35,8 +37,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -233,6 +238,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _capabilities = MutableStateFlow<CapabilityReport?>(null)
     val capabilities: StateFlow<CapabilityReport?> = _capabilities.asStateFlow()
 
+    private val _capabilitiesDetecting = MutableStateFlow(false)
+    val capabilitiesDetecting: StateFlow<Boolean> = _capabilitiesDetecting.asStateFlow()
+
     private val _downloadPercent = MutableStateFlow(-1)
     val downloadPercent: StateFlow<Int> = _downloadPercent.asStateFlow()
     private val _downloadDone = MutableStateFlow(0L)
@@ -285,6 +293,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _assistantBubbleColor = MutableStateFlow(-1L)
     val assistantBubbleColor: StateFlow<Long> = _assistantBubbleColor.asStateFlow()
+
+    val featureStatus: StateFlow<List<FeatureStatus>> =
+        combine(_capabilities, _commands) { report, cmds ->
+            CapabilityCatalog.stateForAll(report, cmds.map { it.name }.toSet())
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     init {
         viewModelScope.launch {
@@ -653,12 +666,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun probeCapabilities(cli: OpenCodeClient) {
         viewModelScope.launch {
+            _capabilitiesDetecting.value = true
             try {
                 val report = withContext(Dispatchers.IO) { cli.probeCapabilities() }
                 cli.applyCapabilities(report)
                 _capabilities.value = report
             } catch (e: Exception) {
                 _capabilities.value = null
+            } finally {
+                _capabilitiesDetecting.value = false
             }
         }
     }
