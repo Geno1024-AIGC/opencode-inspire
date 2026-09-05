@@ -564,7 +564,7 @@ private fun PeriodColumns(
                             size = circle,
                             gap = gap,
                             mono = mono,
-                            color = tertiary,
+                            color = primary,
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                             for (hour in 0 until 24) {
@@ -595,7 +595,7 @@ private fun PeriodColumns(
             )
             HourCircle(
                 value = grandTotal,
-                max = columnTotalsMax,
+                max = grandTotal,
                 size = circle,
                 gap = gap,
                 mono = mono,
