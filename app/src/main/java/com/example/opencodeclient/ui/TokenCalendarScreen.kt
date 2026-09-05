@@ -1,6 +1,7 @@
 package com.example.opencodeclient.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,9 +55,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -519,7 +522,6 @@ private fun PeriodColumns(
 ) {
     val mono = MonoFontFamily
     val primary = MaterialTheme.colorScheme.primary
-    val tertiary = MaterialTheme.colorScheme.tertiary
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val totals = LongArray(24)
@@ -540,6 +542,7 @@ private fun PeriodColumns(
     val totalsMax = (totals.maxOrNull() ?: 0L).coerceAtLeast(1L)
     val columnTotalsMax = (columnTotals.maxOrNull() ?: 0L).coerceAtLeast(1L)
     val grandTotal = columnTotals.sum()
+    var showChart by remember { mutableStateOf(false) }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val gap = 2.dp
@@ -596,8 +599,7 @@ private fun PeriodColumns(
                             max = columnTotalsMax,
                             size = circle,
                             gap = gap,
-                            mono = mono,
-                            color = primary,
+                            primary = primary,
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                             for (hour in 0 until 24) {
@@ -617,6 +619,7 @@ private fun PeriodColumns(
         )
         Spacer(Modifier.width(10.dp))
         Column(
+            Modifier.clickable { showChart = true },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
@@ -631,8 +634,7 @@ private fun PeriodColumns(
                 max = grandTotal,
                 size = circle,
                 gap = gap,
-                mono = mono,
-                color = tertiary,
+                primary = primary,
             )
             Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                 for (hour in 0 until 24) {
@@ -642,6 +644,82 @@ private fun PeriodColumns(
         }
         }
     }
+    if (showChart) {
+        TokenChartDialog(
+            values = columnTotals.toList(),
+            labels = labels,
+            onDismiss = { showChart = false },
+        )
+    }
+}
+
+@Composable
+private fun TokenChartDialog(values: List<Long>, labels: List<String>, onDismiss: () -> Unit) {
+    val textMeasurer = rememberTextMeasurer()
+    val primary = MaterialTheme.colorScheme.primary
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val textColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val max = (values.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.calendar_chart_title)) },
+        text = {
+            Canvas(
+                Modifier
+                    .fillMaxWidth()
+                    .height(320.dp)
+                    .padding(top = 8.dp),
+            ) {
+                val left = 40.dp.toPx()
+                val bottom = size.height - 22.dp.toPx()
+                val w = size.width - left
+                val h = bottom
+                for (i in 0..4) {
+                    val y = h * i / 4f
+                    drawLine(gridColor, Offset(left, y), Offset(size.width, y), strokeWidth = 1f)
+                    if (i < 4) {
+                        val labelText = formatTokensCompact((max * (4 - i) / 4).toLong())
+                        drawText(
+                            textMeasurer,
+                            labelText,
+                            topLeft = Offset(0f, y - 8f),
+                            style = androidx.compose.ui.text.TextStyle(color = textColor, fontSize = 9.sp),
+                        )
+                    }
+                }
+                if (values.isNotEmpty()) {
+                    val step = w / values.size
+                    val pts = values.mapIndexed { i, v ->
+                        Offset(left + step * (i + 0.5f), bottom - (v.toDouble() / max * h).toFloat())
+                    }
+                    for (i in 0 until pts.size - 1) {
+                        drawLine(primary, pts[i], pts[i + 1], strokeWidth = 2f)
+                    }
+                    val labelEvery = maxOf(1, (values.size - 1) / 6)
+                    pts.forEachIndexed { i, p ->
+                        drawCircle(primary, radius = 3f, center = p)
+                        if (i % labelEvery == 0 || i == values.size - 1) {
+                            drawText(
+                                textMeasurer,
+                                labels.getOrElse(i) { "" },
+                                topLeft = Offset(p.x - 18f, bottom + 3f),
+                                style = androidx.compose.ui.text.TextStyle(color = textColor, fontSize = 9.sp),
+                            )
+                        }
+                    }
+                    drawText(
+                        textMeasurer,
+                        formatTokensCompact(max),
+                        topLeft = Offset(left, 0f),
+                        style = androidx.compose.ui.text.TextStyle(color = textColor, fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.drawer_close)) }
+        },
+    )
 }
 
 @Composable
@@ -674,37 +752,6 @@ private fun HourCircle(
     }
 }
 
-@Composable
-private fun HourCircle(
-    value: Long,
-    max: Long,
-    size: androidx.compose.ui.unit.Dp,
-    gap: androidx.compose.ui.unit.Dp,
-    mono: androidx.compose.ui.text.font.FontFamily,
-    color: Color,
-) {
-    val text = if (value > 0L) formatTokensCompact(value) else ""
-    val bg = if (value > 0L) {
-        val frac = (value.toDouble() / max.toDouble()).toFloat().coerceIn(0f, 1f)
-        color.copy(alpha = (0.18f + 0.72f * frac).coerceIn(0.18f, 0.9f))
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-    }
-    Box(
-        Modifier.size(size).padding(gap / 2).background(bg, CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (text.isNotEmpty()) {
-            Text(
-                text,
-                fontSize = if (text.length <= 3) 9.sp else 7.sp,
-                fontFamily = mono,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-            )
-        }
-    }
-}
 @Composable
 private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean) {
     val mono = MonoFontFamily

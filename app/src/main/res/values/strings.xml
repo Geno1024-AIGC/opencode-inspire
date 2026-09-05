@@ -171,7 +171,7 @@
     <string name="calendar_msgs_total">total</string>
     <string name="calendar_msgs_user">user</string>
     <string name="calendar_msgs_assistant">assistant</string>
-    <string name="calendar_table_month">Month</string>
+    <string name="calendar_table_month">This month</string>
     <string name="calendar_table_token">Token</string>
     <string name="calendar_table_time">Time</string>
     <string name="calendar_table_in">In</string>
@@ -191,6 +191,7 @@
     <string name="stats_tab_day">Day</string>
     <string name="stats_tab_monthly">Month</string>
     <string name="stats_tab_weekly">Week</string>
+    <string name="calendar_chart_title">Trend</string>
     <string name="stats_total">Total</string>
     <string name="stats_week_dialog_title">Week %1$d‑W%2$02d</string>
     <string name="settings_token_history">Usage calendar</string>

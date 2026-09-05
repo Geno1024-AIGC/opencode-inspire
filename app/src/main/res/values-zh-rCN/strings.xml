@@ -171,7 +171,7 @@
     <string name="calendar_msgs_total">total</string>
     <string name="calendar_msgs_user">user</string>
     <string name="calendar_msgs_assistant">assistant</string>
-    <string name="calendar_table_month">月度</string>
+    <string name="calendar_table_month">本月</string>
     <string name="calendar_table_token">Token</string>
     <string name="calendar_table_time">时间</string>
     <string name="calendar_table_in">输入</string>
@@ -191,6 +191,7 @@
     <string name="stats_tab_day">日</string>
     <string name="stats_tab_monthly">月</string>
     <string name="stats_tab_weekly">周</string>
+    <string name="calendar_chart_title">趋势</string>
     <string name="stats_total">总计</string>
     <string name="stats_week_dialog_title">%1$d 年 第 %2$d 周</string>
     <string name="settings_token_history">使用日历</string>
