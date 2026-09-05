@@ -92,6 +92,7 @@ fun AboutScreen(onBack: () -> Unit) {
             TokenDetailRow(stringResource(R.string.about_token_reasoning), formatCount(BuildConfig.TOKENS_REASONING))
             TokenDetailRow(stringResource(R.string.about_token_cache_read), formatCount(BuildConfig.TOKENS_CACHE_READ))
             TokenDetailRow(stringResource(R.string.about_token_cache_write), formatCount(BuildConfig.TOKENS_CACHE_WRITE))
+            TokenDetailRow(stringResource(R.string.about_msgs), formatCount(BuildConfig.TOKENS_MSGS))
             Text(
                 formatCount(BuildConfig.TOKENS_TOTAL),
                 style = MaterialTheme.typography.headlineSmall,
@@ -110,9 +111,14 @@ fun AboutScreen(onBack: () -> Unit) {
             )
             rememberModels().forEach { m ->
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(m.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                     Text(
-                        "in ${formatCount(m.input)} · out ${formatCount(m.output)} · rea ${formatCount(m.reasoning)}",
+                        m.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (m.bold) FontWeight.Bold else FontWeight.Normal,
+                        color = if (m.bold) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        "msgs ${formatCount(m.msgs)} · in ${formatCount(m.input)} · out ${formatCount(m.output)} · rea ${formatCount(m.reasoning)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = MonoFontFamily,
@@ -165,24 +171,29 @@ private fun formatCount(value: Long): String = String.format(Locale.US, "%,d", v
 
 private data class ModelTokens(
     val name: String,
+    val bold: Boolean,
     val input: Long,
     val output: Long,
     val reasoning: Long,
     val cacheRead: Long,
     val cacheWrite: Long,
+    val msgs: Long,
 )
 
 private fun parseModels(raw: String): List<ModelTokens> =
     raw.lines().filter { it.isNotBlank() }.mapNotNull { line ->
         val parts = line.split(":")
-        if (parts.size < 6) return@mapNotNull null
+        if (parts.size < 7) return@mapNotNull null
+        val name = parts[0].removePrefix("*")
         ModelTokens(
-            name = parts[0],
+            name = name,
+            bold = parts[0].startsWith("*"),
             input = parts[1].toLongOrNull() ?: 0L,
             output = parts[2].toLongOrNull() ?: 0L,
             reasoning = parts[3].toLongOrNull() ?: 0L,
             cacheRead = parts[4].toLongOrNull() ?: 0L,
             cacheWrite = parts[5].toLongOrNull() ?: 0L,
+            msgs = parts[6].toLongOrNull() ?: 0L,
         )
     }
 

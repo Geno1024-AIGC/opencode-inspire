@@ -600,20 +600,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             )
 val dayKey = day.toString()
                             tokens[dayKey] = (tokens[dayKey] ?: TokenDay()) + frag
-                            if (total > 0L) {
-                                val hour = zdt.hour
-                                val dBuckets = dayHours.getOrPut(dayKey) { mutableMapOf() }
-                                dBuckets[hour] = (dBuckets[hour] ?: TokenDay()) + frag
-                                val mKey = dayKey.substring(0, 7)
-                                val mBuckets = month.getOrPut(mKey) { mutableMapOf() }
-                                mBuckets[hour] = (mBuckets[hour] ?: TokenDay()) + frag
-                                val ws = day.with(
-                                    java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
-                                ).toString()
-                                if (ws in weekStartSet) {
-                                    val wBuckets = week.getOrPut(ws) { mutableMapOf() }
-                                    wBuckets[hour] = (wBuckets[hour] ?: TokenDay()) + frag
-                                }
+                            val hour = zdt.hour
+                            val dBuckets = dayHours.getOrPut(dayKey) { mutableMapOf() }
+                            dBuckets[hour] = (dBuckets[hour] ?: TokenDay()) + frag
+                            val mKey = dayKey.substring(0, 7)
+                            val mBuckets = month.getOrPut(mKey) { mutableMapOf() }
+                            mBuckets[hour] = (mBuckets[hour] ?: TokenDay()) + frag
+                            val ws = day.with(
+                                java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
+                            ).toString()
+                            if (ws in weekStartSet) {
+                                val wBuckets = week.getOrPut(ws) { mutableMapOf() }
+                                wBuckets[hour] = (wBuckets[hour] ?: TokenDay()) + frag
                             }
                             if (msg.role == "user") {
                                 if (turnStart > 0L && turnEnd > turnStart) {

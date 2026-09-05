@@ -214,6 +214,7 @@
     <string name="about_token_reasoning">推理</string>
     <string name="about_token_cache_read">缓存读取</string>
     <string name="about_token_cache_write">缓存写入</string>
+    <string name="about_msgs">消息数</string>
     <string name="about_tokens_note">总 Token 包含缓存读取。</string>
     <string name="about_tokens_by_model">按模型</string>
     <string name="channel_release">正式版</string>

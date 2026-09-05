@@ -37,7 +37,8 @@ val tokensOutput = tokenAt(2)
 val tokensReasoning = tokenAt(3)
 val tokensCacheRead = tokenAt(4)
 val tokensCacheWrite = tokenAt(5)
-val tokensModels = tokenLines.drop(6).joinToString("\n") { it.trim() }.trim('\n')
+val tokensMsgs = tokenAt(6)
+val tokensModels = tokenLines.drop(7).joinToString("\n") { it.trim() }.trim('\n')
 
 val appVersionName = "0.1.$pack.$build.$commitSha"
 
@@ -60,6 +61,7 @@ android {
         buildConfigField("long", "TOKENS_REASONING", "${tokensReasoning}L")
         buildConfigField("long", "TOKENS_CACHE_READ", "${tokensCacheRead}L")
         buildConfigField("long", "TOKENS_CACHE_WRITE", "${tokensCacheWrite}L")
+        buildConfigField("long", "TOKENS_MSGS", "${tokensMsgs}L")
         buildConfigField("String", "TOKENS_MODELS", "\"${tokensModels.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\"")
     }
 

@@ -214,6 +214,7 @@
     <string name="about_token_reasoning">Reasoning</string>
     <string name="about_token_cache_read">Cache read</string>
     <string name="about_token_cache_write">Cache write</string>
+    <string name="about_msgs">Messages</string>
     <string name="about_tokens_note">Total includes cached context tokens.</string>
     <string name="about_tokens_by_model">By model</string>
     <string name="channel_release">Release</string>
