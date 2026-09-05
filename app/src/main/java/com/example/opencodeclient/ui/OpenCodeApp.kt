@@ -2,6 +2,8 @@ package com.example.opencodeclient.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -587,7 +589,10 @@ private fun CapabilitiesDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.capabilities_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
                 Text(
                     stringResource(R.string.capabilities_version) + ": " +
                         (report?.version ?: stringResource(R.string.capabilities_unknown)),
