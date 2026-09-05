@@ -50,12 +50,23 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("open_download", false)) {
+            viewModel.showDownloadDialog()
+        }
+    }
+
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, true)
+        if (intent.getBooleanExtra("open_download", false)) {
+            viewModel.showDownloadDialog()
+        }
         setContent {
             var permissionPromptDismissed by rememberSaveable { mutableStateOf(false) }
             val needsNotificationPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -128,6 +139,7 @@ class MainActivity : ComponentActivity() {
                         val downloadDone by viewModel.downloadDone.collectAsStateWithLifecycle()
                         val downloadTotal by viewModel.downloadTotal.collectAsStateWithLifecycle()
                         val downloadSpeed by viewModel.downloadSpeed.collectAsStateWithLifecycle()
+                        val downloadDialogVisible by viewModel.downloadDialogVisible.collectAsStateWithLifecycle()
                         updateInfo?.let { info ->
                             AlertDialog(
                                 onDismissRequest = viewModel::dismissUpdate,
@@ -137,6 +149,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 confirmButton = {
                                     TextButton(onClick = {
+                                        viewModel.showDownloadDialog()
                                         scope.launch {
                                             val startTime = System.currentTimeMillis()
                                             val apk = runCatching {
@@ -188,9 +201,9 @@ class MainActivity : ComponentActivity() {
                                 },
                             )
                         }
-                        if (downloadPercent >= 0) {
+                        if (downloadDialogVisible) {
                             AlertDialog(
-                                onDismissRequest = viewModel::dismissDownload,
+                                onDismissRequest = viewModel::dismissDownloadDialog,
                                 title = { Text(stringResource(R.string.download_title)) },
                                 text = {
                                     val pct = downloadPercent
@@ -204,18 +217,20 @@ class MainActivity : ComponentActivity() {
                                         }
                                         val detail = if (downloadTotal > 0L) {
                                             stringResource(R.string.download_progress_detail,
-                                                if (pct >= 0) "$pct%" else "",
                                                 formatBytes(downloadDone),
-                                                formatBytes(downloadTotal),
-                                                formatSpeed(downloadSpeed))
+                                                formatBytes(downloadTotal))
                                         } else {
                                             stringResource(R.string.download_progress_unknown,
-                                                if (pct >= 0) "$pct%" else "",
-                                                formatBytes(downloadDone),
-                                                formatSpeed(downloadSpeed))
+                                                formatBytes(downloadDone))
                                         }
                                         Text(
                                             detail,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontFamily = MonoFontFamily,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Text(
+                                            formatSpeed(downloadSpeed),
                                             style = MaterialTheme.typography.bodySmall,
                                             fontFamily = MonoFontFamily,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -241,7 +256,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 confirmButton = {},
                                 dismissButton = {
-                                    TextButton(onClick = viewModel::dismissDownload) {
+                                    TextButton(onClick = viewModel::dismissDownloadDialog) {
                                         Text(stringResource(R.string.cancel))
                                     }
                                 },

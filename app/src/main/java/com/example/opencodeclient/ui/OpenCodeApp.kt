@@ -482,7 +482,12 @@ fun formatTokens(count: Long, short: Boolean = true): String = when {
     else -> count.toString()
 }
 
-fun formatBytes(bytes: Long): String = bytes.toString()
+fun formatBytes(bytes: Long): String = when {
+    bytes >= 1L shl 30 -> "%.2f GiB".format(bytes.toDouble() / (1L shl 30))
+    bytes >= 1L shl 20 -> "%.2f MiB".format(bytes.toDouble() / (1L shl 20))
+    bytes >= 1L shl 10 -> "%.2f kiB".format(bytes.toDouble() / (1L shl 10))
+    else -> "$bytes B"
+}
 
 fun formatSpeed(bytesPerSec: Long): String = formatBytes(bytesPerSec) + "/s"
 

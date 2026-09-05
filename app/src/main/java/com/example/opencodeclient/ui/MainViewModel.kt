@@ -254,6 +254,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val downloadTotal: StateFlow<Long> = _downloadTotal.asStateFlow()
     private val _downloadSpeed = MutableStateFlow(0L)
     val downloadSpeed: StateFlow<Long> = _downloadSpeed.asStateFlow()
+    private val _downloadDialogVisible = MutableStateFlow(false)
+    val downloadDialogVisible: StateFlow<Boolean> = _downloadDialogVisible.asStateFlow()
 
     private val _models = MutableStateFlow<List<ModelInfo>>(emptyList())
     val models: StateFlow<List<ModelInfo>> = _models.asStateFlow()
@@ -393,6 +395,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun showDownloadDialog() {
+        _downloadDialogVisible.value = true
+    }
+
+    fun dismissDownloadDialog() {
+        _downloadDialogVisible.value = false
+    }
+
     fun showDownloadProgress(downloaded: Long, total: Long, speed: Long = 0L) {
         val context = getApplication<Application>()
         val progress = if (total > 0L) (downloaded * 100L / total).toInt().coerceIn(0, 100) else -1
@@ -406,22 +416,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val detail = if (total > 0L) {
             context.getString(
                 R.string.download_progress_detail,
-                "$progress%",
                 formatBytes(downloaded),
                 formatBytes(total),
-                formatSpeed(speed),
             )
         } else {
-            context.getString(R.string.download_progress_unknown,
-                "$progress%",
-                formatBytes(downloaded),
-                formatSpeed(speed))
+            context.getString(R.string.download_progress_unknown, formatBytes(downloaded))
         }
-        val fullText = if (eta.isNotEmpty()) "$detail · $eta" else detail
+        val fullText = if (eta.isNotEmpty()) "$detail\n${formatSpeed(speed)}\n$eta" else "$detail\n${formatSpeed(speed)}"
 
         val contentIntent = PendingIntent.getActivity(
-            context, 0,
-            Intent(context, com.example.opencodeclient.MainActivity::class.java),
+            context, 1002,
+            Intent(context, com.example.opencodeclient.MainActivity::class.java)
+                .putExtra("open_download", true),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val cancelIntent = PendingIntent.getBroadcast(
@@ -452,6 +458,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissDownload() {
+        _downloadDialogVisible.value = false
         _downloadPercent.value = -1
         _downloadDone.value = 0L
         _downloadTotal.value = 0L
