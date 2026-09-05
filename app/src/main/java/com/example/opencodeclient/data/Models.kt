@@ -119,6 +119,9 @@ data class TokenDay(
     val reasoning: Long = 0L,
     val cacheRead: Long = 0L,
     val cacheWrite: Long = 0L,
+    val msgs: Long = 0L,
+    val msgsSent: Long = 0L,
+    val msgsReceived: Long = 0L,
 ) {
     val fresh: Long
         get() = input + output + reasoning
@@ -130,6 +133,9 @@ data class TokenDay(
         reasoning = reasoning + other.reasoning,
         cacheRead = cacheRead + other.cacheRead,
         cacheWrite = cacheWrite + other.cacheWrite,
+        msgs = msgs + other.msgs,
+        msgsSent = msgsSent + other.msgsSent,
+        msgsReceived = msgsReceived + other.msgsReceived,
     )
 }
 

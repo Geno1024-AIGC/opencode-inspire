@@ -580,22 +580,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             val cacheRead = toks?.cache?.read ?: 0L
                             val cacheWrite = toks?.cache?.write ?: 0L
                             val total = toks?.total ?: (input + output + reasoning)
+                            val frag = TokenDay(
+                                total = total,
+                                input = input,
+                                output = output,
+                                reasoning = reasoning,
+                                cacheRead = cacheRead,
+                                cacheWrite = cacheWrite,
+                                msgs = 1L,
+                                msgsSent = if (msg.role == "user") 1L else 0L,
+                                msgsReceived = if (msg.role == "assistant") 1L else 0L,
+                            )
+                            val dayKey = day.toString()
+                            tokens[dayKey] = (tokens[dayKey] ?: TokenDay()) + frag
                             if (total > 0L) {
-                                val dayKey = day.toString()
-                                tokens[dayKey] = (tokens[dayKey] ?: TokenDay()) +
-                                    TokenDay(total = total, input = input, output = output, reasoning = reasoning, cacheRead = cacheRead, cacheWrite = cacheWrite)
                                 val hour = zdt.hour
                                 val mKey = dayKey.substring(0, 7)
                                 val mBuckets = month.getOrPut(mKey) { mutableMapOf() }
-                                mBuckets[hour] = (mBuckets[hour] ?: TokenDay()) +
-                                    TokenDay(total = total, input = input, output = output, reasoning = reasoning, cacheRead = cacheRead, cacheWrite = cacheWrite)
+                                mBuckets[hour] = (mBuckets[hour] ?: TokenDay()) + frag
                                 val ws = day.with(
                                     java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
                                 ).toString()
                                 if (ws in weekStartSet) {
                                     val wBuckets = week.getOrPut(ws) { mutableMapOf() }
-                                    wBuckets[hour] = (wBuckets[hour] ?: TokenDay()) +
-                                        TokenDay(total = total, input = input, output = output, reasoning = reasoning, cacheRead = cacheRead, cacheWrite = cacheWrite)
+                                    wBuckets[hour] = (wBuckets[hour] ?: TokenDay()) + frag
                                 }
                             }
                             if (msg.role == "user") {
