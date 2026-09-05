@@ -158,6 +158,9 @@
     <string name="calendar_stats_metric_label">Show:</string>
     <string name="calendar_stats_total">Total</string>
     <string name="calendar_stats_fresh">Fresh</string>
+    <string name="calendar_stats_msgs">msgs</string>
+    <string name="calendar_stats_msgs_sent">msgs sent</string>
+    <string name="calendar_stats_msgs_rcv">msgs rcv</string>
     <string name="calendar_table_month">Month</string>
     <string name="calendar_table_token">Token</string>
     <string name="calendar_table_time">Time</string>
