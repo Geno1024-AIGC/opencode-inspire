@@ -571,6 +571,9 @@ private fun CapabilitiesDialog(
     onDismiss: () -> Unit,
 ) {
     val report by viewModel.capabilities.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        viewModel.refreshCapabilities()
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,

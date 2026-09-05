@@ -780,6 +780,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val cli = OpenCodeClient(saved, _authUsername.value, _authPassword.value)
                     cli.health()
                     client = cli
+                    probeCapabilities(cli)
                 }
                 observeEvents()
                 loadWorkspace()
