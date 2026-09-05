@@ -180,7 +180,7 @@
     <string name="about_license">许可证</string>
     <string name="about_license_text">MIT 许可证</string>
     <string name="about_acknowledgments">致谢</string>
-    <string name="about_ack_text">基于 Jetpack Compose、Ktor 和 Kotlin 构建，由 opencode AI 助手 big-pickle 协助完成。</string>
+    <string name="about_ack_text">整个项目由 opencode AI 助手 big-pickle 编写，基于 Jetpack Compose、Ktor 和 Kotlin。</string>
     <string name="channel_release">正式版</string>
     <string name="channel_canary">Canary</string>
     <string name="settings_ghproxy">镜像下载 (ghproxy)</string>
