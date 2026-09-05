@@ -265,14 +265,16 @@ fun SettingsScreen(
 
                     SectionLabel(R.string.settings_bubbles, small = true)
                     var picking by remember { mutableStateOf<String?>(null) }
+                    val userDefault = MaterialTheme.colorScheme.primaryContainer.toArgb().toLong() and 0xFFFFFFFFL
+                    val assistantDefault = MaterialTheme.colorScheme.surfaceVariant.toArgb().toLong() and 0xFFFFFFFFL
                     ColorPreviewRow(
                         title = stringResource(R.string.settings_my_bubbles),
-                        color = userBubbleColor,
+                        color = if (userBubbleColor >= 0L) userBubbleColor else userDefault,
                         onClick = { picking = "user" },
                     )
                     ColorPreviewRow(
                         title = stringResource(R.string.settings_assistant_bubbles),
-                        color = assistantBubbleColor,
+                        color = if (assistantBubbleColor >= 0L) assistantBubbleColor else assistantDefault,
                         onClick = { picking = "assistant" },
                     )
 
@@ -280,7 +282,12 @@ fun SettingsScreen(
                     if (target != null) {
                         ColorPickerDialog(
                             title = stringResource(if (target == "user") R.string.color_your_title else R.string.color_assistant_title),
-                            initial = if (target == "user") userBubbleColor else assistantBubbleColor,
+                            initial = if (target == "user") {
+                                if (userBubbleColor >= 0L) userBubbleColor else userDefault
+                            } else {
+                                if (assistantBubbleColor >= 0L) assistantBubbleColor else assistantDefault
+                            },
+                            defaultColor = if (target == "user") userDefault else assistantDefault,
                             onPick = { c ->
                                 if (target == "user") viewModel.setUserBubbleColor(c) else viewModel.setAssistantBubbleColor(c)
                                 picking = null
