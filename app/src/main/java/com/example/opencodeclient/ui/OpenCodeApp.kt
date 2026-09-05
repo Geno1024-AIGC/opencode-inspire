@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
@@ -136,6 +137,7 @@ private fun MainScreen(
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     var showServers by remember { mutableStateOf(false) }
     var showAddProject by remember { mutableStateOf(false) }
+    var showCapabilities by remember { mutableStateOf(false) }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -147,6 +149,7 @@ private fun MainScreen(
                 onSettings = onOpenSettings,
                 onServers = { showServers = true },
                 onAddProject = { showAddProject = true },
+                onCapabilities = { showCapabilities = true },
                 onDisconnect = onDisconnect,
             )
         },
@@ -169,6 +172,12 @@ private fun MainScreen(
             onDismiss = { showAddProject = false },
         )
     }
+    if (showCapabilities) {
+        CapabilitiesDialog(
+            viewModel = viewModel,
+            onDismiss = { showCapabilities = false },
+        )
+    }
     LaunchedEffect(Unit) {
         viewModel.ensureLoaded()
     }
@@ -182,6 +191,7 @@ private fun DrawerContent(
     onSettings: () -> Unit,
     onServers: () -> Unit,
     onAddProject: () -> Unit,
+    onCapabilities: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
     val projects by viewModel.projects.collectAsStateWithLifecycle()
@@ -258,6 +268,14 @@ private fun DrawerContent(
         }
 
         HorizontalDivider()
+        Text(
+            stringResource(R.string.drawer_capabilities),
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onCapabilities)
+                .padding(16.dp),
+        )
         Text(
             stringResource(R.string.drawer_settings),
             style = MaterialTheme.typography.labelLarge,
@@ -524,6 +542,79 @@ private fun ServersDialog(
                         onClick = { adding = true },
                         modifier = Modifier.align(Alignment.End),
                     ) { Text("+  ${stringResource(R.string.server_add)}") }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
+        },
+    )
+}
+
+@Composable
+private fun CapabilitiesDialog(
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit,
+) {
+    val report by viewModel.capabilities.collectAsStateWithLifecycle()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.capabilities_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (report == null) {
+                    Text(stringResource(R.string.capabilities_probing), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { viewModel.refreshCapabilities() }) {
+                        Text(stringResource(R.string.capabilities_retry))
+                    }
+                    return@Column
+                }
+                val r = report!!
+                Text(
+                    stringResource(R.string.capabilities_version) + ": " + (r.version ?: stringResource(R.string.capabilities_unknown)),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                )
+                val fsEndpoint = if (r.fsListV2) "v2 /api/fs/list" else "v1 /file"
+                Text(
+                    stringResource(R.string.capabilities_active_fs) + ": " + fsEndpoint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                if (!r.fsListV2 && r.fileListV1) {
+                    Text(stringResource(R.string.capabilities_degraded), style = MaterialTheme.typography.bodySmall)
+                }
+                HorizontalDivider()
+                val items = listOf(
+                    R.string.capability_fs_list_v2 to r.fsListV2,
+                    R.string.capability_file_list_v1 to r.fileListV1,
+                    R.string.capability_file_content_v1 to r.fileContentV1,
+                    R.string.capability_commands to r.commands,
+                    R.string.capability_event_stream to r.eventStream,
+                    R.string.capability_projects to r.projectsV1,
+                    R.string.capability_sessions_v2 to r.sessionsListV2,
+                    R.string.capability_sessions_v1 to r.sessionsListV1,
+                    R.string.capability_permissions to r.permissions,
+                )
+                items.forEach { (label, supported) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            if (supported) Icons.Filled.Check else Icons.Filled.Close,
+                            null,
+                            tint = if (supported) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                        Text(stringResource(label), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        Text(
+                            stringResource(if (supported) R.string.capabilities_supported else R.string.capabilities_unsupported),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (supported) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        )
+                    }
+                }
+                TextButton(onClick = { viewModel.refreshCapabilities() }, modifier = Modifier.align(Alignment.End)) {
+                    Text(stringResource(R.string.capabilities_retry))
                 }
             }
         },

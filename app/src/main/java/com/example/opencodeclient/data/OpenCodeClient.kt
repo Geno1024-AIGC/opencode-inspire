@@ -4,11 +4,14 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -435,6 +438,59 @@ class OpenCodeClient(
             if (text.isBlank()) emptyList()
             else json.decodeFromString<List<String>>(text)
         }
+
+    private suspend fun probeStatus(path: String): Int? = suspendCancellableCoroutine { cont ->
+        val reqBuilder = Request.Builder().url("$base$path")
+        authHeader?.let { reqBuilder.header("Authorization", it) }
+        val call = client.newCall(reqBuilder.build())
+        cont.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (cont.isCancelled) return
+                cont.resume(null)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (cont.isCancelled) return
+                cont.resume(response.code)
+                response.close()
+            }
+        })
+    }
+
+    private fun probeOk(status: Int?): Boolean =
+        status?.let { it in 200..399 || it == 400 } ?: false
+
+    suspend fun probeCapabilities(): CapabilityReport {
+        var version: String? = null
+        try {
+            version = health().version
+        } catch (_: Exception) {
+        }
+        return coroutineScope {
+            val fsListV2 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/api/fs/list") }) }
+            val fileListV1 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/file") }) }
+            val fileContentV1 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/file/content") }) }
+            val commands = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/command") }) }
+            val eventStream = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/global/event") }) }
+            val projectsV1 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/project") }) }
+            val sessionsListV2 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/api/session?limit=1") }) }
+            val sessionsListV1 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/session?limit=1") }) }
+            val permissions = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/permission") }) }
+            CapabilityReport(
+                version = version,
+                fsListV2 = fsListV2.await(),
+                fileListV1 = fileListV1.await(),
+                fileContentV1 = fileContentV1.await(),
+                commands = commands.await(),
+                eventStream = eventStream.await(),
+                projectsV1 = projectsV1.await(),
+                sessionsListV2 = sessionsListV2.await(),
+                sessionsListV1 = sessionsListV1.await(),
+                permissions = permissions.await(),
+            )
+        }
+    }
 
     private fun queryOf(params: Map<String, String?>): String {
         val sb = StringBuilder("?")

@@ -237,3 +237,16 @@ data class ToolState(
     val output: String? = null,
     val error: String? = null,
 )
+
+data class CapabilityReport(
+    val version: String? = null,
+    val fsListV2: Boolean = false,
+    val fileListV1: Boolean = false,
+    val fileContentV1: Boolean = false,
+    val commands: Boolean = false,
+    val eventStream: Boolean = false,
+    val projectsV1: Boolean = false,
+    val sessionsListV2: Boolean = false,
+    val sessionsListV1: Boolean = false,
+    val permissions: Boolean = false,
+)

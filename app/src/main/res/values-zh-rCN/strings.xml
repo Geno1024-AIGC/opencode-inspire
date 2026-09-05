@@ -306,4 +306,25 @@
     <string name="error_content_filter">响应被内容过滤器拦截</string>
     <string name="error_api">模型请求失败</string>
     <string name="error_model_failed">会话执行失败</string>
+
+    <!-- Instance capabilities -->
+    <string name="drawer_capabilities">实例能力</string>
+    <string name="capabilities_title">实例能力</string>
+    <string name="capabilities_version">版本</string>
+    <string name="capabilities_unknown">未知</string>
+    <string name="capabilities_probing">正在探测此服务器的能力…</string>
+    <string name="capabilities_retry">重新探测</string>
+    <string name="capabilities_active_fs">文件列表接口</string>
+    <string name="capabilities_degraded">文件浏览已降级到旧版 /file 接口（v2 不可用）。</string>
+    <string name="capabilities_supported">支持</string>
+    <string name="capabilities_unsupported">不支持</string>
+    <string name="capability_fs_list_v2">文件列表（v2）— /api/fs/list</string>
+    <string name="capability_file_list_v1">文件列表（旧版）— /file</string>
+    <string name="capability_file_content_v1">文件读取 — /file/content</string>
+    <string name="capability_commands">斜杠命令 — /command</string>
+    <string name="capability_event_stream">实时推送 — /global/event</string>
+    <string name="capability_projects">项目 — /project</string>
+    <string name="capability_sessions_v2">会话（v2）— /api/session</string>
+    <string name="capability_sessions_v1">会话（旧版）— /session</string>
+    <string name="capability_permissions">权限审批 — /permission</string>
 </resources>
