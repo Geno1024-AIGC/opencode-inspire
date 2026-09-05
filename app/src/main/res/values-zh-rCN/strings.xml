@@ -175,6 +175,12 @@
     <string name="settings_updates">更新</string>
     <string name="settings_about">关于</string>
     <string name="about_repo">开源仓库</string>
+    <string name="about_subtitle">一个开源的 Android OpenCode 客户端</string>
+    <string name="about_issue">报告问题</string>
+    <string name="about_license">许可证</string>
+    <string name="about_license_text">MIT 许可证</string>
+    <string name="about_acknowledgments">致谢</string>
+    <string name="about_ack_text">基于 Jetpack Compose、Ktor 和 Kotlin 构建。</string>
     <string name="channel_release">正式版</string>
     <string name="channel_canary">Canary</string>
     <string name="settings_ghproxy">镜像下载 (ghproxy)</string>
