@@ -173,6 +173,8 @@
 
     <!-- Updates -->
     <string name="settings_updates">Updates</string>
+    <string name="settings_about">About</string>
+    <string name="about_repo">Open source repository</string>
     <string name="channel_release">Release</string>
     <string name="channel_canary">Canary</string>
     <string name="settings_ghproxy">Mirror download (ghproxy)</string>
