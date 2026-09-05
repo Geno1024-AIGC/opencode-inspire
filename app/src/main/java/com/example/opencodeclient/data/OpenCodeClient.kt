@@ -435,6 +435,18 @@ class OpenCodeClient(
     suspend fun abortSession(sessionId: String): Boolean =
         execute("POST", "/session/$sessionId/abort") { it == "true" }
 
+    suspend fun summarizeSession(sessionId: String, providerId: String, modelId: String) {
+        execute(
+            "POST",
+            "/session/$sessionId/summarize",
+            body = buildJsonObject {
+                put("providerID", JsonPrimitive(providerId))
+                put("modelID", JsonPrimitive(modelId))
+                put("auto", JsonPrimitive(false))
+            }.toString(),
+        ) {}
+    }
+
     fun eventStream(): Flow<String> = flow {
         val req = Request.Builder().url("$base/global/event")
         authHeader?.let { req.header("Authorization", it) }

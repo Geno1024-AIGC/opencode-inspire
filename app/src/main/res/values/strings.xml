@@ -196,6 +196,7 @@
     <string name="compact_notice">Context was compressed; earlier messages were summarized</string>
     <string name="compact">Compact context</string>
     <string name="compact_failed">Failed to compact context</string>
+    <string name="compact_no_model">Cannot determine the current model</string>
 
     <!-- Todos -->
     <string name="todo_title">Todos %1$d/%2$d</string>
