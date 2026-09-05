@@ -84,6 +84,7 @@ fun TokenCalendarScreen(
     val hourByWeek by viewModel.hourByWeek.collectAsStateWithLifecycle()
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
+    val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     var hiddenSyncAt by remember { mutableStateOf(false) }
 
     val totalDay = history.values.fold(TokenDay()) { acc, t -> acc + t }
@@ -139,6 +140,7 @@ fun TokenCalendarScreen(
                     total = totalDay,
                     monthElapsed = monthElapsed,
                     totalElapsed = totalElapsed,
+                    short = shortTokens,
                 )
                 if (syncedAt > 0L && !hiddenSyncAt) {
                     Text(
@@ -170,6 +172,7 @@ fun TokenCalendarScreen(
                         shownMonth = shownMonth,
                         selected = selected,
                         locale = locale,
+                        shortTokens = shortTokens,
                         onPrev = { shownMonth = shownMonth.minusMonths(1) },
                         onNext = { shownMonth = shownMonth.plusMonths(1) },
                         onSelect = { selected = it },
@@ -189,6 +192,7 @@ private fun DailyCalendarTab(
     shownMonth: YearMonth,
     selected: LocalDate?,
     locale: Locale,
+    shortTokens: Boolean,
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onSelect: (LocalDate) -> Unit,
@@ -243,16 +247,16 @@ private fun DailyCalendarTab(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    stringResource(R.string.calendar_day_detail_tokens, formatTokensCompact(selDay.total)),
+                    stringResource(R.string.calendar_day_detail_tokens, fmtTokens(selDay.total, shortTokens)),
                     style = MaterialTheme.typography.bodyMedium,
                     fontFamily = MonoFontFamily,
                 )
                 Text(
-                    "${stringResource(R.string.calendar_day_detail_in, formatTokensCompact(selDay.input))} · " +
-                        "${stringResource(R.string.calendar_day_detail_out, formatTokensCompact(selDay.output))} · " +
-                        "${stringResource(R.string.calendar_day_detail_reasoning, formatTokensCompact(selDay.reasoning))} · " +
-                        "${stringResource(R.string.calendar_day_detail_cache_read, formatTokensCompact(selDay.cacheRead))} · " +
-                        "${stringResource(R.string.calendar_day_detail_cache_write, formatTokensCompact(selDay.cacheWrite))}",
+                    "${stringResource(R.string.calendar_day_detail_in, fmtTokens(selDay.input, shortTokens))} · " +
+                        "${stringResource(R.string.calendar_day_detail_out, fmtTokens(selDay.output, shortTokens))} · " +
+                        "${stringResource(R.string.calendar_day_detail_reasoning, fmtTokens(selDay.reasoning, shortTokens))} · " +
+                        "${stringResource(R.string.calendar_day_detail_cache_read, fmtTokens(selDay.cacheRead, shortTokens))} · " +
+                        "${stringResource(R.string.calendar_day_detail_cache_write, fmtTokens(selDay.cacheWrite, shortTokens))}",
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = MonoFontFamily,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -510,7 +514,7 @@ private fun HourCircle(
     }
 }
 @Composable
-private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long) {
+private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean) {
     val mono = MonoFontFamily
     val onSurface = MaterialTheme.colorScheme.onSurface
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -550,13 +554,13 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
                 modifier = Modifier.weight(1f),
             )
         }
-        SummaryRow(labelWidth, labels[0], formatTokensCompact(month.total), formatTokensCompact(total.total), mono, labelColor)
+        SummaryRow(labelWidth, labels[0], fmtTokens(month.total, short), fmtTokens(total.total, short), mono, labelColor)
         SummaryRow(labelWidth, labels[1], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
-        SummaryRow(labelWidth, labels[2], formatTokensCompact(month.input), formatTokensCompact(total.input), mono, labelColor)
-        SummaryRow(labelWidth, labels[3], formatTokensCompact(month.output), formatTokensCompact(total.output), mono, labelColor)
-        SummaryRow(labelWidth, labels[4], formatTokensCompact(month.reasoning), formatTokensCompact(total.reasoning), mono, labelColor)
-        SummaryRow(labelWidth, labels[5], formatTokensCompact(month.cacheRead), formatTokensCompact(total.cacheRead), mono, labelColor)
-        SummaryRow(labelWidth, labels[6], formatTokensCompact(month.cacheWrite), formatTokensCompact(total.cacheWrite), mono, labelColor)
+        SummaryRow(labelWidth, labels[2], fmtTokens(month.input, short), fmtTokens(total.input, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[3], fmtTokens(month.output, short), fmtTokens(total.output, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[4], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[5], fmtTokens(month.cacheRead, short), fmtTokens(total.cacheRead, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[6], fmtTokens(month.cacheWrite, short), fmtTokens(total.cacheWrite, short), mono, labelColor)
     }
 }
 
@@ -711,6 +715,9 @@ private fun CalendarDayCell(
         }
     }
 }
+
+private fun fmtTokens(n: Long, short: Boolean): String =
+    if (short) formatTokensCompact(n) else n.toString()
 
 private fun formatTokensCompact(n: Long): String = when {
     n >= 1_000_000_000_000L -> trim1(n / 1_000_000_000_000f) + "T"
