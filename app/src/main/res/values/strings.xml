@@ -9,10 +9,10 @@
     <string name="connect_guide_title">Start an OpenCode server</string>
     <string name="connect_guide_step1">On a machine with OpenCode installed, open a terminal and run:</string>
     <string name="connect_guide_cmd">opencode serve --hostname 0.0.0.0 --port 4096</string>
-    <string name="connect_guide_point1">Find the LAN IP of that machine and add http://&lt;ip&gt;:4096 above.</string>
-    <string name="connect_guide_point2">When --port is omitted, OpenCode tries 4096 first, then a free port.</string>
+    <string name="connect_guide_point1">Find the machine LAN IP and enter it in the Server address field above (the port defaults to 4096).</string>
+    <string name="connect_guide_point2">When --port is omitted, the server uses port 4096; if taken, a random free port is used.</string>
     <string name="connect_guide_point3">Without --hostname 0.0.0.0 the server only listens on 127.0.0.1, unreachable from a phone.</string>
-    <string name="connect_guide_point4">To require login, set OPENCODE_SERVER_PASSWORD before running serve, then enter it here; username can be left blank.</string>
+    <string name="connect_guide_point4">To require login, set OPENCODE_SERVER_PASSWORD before running serve, then enter it above; if username is left blank it defaults to opencode.</string>
     <string name="connect_add">Add server</string>
     <string name="connect_save">Connect &amp; Save</string>
     <string name="connect_cancel">Cancel</string>
