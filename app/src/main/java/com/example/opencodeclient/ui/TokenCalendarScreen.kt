@@ -107,6 +107,7 @@ fun TokenCalendarScreen(
     val elapsed by viewModel.tokenElapsed.collectAsStateWithLifecycle()
     val hourByMonth by viewModel.hourByMonth.collectAsStateWithLifecycle()
     val hourByWeek by viewModel.hourByWeek.collectAsStateWithLifecycle()
+    val hourByDay by viewModel.hourByDay.collectAsStateWithLifecycle()
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
@@ -126,6 +127,7 @@ fun TokenCalendarScreen(
     val today = LocalDate.now()
     var shownMonth by remember { mutableStateOf(YearMonth.now()) }
     var selected by remember { mutableStateOf<LocalDate?>(today) }
+    var dayCursor by remember { mutableStateOf(today) }
     var tab by remember { mutableIntStateOf(0) }
 
     Scaffold(
@@ -260,9 +262,10 @@ fun TokenCalendarScreen(
                     }
                 }
                 PrimaryTabRow(selectedTabIndex = tab) {
-                    Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_daily)) })
-                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
-                    Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
+                    Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_calendar)) })
+                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_day)) })
+                    Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
+                    Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
                 }
                 when (tab) {
                     0 -> DailyCalendarTab(
@@ -279,8 +282,19 @@ fun TokenCalendarScreen(
                         onNext = { shownMonth = shownMonth.plusMonths(1) },
                         onSelect = { selected = it },
                     )
-                    1 -> WeekColumnCard(buckets = hourByWeek, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
-                    2 -> MonthColumnCard(buckets = hourByMonth, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    1 -> DayColumnCard(
+                        buckets = hourByDay,
+                        day = dayCursor,
+                        locale = locale,
+                        category = category,
+                        tokenMetric = tokenMetric,
+                        msgMetric = msgMetric,
+                        onPrev = { dayCursor = dayCursor.minusDays(1) },
+                        onNext = { dayCursor = dayCursor.plusDays(1) },
+                        modifier = Modifier.fillMaxWidth().height(viewportH),
+                    )
+                    2 -> WeekColumnCard(buckets = hourByWeek, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    3 -> MonthColumnCard(buckets = hourByMonth, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
                 }
             }
         }
@@ -376,6 +390,49 @@ private fun DailyCalendarTab(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DayColumnCard(
+    buckets: Map<String, Map<Int, TokenDay>>,
+    day: LocalDate,
+    locale: Locale,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onPrev) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                day.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale)),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            IconButton(onClick = onNext) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        PeriodColumns(
+            periods = listOf(day.toString() to (buckets[day.toString()] ?: emptyMap())),
+            labels = listOf(day.format(DateTimeFormatter.ofPattern("MM-dd", locale))),
+            category = category,
+            tokenMetric = tokenMetric,
+            msgMetric = msgMetric,
+            modifier = modifier,
+        )
     }
 }
 

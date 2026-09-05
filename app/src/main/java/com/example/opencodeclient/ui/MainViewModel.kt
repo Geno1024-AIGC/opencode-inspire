@@ -203,6 +203,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val hourByMonth: StateFlow<Map<String, Map<Int, TokenDay>>> = _hourByMonth.asStateFlow()
     private val _hourByWeek = MutableStateFlow<Map<String, Map<Int, TokenDay>>>(emptyMap())
     val hourByWeek: StateFlow<Map<String, Map<Int, TokenDay>>> = _hourByWeek.asStateFlow()
+    private val _hourByDay = MutableStateFlow<Map<String, Map<Int, TokenDay>>>(emptyMap())
+    val hourByDay: StateFlow<Map<String, Map<Int, TokenDay>>> = _hourByDay.asStateFlow()
 
     private val _tokenSync = MutableStateFlow(0L)
 
@@ -371,6 +373,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.tokenWeek.collect { _hourByWeek.value = it }
+        }
+        viewModelScope.launch {
+            settings.tokenDayHours.collect { _hourByDay.value = it }
         }
         viewModelScope.launch {
             settings.tokenSync.collect { _tokenSync.value = it }
@@ -543,6 +548,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val weekStartDates = (0 until 16).map { currentWeekStart.minusWeeks(it.toLong()) }
                     val weekStartDatesStr = weekStartDates.map { it.toString() }
                     val weekStartSet = weekStartDatesStr.toSet()
+                    val dayKeys = (0 until 31).map { now.minusDays(it.toLong()).toString() }
+                    val daySet = dayKeys.toSet()
 
                     val baseSync = if (incremental) _tokenSync.value else 0L
                     val hasFreshCache = incremental && baseSync > 0L
@@ -552,6 +559,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val month = (if (incremental) _hourByMonth.value else emptyMap())
                         .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
                     val week = (if (incremental) _hourByWeek.value else emptyMap())
+                        .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
+                    val dayHours = (if (incremental) _hourByDay.value else emptyMap())
                         .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
 
                     var maxMsgMs = baseSync
@@ -595,6 +604,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             tokens[dayKey] = (tokens[dayKey] ?: TokenDay()) + frag
                             if (total > 0L) {
                                 val hour = zdt.hour
+                                if (dayKey in daySet) {
+                                    val dBuckets = dayHours.getOrPut(dayKey) { mutableMapOf() }
+                                    dBuckets[hour] = (dBuckets[hour] ?: TokenDay()) + frag
+                                }
                                 val mKey = dayKey.substring(0, 7)
                                 val mBuckets = month.getOrPut(mKey) { mutableMapOf() }
                                 mBuckets[hour] = (mBuckets[hour] ?: TokenDay()) + frag
@@ -625,17 +638,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                     val monthOut = month.filterKeys { it in monthKeys }
                     val weekOut = week.filterKeys { it in weekStartDatesStr }
+                    val dayOut = dayHours.filterKeys { it in daySet }
 
                     _tokenHistory.value = tokens
                     _tokenElapsed.value = elapsed
                     _hourByMonth.value = monthOut
                     _hourByWeek.value = weekOut
+                    _hourByDay.value = dayOut
                     _tokenSync.value = maxMsgMs
                     if (coroutineContext.isActive) {
                         val syncedAtMs = System.currentTimeMillis()
                         _tokenSyncedAt.value = syncedAtMs
                         settings.saveTokenHistory(tokens, elapsed)
-                        settings.saveTokenCalendar(monthOut, weekOut, maxMsgMs, syncedAtMs)
+                        settings.saveTokenCalendar(monthOut, weekOut, dayOut, maxMsgMs, syncedAtMs)
                     }
                 }
             } finally {

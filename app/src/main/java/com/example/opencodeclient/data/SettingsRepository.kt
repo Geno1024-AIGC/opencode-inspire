@@ -52,6 +52,7 @@ class SettingsRepository(private val context: Context) {
         val TOKEN_ELAPSED = stringPreferencesKey("token_elapsed")
         val TOKEN_MONTH = stringPreferencesKey("token_month")
         val TOKEN_WEEK = stringPreferencesKey("token_week")
+        val TOKEN_DAY_HOURS = stringPreferencesKey("token_day_hours")
         val TOKEN_SYNC = longPreferencesKey("token_sync")
         val TOKEN_SYNC_AT = longPreferencesKey("token_sync_at")
     }
@@ -129,6 +130,17 @@ class SettingsRepository(private val context: Context) {
             }
         } ?: emptyMap()
     }
+    val tokenDayHours: Flow<Map<String, Map<Int, TokenDay>>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.TOKEN_DAY_HOURS]?.let { raw ->
+            runCatching { json.decodeFromString<Map<String, Map<Int, TokenDay>>>(raw) }.getOrElse {
+                runCatching {
+                    json.decodeFromString<Map<String, Map<Int, Long>>>(raw).mapValues { (_, m) ->
+                        m.mapValues { (_, v) -> TokenDay(total = v) }
+                    }
+                }.getOrNull()
+            }
+        } ?: emptyMap()
+    }
     val tokenSync: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC] ?: 0L }
     val tokenSyncedAt: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC_AT] ?: 0L }
 
@@ -193,12 +205,14 @@ class SettingsRepository(private val context: Context) {
     suspend fun saveTokenCalendar(
         month: Map<String, Map<Int, TokenDay>>,
         week: Map<String, Map<Int, TokenDay>>,
+        day: Map<String, Map<Int, TokenDay>>,
         syncMs: Long,
         syncedAtMs: Long = 0L,
     ) {
         context.dataStore.edit {
             it[Keys.TOKEN_MONTH] = json.encodeToString(month)
             it[Keys.TOKEN_WEEK] = json.encodeToString(week)
+            it[Keys.TOKEN_DAY_HOURS] = json.encodeToString(day)
             it[Keys.TOKEN_SYNC] = syncMs
             it[Keys.TOKEN_SYNC_AT] = syncedAtMs
         }
