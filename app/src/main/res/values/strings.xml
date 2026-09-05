@@ -175,6 +175,12 @@
     <string name="settings_updates">Updates</string>
     <string name="settings_about">About</string>
     <string name="about_repo">Open source repository</string>
+    <string name="about_subtitle">An open-source Android client for OpenCode</string>
+    <string name="about_issue">Report an issue</string>
+    <string name="about_license">License</string>
+    <string name="about_license_text">MIT License</string>
+    <string name="about_acknowledgments">Acknowledgments</string>
+    <string name="about_ack_text">Built with Jetpack Compose, Ktor, and Kotlin.</string>
     <string name="channel_release">Release</string>
     <string name="channel_canary">Canary</string>
     <string name="settings_ghproxy">Mirror download (ghproxy)</string>
