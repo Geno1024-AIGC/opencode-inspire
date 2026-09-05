@@ -1027,8 +1027,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return
         viewModelScope.launch {
-            setSending(false)
-            sessionBusy.remove(sid)
             loadMessages()
             rollSessionStats(c, sid)
         }
