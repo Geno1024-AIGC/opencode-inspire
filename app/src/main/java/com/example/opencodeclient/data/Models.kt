@@ -120,6 +120,9 @@ data class TokenDay(
     val cacheRead: Long = 0L,
     val cacheWrite: Long = 0L,
 ) {
+    val fresh: Long
+        get() = input + output + reasoning
+
     operator fun plus(other: TokenDay): TokenDay = TokenDay(
         total = total + other.total,
         input = input + other.input,
