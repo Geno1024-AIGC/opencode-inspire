@@ -42,6 +42,7 @@ import com.example.opencodeclient.ui.formatSpeed
 import com.example.opencodeclient.ui.theme.OpenCodeTheme
 import com.example.opencodeclient.ui.theme.ThemePreset
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -135,6 +136,7 @@ class MainActivity : ComponentActivity() {
 
                         val ctx = androidx.compose.ui.platform.LocalContext.current
                         val scope = rememberCoroutineScope()
+                        var downloadJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
                         val downloadPercent by viewModel.downloadPercent.collectAsStateWithLifecycle()
                         val downloadDone by viewModel.downloadDone.collectAsStateWithLifecycle()
                         val downloadTotal by viewModel.downloadTotal.collectAsStateWithLifecycle()
@@ -150,7 +152,7 @@ class MainActivity : ComponentActivity() {
                                 confirmButton = {
                                     TextButton(onClick = {
                                         viewModel.showDownloadDialog()
-                                        scope.launch {
+                                        downloadJob = scope.launch {
                                             val startTime = System.currentTimeMillis()
                                             val apk = runCatching {
                                                 withContext(Dispatchers.IO) {
@@ -180,6 +182,7 @@ class MainActivity : ComponentActivity() {
                                                     file
                                                 }
                                             }.getOrNull()
+                                            if (!coroutineContext.isActive) return@launch
                                             viewModel.dismissUpdate()
                                             viewModel.dismissDownload()
                                             if (apk != null && apk.exists() && apk.length() > 0L) {
@@ -256,7 +259,10 @@ class MainActivity : ComponentActivity() {
                                 },
                                 confirmButton = {},
                                 dismissButton = {
-                                    TextButton(onClick = viewModel::dismissDownloadDialog) {
+                                    TextButton(onClick = {
+                                        downloadJob?.cancel()
+                                        viewModel.dismissDownload()
+                                    }) {
                                         Text(stringResource(R.string.cancel))
                                     }
                                 },
