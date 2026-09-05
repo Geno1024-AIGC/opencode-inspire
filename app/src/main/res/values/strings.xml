@@ -208,7 +208,7 @@
     <string name="about_license_text">MIT License</string>
     <string name="about_acknowledgments">Acknowledgments</string>
     <string name="about_ack_text">Written entirely by OpenCode free models: first DeepSeek V4 Flash, then big-pickle. Built on Jetpack Compose, Ktor, and Kotlin.</string>
-    <string name="about_tokens_used">Tokens used</string>
+    <string name="about_tokens_used">App dev tokens</string>
     <string name="about_token_in">Input</string>
     <string name="about_token_out">Output</string>
     <string name="about_token_reasoning">Reasoning</string>
@@ -216,7 +216,6 @@
     <string name="about_token_cache_write">Cache write</string>
     <string name="about_msgs">Messages</string>
     <string name="about_tokens_note">Total includes cached context tokens.</string>
-    <string name="about_tokens_project_note">Stats cover all sessions of this project only.</string>
     <string name="about_tokens_by_model">By model</string>
     <string name="channel_release">Release</string>
     <string name="channel_canary">Canary</string>
