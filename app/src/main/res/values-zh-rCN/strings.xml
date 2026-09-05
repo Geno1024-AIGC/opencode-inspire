@@ -6,7 +6,10 @@
     <!-- Connect / servers -->
     <string name="connect_title">OpenCode 客户端</string>
     <string name="connect_subtitle">选择服务器或添加新服务器</string>
-    <string name="connect_empty">还没有服务器，请先添加你的第一台服务器。</string>
+    <string name="connect_guide_title">如何启动 OpenCode 服务器</string>
+    <string name="connect_guide_step1">在安装了 OpenCode 的机器上打开终端，运行：</string>
+    <string name="connect_guide_cmd">opencode serve --hostname 0.0.0.0 --port 4096</string>
+    <string name="connect_guide_step2">记下那台机器的局域网 IP，在上方添加 http://&lt;ip&gt;:4096 即可（省略 --port 时默认 3000）。如需登录验证，请先设置环境变量 OPENCODE_SERVER_PASSWORD 再运行 serve，然后在此输入该密码，用户名可留空。</string>
     <string name="connect_add">添加服务器</string>
     <string name="connect_save">连接并保存</string>
     <string name="connect_cancel">取消</string>

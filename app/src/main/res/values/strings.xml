@@ -6,7 +6,10 @@
     <!-- Connect / servers -->
     <string name="connect_title">OpenCode Client</string>
     <string name="connect_subtitle">Choose a server or add a new one</string>
-    <string name="connect_empty">No servers yet. Add your first server to begin.</string>
+    <string name="connect_guide_title">Start an OpenCode server</string>
+    <string name="connect_guide_step1">On a machine with OpenCode installed, open a terminal and run:</string>
+    <string name="connect_guide_cmd">opencode serve --hostname 0.0.0.0 --port 4096</string>
+    <string name="connect_guide_step2">Note the LAN IP of that machine and add http://&lt;ip&gt;:4096 above (port defaults to 3000 when --port is omitted). To require login, set OPENCODE_SERVER_PASSWORD before running serve, then enter it here; username can be left blank.</string>
     <string name="connect_add">Add server</string>
     <string name="connect_save">Connect &amp; Save</string>
     <string name="connect_cancel">Cancel</string>

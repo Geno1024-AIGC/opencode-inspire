@@ -1,5 +1,6 @@
 package com.example.opencodeclient.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -57,6 +61,7 @@ fun ConnectScreen(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
     ) {
         Text(stringResource(R.string.connect_title), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -68,13 +73,9 @@ fun ConnectScreen(
         )
         Spacer(Modifier.height(24.dp))
 
-        if (servers.isEmpty() && !adding) {
-            Text(
-                stringResource(R.string.connect_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 16.dp),
-            )
+        if (servers.isEmpty()) {
+            ServerGuide()
+            Spacer(Modifier.height(16.dp))
         }
 
         if (adding) {
@@ -175,6 +176,42 @@ fun ConnectScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ServerGuide() {
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            stringResource(R.string.connect_guide_title),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.connect_guide_step1),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.connect_guide_cmd),
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = MonoFontFamily,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    RoundedCornerShape(8.dp),
+                )
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.connect_guide_step2),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
