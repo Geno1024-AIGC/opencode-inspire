@@ -43,6 +43,7 @@ class OpenCodeClient(
         ignoreUnknownKeys = true
         coerceInputValues = true
     }
+    private var fsListV2 = true
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -119,6 +120,9 @@ class OpenCodeClient(
         }
 
     suspend fun listDirectory(locationDir: String? = null, path: String? = null): List<FileNode> =
+        if (fsListV2) listDirectoryV2(locationDir, path) else listDirectoryLegacy(locationDir, path)
+
+    private suspend fun listDirectoryV2(locationDir: String? = null, path: String? = null): List<FileNode> =
         execute(
             "GET",
             "/api/fs/list${queryOf(mapOf("directory" to locationDir, "path" to path))}",
@@ -138,6 +142,32 @@ class OpenCodeClient(
                         path = p,
                     )
                 }
+            }
+        }
+
+    private suspend fun listDirectoryLegacy(locationDir: String? = null, path: String? = null): List<FileNode> =
+        execute(
+            "GET",
+            "/file${queryOf(mapOf("directory" to locationDir, "path" to path))}",
+            headers = if (locationDir.isNullOrBlank()) emptyMap()
+            else mapOf("x-opencode-directory" to locationDir),
+        ) { text ->
+            if (text.isBlank()) emptyList()
+            else json.parseToJsonElement(text).jsonArray.mapNotNull { el ->
+                if (el !is JsonObject) return@mapNotNull null
+                val title = el["title"]?.jsonPrimitive?.contentOrNull
+                    ?: el["name"]?.jsonPrimitive?.contentOrNull
+                    ?: el["fileName"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                val typeRaw = el["type"]?.jsonPrimitive?.contentOrNull ?: ""
+                val isDir = typeRaw.contains("dir", ignoreCase = true)
+                val p = el["path"]?.jsonPrimitive?.contentOrNull
+                    ?: el["fullPath"]?.jsonPrimitive?.contentOrNull
+                    ?: title
+                FileNode(
+                    name = title.trimEnd('/').substringAfterLast('/'),
+                    type = if (isDir) "directory" else "file",
+                    path = p,
+                )
             }
         }
 
@@ -490,6 +520,10 @@ class OpenCodeClient(
                 permissions = permissions.await(),
             )
         }
+    }
+
+    fun applyCapabilities(report: CapabilityReport) {
+        fsListV2 = report.fsListV2
     }
 
     private fun queryOf(params: Map<String, String?>): String {
