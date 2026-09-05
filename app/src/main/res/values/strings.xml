@@ -180,7 +180,7 @@
     <string name="about_license">License</string>
     <string name="about_license_text">MIT License</string>
     <string name="about_acknowledgments">Acknowledgments</string>
-    <string name="about_ack_text">Built with Jetpack Compose, Ktor, and Kotlin, crafted together with big-pickle, an opencode AI agent.</string>
+    <string name="about_ack_text">Entirely written by big-pickle, an opencode AI agent, using Jetpack Compose, Ktor, and Kotlin.</string>
     <string name="channel_release">Release</string>
     <string name="channel_canary">Canary</string>
     <string name="settings_ghproxy">Mirror download (ghproxy)</string>
