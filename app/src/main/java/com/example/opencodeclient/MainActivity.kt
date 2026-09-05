@@ -42,6 +42,7 @@ import com.example.opencodeclient.ui.formatSpeed
 import com.example.opencodeclient.ui.theme.OpenCodeTheme
 import com.example.opencodeclient.ui.theme.ThemePreset
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -170,6 +171,7 @@ class MainActivity : ComponentActivity() {
                                                         file.outputStream().use { output ->
                                                             var n: Int
                                                             while (input.read(buf).also { n = it } != -1) {
+                                                                coroutineContext.ensureActive()
                                                                 output.write(buf, 0, n)
                                                                 downloaded += n
                                                                 val elapsed = System.currentTimeMillis() - startTime
