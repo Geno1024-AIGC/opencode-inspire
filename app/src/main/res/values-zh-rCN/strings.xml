@@ -19,7 +19,6 @@
     <string name="connect_connected">已连接</string>
     <string name="connect_remove">删除服务器</string>
     <string name="host_label">服务器地址</string>
-    <string name="host_hint">192.168.1.10</string>
     <string name="port_label">端口</string>
     <string name="port_hint_default">4096</string>
     <string name="username_label_optional">用户名（可选）</string>
