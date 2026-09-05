@@ -938,6 +938,57 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun cloneProject(url: String, parentDir: String, onDone: () -> Unit = {}) {
+        val c = client ?: return
+        val repoName = repoNameFromUrl(url)
+        viewModelScope.launch {
+            _workspaceState.value = UiState.Loading(getAppString(R.string.cloning_project))
+            try {
+                val targetDir = "${parentDir.trimEnd('/')}/$repoName"
+                val tempSession = withContext(Dispatchers.IO) { c.createSession(directory = parentDir) }
+                val escapedUrl = escapeShell(url)
+                val escapedTarget = escapeShell(targetDir)
+                val result = try {
+                    withContext(Dispatchers.IO) {
+                        c.runShell(
+                            tempSession.id,
+                            "git clone $escapedUrl $escapedTarget 2>&1; printf '[EXIT=%s]' \"\$?\"",
+                        )
+                    }
+                } finally {
+                    withContext(Dispatchers.IO) { runCatching { c.deleteSession(tempSession.id) } }
+                }
+                if (result.status == "completed" && result.output.contains("[EXIT=0]")) {
+                    newSession(targetDir, onDone)
+                } else {
+                    _workspaceState.value = UiState.Error(cloneErrorText(result.output))
+                }
+            } catch (e: Exception) {
+                _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.clone_project_error))
+            }
+        }
+    }
+
+    private fun cloneErrorText(output: String): String {
+        val line = output.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() && !it.startsWith("[EXIT=") }
+            .lastOrNull()
+        return line ?: getAppString(R.string.clone_project_error)
+    }
+
+    fun repoNameFromUrl(url: String): String {
+        val suffix = if (url.contains('/')) url.substringAfterLast('/') else url.substringAfterLast(':')
+        var name = suffix.trim()
+        if (name.endsWith(".git")) name = name.dropLast(4)
+        val sanitized = name.map { ch ->
+            if (ch.isLetterOrDigit() || ch == '-' || ch == '_' || ch == '.') ch else '-'
+        }.joinToString("").trim('-', '.')
+        return sanitized.ifEmpty { "repo" }
+    }
+
+    private fun escapeShell(s: String): String = "'" + s.replace("'", "'\\''") + "'"
+
     private fun addSessionToProject(s: Session) {
         _projects.value = _projects.value.map { p ->
             if (p.worktree == s.directory) {

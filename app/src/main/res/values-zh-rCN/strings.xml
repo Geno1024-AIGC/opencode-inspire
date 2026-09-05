@@ -52,6 +52,14 @@
     <string name="directory_label">目录路径</string>
     <string name="directory_hint">/home/user/myproject</string>
     <string name="open">打开</string>
+    <string name="add_project_mode_existing">已有目录</string>
+    <string name="add_project_mode_clone">克隆自 Git</string>
+    <string name="git_url_label">Git 仓库地址</string>
+    <string name="git_url_hint">https://github.com/user/repo.git</string>
+    <string name="add_project_clone_into">克隆目标目录</string>
+    <string name="add_project_clone">克隆</string>
+    <string name="cloning_project">正在克隆仓库…</string>
+    <string name="clone_project_error">克隆仓库失败</string>
 
     <!-- Chat -->
     <string name="chat_placeholder">给 OpenCode 发送消息…</string>

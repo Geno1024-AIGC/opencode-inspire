@@ -52,6 +52,14 @@
     <string name="directory_label">Directory path</string>
     <string name="directory_hint">/home/user/myproject</string>
     <string name="open">Open</string>
+    <string name="add_project_mode_existing">Existing directory</string>
+    <string name="add_project_mode_clone">Clone from Git</string>
+    <string name="git_url_label">Git repository URL</string>
+    <string name="git_url_hint">https://github.com/user/repo.git</string>
+    <string name="add_project_clone_into">Target directory</string>
+    <string name="add_project_clone">Clone</string>
+    <string name="cloning_project">Cloning repository…</string>
+    <string name="clone_project_error">Failed to clone repository</string>
 
     <!-- Chat -->
     <string name="chat_placeholder">Message OpenCode…</string>
