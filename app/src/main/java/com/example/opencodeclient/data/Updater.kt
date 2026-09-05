@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 data class ReleaseInfo(
@@ -24,41 +25,40 @@ object Updater {
         .build()
 
     suspend fun fetchReleases(): List<ReleaseInfo> = withContext(Dispatchers.IO) {
-        runCatching {
-            val request = Request.Builder()
-                .url("https://api.github.com/repos/$REPO/releases")
-                .header("User-Agent", "opencode-inspire")
-                .header("Accept", "application/vnd.github+json")
-                .build()
-            client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful || resp.body == null) return@withContext emptyList()
-                val arr = JSONArray(resp.body!!.string())
-                List(arr.length()) { i ->
-                    val o = arr.getJSONObject(i)
-                    val assets = o.optJSONArray("assets")
-                    val apkUrl = if (assets != null) {
-                        (0 until assets.length())
-                            .map { j -> assets.getJSONObject(j) }
-                            .firstOrNull { it.optString("name").endsWith(".apk") }
-                            ?.optString("browser_download_url")
-                            ?.takeIf { it.isNotEmpty() }
-                    } else null
-                    ReleaseInfo(
-                        tagName = o.optString("tag_name"),
-                        prerelease = o.optBoolean("prerelease"),
-                        htmlUrl = o.optString("html_url"),
-                        apkUrl = apkUrl,
-                        publishedAt = o.optString("published_at").takeIf { it.isNotEmpty() },
-                    )
-                }
+        val request = Request.Builder()
+            .url("https://api.github.com/repos/$REPO/releases")
+            .header("User-Agent", "opencode-inspire")
+            .header("Accept", "application/vnd.github+json")
+            .build()
+        client.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
+            val arr = JSONArray(resp.body?.string().orEmpty())
+            List(arr.length()) { i ->
+                val o = arr.getJSONObject(i)
+                val assets = o.optJSONArray("assets")
+                val apkUrl = if (assets != null) {
+                    (0 until assets.length())
+                        .map { j -> assets.getJSONObject(j) }
+                        .firstOrNull { it.optString("name").endsWith(".apk") }
+                        ?.optString("browser_download_url")
+                        ?.takeIf { it.isNotEmpty() }
+                } else null
+                ReleaseInfo(
+                    tagName = o.optString("tag_name"),
+                    prerelease = o.optBoolean("prerelease"),
+                    htmlUrl = o.optString("html_url"),
+                    apkUrl = apkUrl,
+                    publishedAt = o.optString("published_at").takeIf { it.isNotEmpty() },
+                )
             }
-        }.getOrDefault(emptyList())
+        }
     }
 
     fun releaseFor(releases: List<ReleaseInfo>, channel: String): ReleaseInfo? =
         when (channel) {
             "canary" -> releases.firstOrNull { it.prerelease }
             else -> releases.firstOrNull { !it.prerelease }
+                ?: releases.firstOrNull()
         }
 
     fun mirrorApkUrl(url: String, enabled: Boolean): String {
@@ -75,8 +75,12 @@ object Updater {
     }
 
     fun isNewer(remoteTag: String, currentVersion: String): Boolean {
+        if (remoteTag.trim() == currentVersion.trim()) return false
         val r = versionTuple(remoteTag) ?: return false
         val c = versionTuple(currentVersion) ?: return true
-        return (r.first > c.first) || (r.first == c.first && r.second > c.second)
+        return when {
+            r.second != c.second -> r.second > c.second
+            else -> r.first > c.first
+        }
     }
 }
