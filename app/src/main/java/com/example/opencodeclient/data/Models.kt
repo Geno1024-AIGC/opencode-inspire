@@ -249,4 +249,19 @@ data class CapabilityReport(
     val sessionsListV2: Boolean = false,
     val sessionsListV1: Boolean = false,
     val permissions: Boolean = false,
-)
+    val apiPaths: List<String> = emptyList(),
+    val probedV1: Boolean = true,
+) {
+    fun probeValue(key: String): Boolean? = when (key) {
+        "fsListV2" -> fsListV2
+        "fileListV1" -> fileListV1
+        "fileContentV1" -> fileContentV1
+        "commands" -> commands
+        "eventStream" -> eventStream
+        "projectsV1" -> projectsV1
+        "sessionsListV2" -> sessionsListV2
+        "sessionsListV1" -> sessionsListV1
+        "permissions" -> permissions
+        else -> null
+    }
+}
