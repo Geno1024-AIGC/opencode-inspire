@@ -21,10 +21,10 @@
     <string name="host_label">服务器地址</string>
     <string name="host_hint">192.168.1.10</string>
     <string name="port_label">端口</string>
-    <string name="port_hint_default">4096（默认）</string>
+    <string name="port_hint_default">4096</string>
     <string name="username_label_optional">用户名（可选）</string>
     <string name="password_label_optional">密码（可选）</string>
-    <string name="username_hint_default">opencode（默认）</string>
+    <string name="username_hint_default">opencode</string>
     <string name="connecting">正在连接…</string>
     <string name="loading">正在加载…</string>
     <string name="error_no_server">未配置服务器</string>
