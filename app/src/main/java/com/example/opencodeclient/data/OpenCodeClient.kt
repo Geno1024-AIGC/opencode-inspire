@@ -503,6 +503,31 @@ class OpenCodeClient(
     private fun probeOk(status: Int?): Boolean =
         status?.let { it in 200..399 || it == 400 } ?: false
 
+    private suspend fun probeDocPaths(): List<String>? = suspendCancellableCoroutine { cont ->
+        val reqBuilder = Request.Builder().url("$base/doc")
+        authHeader?.let { reqBuilder.header("Authorization", it) }
+        val call = client.newCall(reqBuilder.build())
+        cont.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (cont.isCancelled) return
+                cont.resume(null)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (cont.isCancelled) return
+                val paths = try {
+                    val text = response.body?.string().orEmpty()
+                    json.parseToJsonElement(text).jsonObject["paths"]?.jsonObject?.keys?.toList() ?: emptyList()
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                response.close()
+                cont.resume(paths)
+            }
+        })
+    }
+
     suspend fun probeCapabilities(): CapabilityReport {
         var version: String? = null
         try {
@@ -510,6 +535,7 @@ class OpenCodeClient(
         } catch (_: Exception) {
         }
         return coroutineScope {
+            val docPaths = async { withTimeoutOrNull(8_000) { probeDocPaths() } }
             val fsListV2 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/api/fs/list") }) }
             val fileListV1 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/file") }) }
             val fileContentV1 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/file/content") }) }
@@ -530,6 +556,7 @@ class OpenCodeClient(
                 sessionsListV2 = sessionsListV2.await(),
                 sessionsListV1 = sessionsListV1.await(),
                 permissions = permissions.await(),
+                apiPaths = docPaths.await() ?: emptyList(),
             )
         }
     }
