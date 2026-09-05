@@ -27,6 +27,14 @@ val counterNow = runCatching { buildCounterFile.readText().trim().toInt() }
 val build = counterNow
 buildCounterFile.writeText((counterNow + 1).toString())
 
+// tokens: tracked counter file (updated by the AI, committed manually)
+val tokensFile = File(rootProject.projectDir, "tokens.txt")
+val tokenLines = runCatching { tokensFile.readLines() }.getOrDefault(emptyList())
+fun tokenAt(index: Int): Long = tokenLines.getOrNull(index)?.trim()?.toLongOrNull() ?: 0L
+val tokensTotal = tokenAt(0)
+val tokensFresh = tokenAt(1)
+val tokensCached = tokenAt(2)
+
 val appVersionName = "0.1.$pack.$build.$commitSha"
 
 android {
@@ -42,6 +50,9 @@ android {
         buildConfigField("String", "GIT_COMMIT", "\"$commitSha\"")
         buildConfigField("int", "PACK", "$pack")
         buildConfigField("int", "BUILD", "$build")
+        buildConfigField("long", "TOKENS_TOTAL", "${tokensTotal}L")
+        buildConfigField("long", "TOKENS_FRESH", "${tokensFresh}L")
+        buildConfigField("long", "TOKENS_CACHED", "${tokensCached}L")
     }
 
     buildTypes {
