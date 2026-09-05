@@ -93,9 +93,13 @@ class SettingsRepository(private val context: Context) {
                 runCatching { json.decodeFromString<Map<String, StoredHistoryStats>>(raw) }.getOrNull()
             } ?: emptyMap()
         }
-    val tokenHistory: Flow<Map<String, Long>> = context.dataStore.data.map { prefs ->
+    val tokenHistory: Flow<Map<String, TokenDay>> = context.dataStore.data.map { prefs ->
         prefs[Keys.TOKEN_HISTORY]?.let { raw ->
-            runCatching { json.decodeFromString<Map<String, Long>>(raw) }.getOrNull()
+            runCatching { json.decodeFromString<Map<String, TokenDay>>(raw) }.getOrElse {
+                runCatching { json.decodeFromString<Map<String, Long>>(raw) }
+                    .getOrDefault(emptyMap())
+                    .mapValues { (_, v) -> TokenDay(total = v) }
+            }
         } ?: emptyMap()
     }
     val tokenElapsed: Flow<Map<String, Long>> = context.dataStore.data.map { prefs ->
@@ -167,7 +171,7 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    suspend fun saveTokenHistory(tokens: Map<String, Long>, elapsed: Map<String, Long>) {
+    suspend fun saveTokenHistory(tokens: Map<String, TokenDay>, elapsed: Map<String, Long>) {
         context.dataStore.edit {
             it[Keys.TOKEN_HISTORY] = json.encodeToString(tokens)
             it[Keys.TOKEN_ELAPSED] = json.encodeToString(elapsed)

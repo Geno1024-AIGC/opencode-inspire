@@ -1743,6 +1743,8 @@ private fun TokenStatsBar(
                         TokenStatLine(label = "in", value = input, short = shortTokens)
                         TokenStatLine(label = "out", value = output, short = shortTokens)
                         TokenStatLine(label = "infer", value = reasoning, short = shortTokens)
+                        TokenStatLine(label = "crd", value = tokens?.cache?.read ?: 0L, short = shortTokens)
+                        TokenStatLine(label = "cwr", value = tokens?.cache?.write ?: 0L, short = shortTokens)
                     }
                     Text(
                         formatTokens(total, shortTokens),
@@ -1963,8 +1965,14 @@ private fun SessionDetailsScreen(
                             append(" / ")
                             append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(tokens?.reasoning ?: 0L, shortTokens)))
                         }
+                        append(" / ")
+                        append(stringResource(R.string.session_details_tokens_cache_read, formatTokens(tokens?.cache?.read ?: 0L, shortTokens)))
+                        if ((tokens?.cache?.write ?: 0L) > 0) {
+                            append(" / ")
+                            append(stringResource(R.string.session_details_tokens_cache_write, formatTokens(tokens?.cache?.write ?: 0L, shortTokens)))
+                        }
                     },
-                    onCopyValue = tokens?.let { "${it.input}/${it.output}/${it.reasoning}" },
+                    onCopyValue = tokens?.let { "${it.input}/${it.output}/${it.reasoning}/${it.cache?.read ?: 0}/${it.cache?.write ?: 0}" },
                 )
 
                 HorizontalDivider()

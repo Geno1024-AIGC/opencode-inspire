@@ -25,6 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -86,16 +87,44 @@ fun AboutScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
             )
+            TokenDetailRow(stringResource(R.string.about_token_in), formatCount(BuildConfig.TOKENS_INPUT))
+            TokenDetailRow(stringResource(R.string.about_token_out), formatCount(BuildConfig.TOKENS_OUTPUT))
+            TokenDetailRow(stringResource(R.string.about_token_reasoning), formatCount(BuildConfig.TOKENS_REASONING))
+            TokenDetailRow(stringResource(R.string.about_token_cache_read), formatCount(BuildConfig.TOKENS_CACHE_READ))
+            TokenDetailRow(stringResource(R.string.about_token_cache_write), formatCount(BuildConfig.TOKENS_CACHE_WRITE))
             Text(
                 formatCount(BuildConfig.TOKENS_TOTAL),
                 style = MaterialTheme.typography.headlineSmall,
                 fontFamily = MonoFontFamily,
             )
             Text(
-                "${formatCount(BuildConfig.TOKENS_FRESH)} + ${formatCount(BuildConfig.TOKENS_CACHED)} (input · cached)",
+                stringResource(R.string.about_tokens_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            HorizontalDivider()
+            Text(
+                stringResource(R.string.about_tokens_by_model),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            rememberModels().forEach { m ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(m.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "in ${formatCount(m.input)} · out ${formatCount(m.output)} · rea ${formatCount(m.reasoning)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = MonoFontFamily,
+                    )
+                    Text(
+                        "cr ${formatCount(m.cacheRead)} · cw ${formatCount(m.cacheWrite)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = MonoFontFamily,
+                    )
+                }
+            }
             HorizontalDivider()
             AboutRow(
                 title = stringResource(R.string.about_repo),
@@ -133,6 +162,53 @@ fun AboutScreen(onBack: () -> Unit) {
 }
 
 private fun formatCount(value: Long): String = String.format(Locale.US, "%,d", value)
+
+private data class ModelTokens(
+    val name: String,
+    val input: Long,
+    val output: Long,
+    val reasoning: Long,
+    val cacheRead: Long,
+    val cacheWrite: Long,
+)
+
+private fun parseModels(raw: String): List<ModelTokens> =
+    raw.lines().filter { it.isNotBlank() }.mapNotNull { line ->
+        val parts = line.split(":")
+        if (parts.size < 6) return@mapNotNull null
+        ModelTokens(
+            name = parts[0],
+            input = parts[1].toLongOrNull() ?: 0L,
+            output = parts[2].toLongOrNull() ?: 0L,
+            reasoning = parts[3].toLongOrNull() ?: 0L,
+            cacheRead = parts[4].toLongOrNull() ?: 0L,
+            cacheWrite = parts[5].toLongOrNull() ?: 0L,
+        )
+    }
+
+@Composable
+private fun rememberModels(): List<ModelTokens> =
+    remember(BuildConfig.TOKENS_MODELS) { parseModels(BuildConfig.TOKENS_MODELS) }
+
+@Composable
+private fun TokenDetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontFamily = MonoFontFamily,
+        )
+    }
+}
 
 @Composable
 private fun AboutRow(

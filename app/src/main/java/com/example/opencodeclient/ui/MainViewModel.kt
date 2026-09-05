@@ -27,6 +27,7 @@ import com.example.opencodeclient.data.ServerProfile
 import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
 import com.example.opencodeclient.data.StoredHistoryStats
+import com.example.opencodeclient.data.TokenDay
 import com.example.opencodeclient.data.Tokens
 import com.example.opencodeclient.data.Updater
 import com.example.opencodeclient.data.promptTokens
@@ -192,8 +193,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _favorites = MutableStateFlow<Set<String>>(emptySet())
     val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
 
-    private val _tokenHistory = MutableStateFlow<Map<String, Long>>(emptyMap())
-    val tokenHistory: StateFlow<Map<String, Long>> = _tokenHistory.asStateFlow()
+    private val _tokenHistory = MutableStateFlow<Map<String, TokenDay>>(emptyMap())
+    val tokenHistory: StateFlow<Map<String, TokenDay>> = _tokenHistory.asStateFlow()
     private val _tokenHistoryLoading = MutableStateFlow(false)
     val tokenHistoryLoading: StateFlow<Boolean> = _tokenHistoryLoading.asStateFlow()
     private val _tokenElapsed = MutableStateFlow<Map<String, Long>>(emptyMap())
@@ -574,12 +575,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             val zdt = java.time.Instant.ofEpochMilli(created).atZone(zone)
                             val day = zdt.toLocalDate()
                             val toks = msg.tokens
-                            val total = toks?.total
-                                ?: ((toks?.input ?: 0L) + (toks?.output ?: 0L) + (toks?.reasoning ?: 0L))
+                            val input = toks?.input ?: 0L
+                            val output = toks?.output ?: 0L
+                            val reasoning = toks?.reasoning ?: 0L
+                            val cacheRead = toks?.cache?.read ?: 0L
+                            val cacheWrite = toks?.cache?.write ?: 0L
+                            val total = toks?.total ?: (input + output + reasoning)
                             if (total > 0L) {
-                                tokens[day.toString()] = (tokens[day.toString()] ?: 0L) + total
+                                val dayKey = day.toString()
+                                tokens[dayKey] = (tokens[dayKey] ?: TokenDay()) +
+                                    TokenDay(total = total, input = input, output = output, reasoning = reasoning, cacheRead = cacheRead, cacheWrite = cacheWrite)
                                 val hour = zdt.hour
-                                val mKey = day.toString().substring(0, 7)
+                                val mKey = dayKey.substring(0, 7)
                                 val mBuckets = month.getOrPut(mKey) { mutableMapOf() }
                                 mBuckets[hour] = (mBuckets[hour] ?: 0L) + total
                                 val ws = day.with(
