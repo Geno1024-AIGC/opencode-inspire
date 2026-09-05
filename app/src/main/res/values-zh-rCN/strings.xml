@@ -196,6 +196,7 @@
     <string name="compact_notice">上下文已压缩，较早的消息已被摘要</string>
     <string name="compact">压缩上下文</string>
     <string name="compact_failed">上下文压缩失败</string>
+    <string name="compact_no_model">无法确定当前模型</string>
 
     <!-- Todos -->
     <string name="todo_title">待办 %1$d/%2$d</string>

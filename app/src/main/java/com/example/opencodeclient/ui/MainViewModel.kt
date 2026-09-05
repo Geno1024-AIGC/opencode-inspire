@@ -1128,11 +1128,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun compactSession() {
         val c = client ?: return
-        val sid = _activeSession.value?.id ?: return
+        val s = _activeSession.value ?: return
+        val sid = s.id
         if (_sending.value) return
+        val providerId = s.model?.providerId?.takeIf { it.isNotBlank() }
+        val modelId = s.model?.id?.takeIf { it.isNotBlank() } ?: _currentModelId.value?.takeIf { it.isNotBlank() }
+        if (providerId == null || modelId == null) {
+            _messages.value = _messages.value + ChatMessage(
+                id = "err-compact-${System.currentTimeMillis()}",
+                role = "error",
+                text = getAppString(R.string.compact_no_model),
+            )
+            return
+        }
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) { c.executeCommand(sid, "compact") }
+                withContext(Dispatchers.IO) { c.summarizeSession(sid, providerId, modelId) }
             } catch (e: Exception) {
                 _messages.value = _messages.value + ChatMessage(
                     id = "err-compact-${System.currentTimeMillis()}",
