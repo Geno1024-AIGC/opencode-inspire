@@ -827,6 +827,16 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
             textMeasurer.measure(AnnotatedString(it), style = labelStyle).size.width.toDp()
         } ?: 0.dp
     } + 8.dp
+    var timeFormat by rememberSaveable { mutableIntStateOf(0) }
+    val fmtTime = { ms: Long ->
+        when (timeFormat) {
+            1 -> formatClock(ms)
+            2 -> formatClockDays(ms)
+            else -> formatSeconds(ms)
+        }
+    }
+    val cycleTime = { timeFormat = (timeFormat + 1) % 3 }
+    var showCostInfo by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(Modifier.fillMaxWidth()) {
             Text("", modifier = Modifier.width(labelWidth))
@@ -845,7 +855,34 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
                 modifier = Modifier.weight(1f),
             )
         }
-        SummaryRow(labelWidth, labels[0], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Text(
+                labels[0],
+                color = labelColor,
+                maxLines = 1,
+                modifier = Modifier.width(labelWidth),
+            )
+            Text(
+                fmtTime(monthElapsed),
+                fontFamily = mono,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clickable { cycleTime() },
+            )
+            Text(
+                fmtTime(totalElapsed),
+                fontFamily = mono,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clickable { cycleTime() },
+            )
+        }
         SummaryRow(labelWidth, labels[1], fmtTokens(month.msgs, short), fmtTokens(total.msgs, short), mono, labelColor, topLine = 2.dp)
         SummaryRow(labelWidth, labels[2], fmtTokens(month.msgsSent, short), fmtTokens(total.msgsSent, short), mono, labelColor)
         SummaryRow(labelWidth, labels[3], fmtTokens(month.msgsReceived, short), fmtTokens(total.msgsReceived, short), mono, labelColor)
@@ -855,7 +892,41 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
         SummaryRow(labelWidth, labels[7], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
         SummaryRow(labelWidth, labels[8], fmtTokens(month.cacheRead, short), fmtTokens(total.cacheRead, short), mono, labelColor)
         SummaryRow(labelWidth, labels[9], fmtTokens(month.cacheWrite, short), fmtTokens(total.cacheWrite, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[10], formatCost(month.cost), formatCost(total.cost), mono, labelColor, topLine = 1.dp)
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Text(
+                labels[10],
+                color = labelColor,
+                maxLines = 1,
+                modifier = Modifier.width(labelWidth),
+            )
+            Text(
+                "--",
+                fontFamily = mono,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clickable { showCostInfo = true },
+            )
+            Text(
+                formatCost(total.cost),
+                fontFamily = mono,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+        }
+    }
+    if (showCostInfo) {
+        AlertDialog(
+            onDismissRequest = { showCostInfo = false },
+            title = { Text(stringResource(R.string.calendar_cost_info_title)) },
+            text = { Text(stringResource(R.string.calendar_cost_info_msg)) },
+            confirmButton = {
+                TextButton(onClick = { showCostInfo = false }) { Text(stringResource(R.string.ok)) }
+            },
+        )
     }
 }
 
@@ -1072,4 +1143,14 @@ private fun formatClock(ms: Long): String {
     val s = (totalTenths % 600) / 10
     val d = totalTenths % 10
     return "%d:%02d:%02d.%d".format(Locale.ROOT, h, m, s, d)
+}
+
+private fun formatClockDays(ms: Long): String {
+    val totalTenths = ms / 100
+    val days = totalTenths / 864000
+    val h = (totalTenths % 864000) / 36000
+    val m = (totalTenths % 36000) / 600
+    val s = (totalTenths % 600) / 10
+    val d = totalTenths % 10
+    return "%d.%02d:%02d:%02d.%d".format(Locale.ROOT, days, h, m, s, d)
 }

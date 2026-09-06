@@ -213,6 +213,8 @@
     <string name="about_ack_text">整个项目由 OpenCode Zen 提供的免费模型（big-pickle）编写。基于 Jetpack Compose、Ktor 和 Kotlin。</string>
     <string name="about_tokens_used">本应用开发消耗</string>
     <string name="usage_cost">费用</string>
+    <string name="calendar_cost_info_title">本月费用不可用</string>
+    <string name="calendar_cost_info_msg">服务端不提供单条消息的费用，因此无法把会话费用准确归入具体月份。本月费用予以隐藏；仅会话级总额可信。</string>
     <string name="about_token_in">输入</string>
     <string name="about_token_out">输出</string>
     <string name="about_token_reasoning">推理</string>
