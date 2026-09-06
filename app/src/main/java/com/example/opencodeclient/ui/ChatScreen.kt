@@ -130,6 +130,7 @@ fun ChatScreen(
     val sending by viewModel.sending.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
     val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
+    val sessionCost by viewModel.sessionCost.collectAsStateWithLifecycle()
     val sessionModelTokens by viewModel.sessionModelTokens.collectAsStateWithLifecycle()
     val contextWindow by viewModel.contextWindow.collectAsStateWithLifecycle()
     val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
@@ -307,7 +308,7 @@ fun ChatScreen(
                 .padding(padding)
                 .imePadding(),
         ) {
-            TokenStatsBar(tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens, totalElapsed = effectiveTotalElapsed, messageCount = activeSession?.let { storedStats[it.id]?.messageCount })
+            TokenStatsBar(tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens, totalElapsed = effectiveTotalElapsed, messageCount = activeSession?.let { storedStats[it.id]?.messageCount }, cost = sessionCost)
             if (searchActive) {
                 OutlinedTextField(
                     value = searchQuery,
@@ -594,6 +595,7 @@ fun ChatScreen(
             viewModel = viewModel,
             session = session,
             sessionTokens = sessionTokens,
+            sessionCost = sessionCost,
             sessionModelTokens = sessionModelTokens,
             historyStats = historyStats,
             storedStats = storedStats[session.id],
@@ -1716,6 +1718,7 @@ private fun TokenStatsBar(
     shortTokens: Boolean,
     totalElapsed: Long? = null,
     messageCount: Long? = null,
+    cost: Double = 0.0,
 ) {
     if (tokens == null && contextWindow <= 0) return
     val input = tokens?.input ?: 0L
@@ -1806,7 +1809,7 @@ private fun TokenStatsBar(
         val msgs = messageCount ?: 0L
         if (elapsedMs > 0L || msgs > 0L) {
             Text(
-                stringResource(R.string.session_stats_line, elapsedMs / 1000.0, msgs),
+                stringResource(R.string.session_stats_line, elapsedMs / 1000.0, msgs, formatCost(cost)),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 fontFamily = MonoFontFamily,
@@ -1892,6 +1895,7 @@ private fun SessionDetailsScreen(
     viewModel: MainViewModel,
     session: Session,
     sessionTokens: Tokens?,
+    sessionCost: Double,
     sessionModelTokens: Map<String, Map<String, TokenDay>>,
     historyStats: HistoryStats?,
     storedStats: StoredHistoryStats?,
@@ -2037,6 +2041,25 @@ private fun SessionDetailsScreen(
                             },
                         )
                     }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.usage_cost),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(140.dp),
+                    )
+                    Text(
+                        formatCost(selDay?.cost?.takeIf { it > 0.0 } ?: sessionCost),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
+                        modifier = Modifier.weight(1f),
+                    )
                 }
 
                 HorizontalDivider()
