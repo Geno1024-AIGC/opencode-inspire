@@ -492,7 +492,7 @@ fun formatTokens(count: Long, short: Boolean = true): String = when {
 }
 
 fun formatCost(cost: Double): String = if (cost >= 1.0)
-    "$$%.2f".format(cost) else "$$%.4f".format(cost)
+    "$%.2f".format(cost) else "$%.4f".format(cost)
 
 fun formatBytes(bytes: Long): String = bytes.toString()
 
