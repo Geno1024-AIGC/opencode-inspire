@@ -58,8 +58,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -74,6 +78,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.occ.R
 import com.geno1024.ai.occ.data.TokenDay
+import com.geno1024.ai.occ.data.saveBitmapToDownloads
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -81,7 +86,9 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class TokenCategory(val labelRes: Int) {
     TOKEN(R.string.calendar_cat_token),
@@ -147,6 +154,7 @@ fun TokenCalendarScreen(
     var shownMonth by remember { mutableStateOf(YearMonth.now()) }
     var selected by remember { mutableStateOf<LocalDate?>(today) }
     var tab by remember { mutableIntStateOf(0) }
+    val calendarLayer = rememberGraphicsLayer()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -157,7 +165,7 @@ fun TokenCalendarScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.drawer_close)) }
                 },
                 actions = {
-                    Row {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = {
                             hiddenSyncAt = true
                             viewModel.incrementTokenHistory()
@@ -172,18 +180,47 @@ fun TokenCalendarScreen(
                         }
                         val exportCtx = LocalContext.current
                         val exportScope = rememberCoroutineScope()
-                        IconButton(onClick = {
-                            exportScope.launch {
-                                val r = viewModel.exportUsage()
-                                val msg = if (r != null) {
-                                    exportCtx.getString(R.string.export_saved, "${r.csvName}, ${r.jsonName}")
-                                } else {
-                                    exportCtx.getString(R.string.export_failed)
-                                }
-                                android.widget.Toast.makeText(exportCtx, msg, android.widget.Toast.LENGTH_LONG).show()
+                        var exportMenu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { exportMenu = true }) {
+                                Icon(Icons.Filled.Share, stringResource(R.string.calendar_export))
                             }
-                        }) {
-                            Icon(Icons.Filled.Share, stringResource(R.string.calendar_export))
+                            DropdownMenu(expanded = exportMenu, onDismissRequest = { exportMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.export_csv_json)) },
+                                    onClick = {
+                                        exportMenu = false
+                                        exportScope.launch {
+                                            val r = viewModel.exportUsage()
+                                            val msg = if (r != null) {
+                                                exportCtx.getString(R.string.export_saved, "${r.csvName}, ${r.jsonName}")
+                                            } else {
+                                                exportCtx.getString(R.string.export_failed)
+                                            }
+                                            android.widget.Toast.makeText(exportCtx, msg, android.widget.Toast.LENGTH_LONG).show()
+                                        }
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.export_image)) },
+                                    onClick = {
+                                        exportMenu = false
+                                        exportScope.launch {
+                                            val fileName = "opencodeclient-usage.png"
+                                            val bmp = calendarLayer.toImageBitmap().asAndroidBitmap()
+                                            val ok = withContext(Dispatchers.IO) {
+                                                saveBitmapToDownloads(exportCtx, fileName, bmp)
+                                            }
+                                            val msg = if (ok) {
+                                                exportCtx.getString(R.string.export_saved, fileName)
+                                            } else {
+                                                exportCtx.getString(R.string.export_failed)
+                                            }
+                                            android.widget.Toast.makeText(exportCtx, msg, android.widget.Toast.LENGTH_LONG).show()
+                                        }
+                                    },
+                                )
+                            }
                         }
                     }
                 },
@@ -199,6 +236,10 @@ fun TokenCalendarScreen(
             Column(
                 Modifier
                     .fillMaxSize()
+                    .drawWithContent {
+                        calendarLayer.record { this@drawWithContent.drawContent() }
+                        drawLayer(calendarLayer)
+                    }
                     .verticalScroll(rememberScrollState()),
             ) {
                 Row(

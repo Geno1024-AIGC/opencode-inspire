@@ -156,6 +156,8 @@
     <string name="calendar_export">Export usage</string>
     <string name="export_saved">Saved: %1$s</string>
     <string name="export_failed">Export failed</string>
+    <string name="export_csv_json">CSV + JSON</string>
+    <string name="export_image">Image (PNG)</string>
     <string name="calendar_last_updated">Cached data as of: %1$s</string>
     <string name="calendar_table_total">Total</string>
     <string name="calendar_table_msgs">msgs</string>

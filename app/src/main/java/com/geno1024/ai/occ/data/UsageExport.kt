@@ -2,6 +2,7 @@ package com.geno1024.ai.occ.data
 
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -58,6 +59,33 @@ fun saveTextFileToDownloads(context: Context, fileName: String, text: String): B
             val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "exports")
             dir.mkdirs()
             File(dir, fileName).writeText(text)
+        }
+        true
+    } catch (_: Exception) {
+        false
+    }
+}
+
+fun saveBitmapToDownloads(context: Context, fileName: String, bitmap: Bitmap): Boolean {
+    return try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, "image/png")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/")
+            }
+            val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val dst = context.contentResolver.insert(collection, values) ?: return false
+            context.contentResolver.openOutputStream(dst)?.use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            } ?: return false
+        } else {
+            val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "exports")
+            dir.mkdirs()
+            val out = File(dir, fileName)
+            context.contentResolver.openOutputStream(android.net.Uri.fromFile(out))?.use { stream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            } ?: return false
         }
         true
     } catch (_: Exception) {
