@@ -50,6 +50,7 @@
     <string name="quick_search_hint">搜索命令与会话…</string>
     <string name="quick_sessions">会话</string>
     <string name="quick_no_results">无结果</string>
+    <string name="share_card_subtitle">Token 用量报告</string>
     <string name="session_group_today">今天</string>
     <string name="session_group_yesterday">昨天</string>
     <string name="session_group_earlier">更早</string>
