@@ -39,6 +39,13 @@
     <string name="session_unarchive">Unarchive</string>
     <string name="drawer_archived">Archived (%1$d)</string>
     <string name="drawer_pinned">Pinned (%1$d)</string>
+    <string name="settings_backup">Backup</string>
+    <string name="settings_backup_export">Export</string>
+    <string name="settings_backup_import">Import</string>
+    <string name="settings_backup_exported">Backup saved to Downloads</string>
+    <string name="settings_backup_export_failed">Export failed</string>
+    <string name="settings_backup_restored">Backup restored</string>
+    <string name="settings_backup_restore_failed">Restore failed</string>
     <string name="session_group_today">Today</string>
     <string name="session_group_yesterday">Yesterday</string>
     <string name="session_group_earlier">Earlier</string>

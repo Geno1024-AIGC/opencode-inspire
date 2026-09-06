@@ -39,6 +39,13 @@
     <string name="session_unarchive">取消归档</string>
     <string name="drawer_archived">已归档（%1$d）</string>
     <string name="drawer_pinned">置顶会话（%1$d）</string>
+    <string name="settings_backup">备份</string>
+    <string name="settings_backup_export">导出</string>
+    <string name="settings_backup_import">导入</string>
+    <string name="settings_backup_exported">备份已保存到下载目录</string>
+    <string name="settings_backup_export_failed">导出失败</string>
+    <string name="settings_backup_restored">备份已恢复</string>
+    <string name="settings_backup_restore_failed">恢复失败</string>
     <string name="session_group_today">今天</string>
     <string name="session_group_yesterday">昨天</string>
     <string name="session_group_earlier">更早</string>

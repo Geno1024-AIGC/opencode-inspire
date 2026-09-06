@@ -28,6 +28,27 @@ data class StoredHistoryStats(
     val lastMessageId: String = "",
 )
 
+@Serializable
+data class SettingsBackup(
+    val serverUrl: String? = null,
+    val projectPath: String? = null,
+    val lastSessionId: String? = null,
+    val shortTokens: Boolean = true,
+    val theme: String = "system",
+    val themePreset: String = "default",
+    val customThemeColors: String = "{}",
+    val language: String = "system",
+    val channel: String = "release",
+    val mirror: Boolean = false,
+    val userBubbleColor: Long = -1L,
+    val assistantBubbleColor: Long = -1L,
+    val autoUpdateTiming: Boolean = false,
+    val servers: List<ServerProfile> = emptyList(),
+    val favorites: Set<String> = emptySet(),
+    val archived: Set<String> = emptySet(),
+    val drafts: Map<String, String> = emptyMap(),
+)
+
 class SettingsRepository(private val context: Context) {
     private object Keys {
         val SERVER_URL = stringPreferencesKey("server_url")
@@ -343,6 +364,61 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setDrafts(drafts: Map<String, String>) {
         context.dataStore.edit { it[Keys.DRAFTS] = json.encodeToString(drafts) }
+    }
+
+    suspend fun backupSettings(): SettingsBackup {
+        val p = context.dataStore.data.first()
+        fun setOf(raw: String?): Set<String> = raw?.let { r ->
+            runCatching { json.decodeFromString<Set<String>>(r) }.getOrNull()
+        } ?: emptySet()
+        return SettingsBackup(
+            serverUrl = p[Keys.SERVER_URL],
+            projectPath = p[Keys.PROJECT_PATH],
+            lastSessionId = p[Keys.LAST_SESSION],
+            shortTokens = p[Keys.SHORT_TOKENS] ?: true,
+            theme = p[Keys.THEME] ?: "system",
+            themePreset = p[Keys.THEME_PRESET] ?: "default",
+            customThemeColors = p[Keys.CUSTOM_THEME_COLORS] ?: "{}",
+            language = p[Keys.LANGUAGE] ?: "system",
+            channel = p[Keys.CHANNEL] ?: "release",
+            mirror = p[Keys.MIRROR] ?: false,
+            userBubbleColor = p[Keys.USER_BUBBLE_COLOR] ?: -1L,
+            assistantBubbleColor = p[Keys.ASSIST_BUBBLE_COLOR] ?: -1L,
+            autoUpdateTiming = p[Keys.AUTO_UPDATE_TIMING] ?: false,
+            servers = p[Keys.SERVERS]?.let { raw ->
+                runCatching { json.decodeFromString<List<ServerProfile>>(raw) }.getOrNull()
+            } ?: emptyList(),
+            favorites = setOf(p[Keys.FAVORITES]),
+            archived = setOf(p[Keys.ARCHIVED]),
+            drafts = p[Keys.DRAFTS]?.let { raw ->
+                runCatching { json.decodeFromString<Map<String, String>>(raw) }.getOrNull()
+            } ?: emptyMap(),
+        )
+    }
+
+    suspend fun restoreSettings(b: SettingsBackup) {
+        context.dataStore.edit { p ->
+            fun setOrRemove(key: androidx.datastore.preferences.core.Preferences.Key<String>, value: String?) {
+                if (value == null) p.remove(key) else p[key] = value
+            }
+            setOrRemove(Keys.SERVER_URL, b.serverUrl)
+            setOrRemove(Keys.PROJECT_PATH, b.projectPath)
+            setOrRemove(Keys.LAST_SESSION, b.lastSessionId)
+            p[Keys.SHORT_TOKENS] = b.shortTokens
+            p[Keys.THEME] = b.theme
+            p[Keys.THEME_PRESET] = b.themePreset
+            p[Keys.CUSTOM_THEME_COLORS] = b.customThemeColors
+            p[Keys.LANGUAGE] = b.language
+            p[Keys.CHANNEL] = b.channel
+            p[Keys.MIRROR] = b.mirror
+            p[Keys.USER_BUBBLE_COLOR] = b.userBubbleColor
+            p[Keys.ASSIST_BUBBLE_COLOR] = b.assistantBubbleColor
+            p[Keys.AUTO_UPDATE_TIMING] = b.autoUpdateTiming
+            p[Keys.SERVERS] = json.encodeToString(ListSerializer(ServerProfile.serializer()), b.servers)
+            p[Keys.FAVORITES] = json.encodeToString(b.favorites)
+            p[Keys.ARCHIVED] = json.encodeToString(b.archived)
+            p[Keys.DRAFTS] = json.encodeToString(b.drafts)
+        }
     }
 
     suspend fun setLastSessionId(id: String?) {

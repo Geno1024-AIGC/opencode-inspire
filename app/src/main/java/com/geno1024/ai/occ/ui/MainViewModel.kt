@@ -575,6 +575,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun incrementTokenHistory() = runTokenLoad(incremental = true)
 
+    suspend fun exportSettingsBackup(): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val backup = settings.backupSettings()
+            val text = Json {
+                prettyPrint = true
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+            }.encodeToString(com.geno1024.ai.occ.data.SettingsBackup.serializer(), backup)
+            saveTextFileToDownloads(getApplication(), "opencodeclient-settings-backup.json", text)
+        }.getOrDefault(false)
+    }
+
+    suspend fun importSettingsBackup(text: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val backup = Json {
+                ignoreUnknownKeys = true
+            }.decodeFromString(com.geno1024.ai.occ.data.SettingsBackup.serializer(), text)
+            settings.restoreSettings(backup)
+        }.isSuccess
+    }
+
     suspend fun exportUsage(): UsageExportResult? = withContext(Dispatchers.IO) {
         val history = _tokenHistory.value
         val modelStats = _tokenModelStats.value

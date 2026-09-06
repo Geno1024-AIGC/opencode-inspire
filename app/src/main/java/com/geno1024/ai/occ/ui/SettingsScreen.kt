@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -62,8 +63,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.occ.R
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import com.geno1024.ai.occ.ui.theme.ThemePreset
 import com.geno1024.ai.occ.ui.theme.PresetDarkSchemes
+import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.serializer
 
 private val presetColors = listOf(
@@ -384,6 +391,63 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = if (updateInfo != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+            }
+
+            // ── Backup ──
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel(R.string.settings_backup)
+                    val context = LocalContext.current
+                    val scope = rememberCoroutineScope()
+                    val importLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.OpenDocument()
+                    ) { uri ->
+                        if (uri != null) {
+                            scope.launch {
+                                val text = try {
+                                    context.contentResolver.openInputStream(uri)?.use {
+                                        it.readBytes().toString(Charsets.UTF_8)
+                                    }
+                                } catch (_: Exception) { null }
+                                val ok = !text.isNullOrBlank() && viewModel.importSettingsBackup(text)
+                                Toast.makeText(
+                                    context,
+                                    if (ok) context.getString(R.string.settings_backup_restored)
+                                    else context.getString(R.string.settings_backup_restore_failed),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    val ok = viewModel.exportSettingsBackup()
+                                    Toast.makeText(
+                                        context,
+                                        if (ok) context.getString(R.string.settings_backup_exported)
+                                        else context.getString(R.string.settings_backup_export_failed),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(stringResource(R.string.settings_backup_export)) }
+                        OutlinedButton(
+                            onClick = {
+                                importLauncher.launch(
+                                    arrayOf("application/json", "text/plain", "application/octet-stream")
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) { Text(stringResource(R.string.settings_backup_import)) }
                     }
                 }
             }
