@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,7 +95,7 @@ fun ExportScreen(
     // ── common image options ──
     var exportType by remember { mutableStateOf(ExportType.IMAGE) }
     var commonTransparent by remember { mutableStateOf(true) }
-    var author by remember { mutableStateOf("") }
+    var author by rememberSaveable { mutableStateOf("") }
 
     // ── share card options ──
     var cardTrend by remember { mutableStateOf(false) }

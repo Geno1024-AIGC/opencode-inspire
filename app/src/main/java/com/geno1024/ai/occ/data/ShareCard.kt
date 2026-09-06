@@ -137,7 +137,12 @@ fun buildShareCardBitmap(data: ShareCardData): Bitmap {
     val footerW = subtitlePaint.measureText(data.footer)
     c.drawText(data.footer, w - margin - footerW, 92f, subtitlePaint)
     if (!data.author.isNullOrBlank()) {
-        c.drawText("by ${data.author}", (w - margin).toFloat(), 142f, subtitlePaint)
+        val ownerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = data.muted
+            textSize = 40f
+            textAlign = Paint.Align.RIGHT
+        }
+        c.drawText(data.author!!, (w - margin).toFloat(), 142f, ownerPaint)
     }
 
     y = 178f

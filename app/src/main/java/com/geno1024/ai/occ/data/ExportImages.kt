@@ -184,7 +184,7 @@ fun buildCalendarBitmap(
     }
 
     if (!author.isNullOrBlank()) {
-        c.drawText("by $author", W - MR.toFloat(), y + 28f, authorPaint)
+        c.drawText(author, W - MR.toFloat(), y + 28f, authorPaint)
     }
     return bmp
 }
@@ -310,7 +310,7 @@ private fun buildPunchcardHourly(
     drawLegend(c, accent, muted, maxV, w, h, padLR, fill)
     if (!author.isNullOrBlank()) {
         val ap = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; textAlign = Paint.Align.RIGHT; typeface = monoPlain }
-        c.drawText("by $author", w - padLR, h - 12f, ap)
+        c.drawText(author, w - padLR, h - 12f, ap)
     }
     return bmp
 }
@@ -417,7 +417,7 @@ private fun buildPunchcardDaily(
     drawLegend(c, accent, muted, maxV, w, h, padLR, fill)
     if (!author.isNullOrBlank()) {
         val ap = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; textAlign = Paint.Align.RIGHT; typeface = monoPlain }
-        c.drawText("by $author", w - padLR, h - 12f, ap)
+        c.drawText(author, w - padLR, h - 12f, ap)
     }
     return bmp
 }
