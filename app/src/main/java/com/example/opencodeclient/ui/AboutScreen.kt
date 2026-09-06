@@ -99,6 +99,8 @@ fun AboutScreen(onBack: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
             )
+            val models = rememberModels()
+            val totalCost = models.sumOf { it.cost }
             Text(
                 "v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodyLarge,
@@ -120,6 +122,7 @@ fun AboutScreen(onBack: () -> Unit) {
             TokenDetailRow(stringResource(R.string.about_token_cache_read), formatCount(BuildConfig.TOKENS_CACHE_READ))
             TokenDetailRow(stringResource(R.string.about_token_cache_write), formatCount(BuildConfig.TOKENS_CACHE_WRITE))
             TokenDetailRow(stringResource(R.string.about_msgs), formatCount(BuildConfig.TOKENS_MSGS))
+            TokenDetailRow(stringResource(R.string.usage_cost), formatCost(totalCost))
             Text(
                 formatCount(BuildConfig.TOKENS_TOTAL),
                 style = MaterialTheme.typography.headlineSmall,
@@ -136,7 +139,7 @@ fun AboutScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
             )
-            rememberModels().forEach { m ->
+            models.forEach { m ->
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         m.name,
@@ -150,7 +153,8 @@ fun AboutScreen(onBack: () -> Unit) {
                             "out ${formatCount(m.output)}\n" +
                             "rea ${formatCount(m.reasoning)}\n" +
                             "cr ${formatCount(m.cacheRead)}\n" +
-                            "cw ${formatCount(m.cacheWrite)}",
+                            "cw ${formatCount(m.cacheWrite)}\n" +
+                            "cost ${formatCost(m.cost)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = MonoFontFamily,
@@ -204,6 +208,7 @@ private data class ModelTokens(
     val cacheRead: Long,
     val cacheWrite: Long,
     val msgs: Long,
+    val cost: Double = 0.0,
 )
 
 private fun parseModels(raw: String): List<ModelTokens> =
@@ -220,6 +225,7 @@ private fun parseModels(raw: String): List<ModelTokens> =
             cacheRead = parts[4].toLongOrNull() ?: 0L,
             cacheWrite = parts[5].toLongOrNull() ?: 0L,
             msgs = parts[6].toLongOrNull() ?: 0L,
+            cost = parts.getOrNull(7)?.toDoubleOrNull() ?: 0.0,
         )
     }
 
