@@ -1908,6 +1908,7 @@ private fun SessionDetailsScreen(
     val modelMap = sessionModelTokens[session.id] ?: emptyMap()
     val modelIds = modelMap.keys.sorted()
     val activeDetailModel = if (detailModel in modelIds) detailModel else "all"
+    val context = LocalContext.current
     val hasStored = stored != null && stored.totalElapsed > 0L
     val canIncremental = stored != null && !stored.lastMessageId.isNullOrEmpty()
 
@@ -1964,28 +1965,30 @@ private fun SessionDetailsScreen(
                 val selDay = if (modelIds.isEmpty()) null
                     else if (activeDetailModel == "all") modelMap.values.fold(TokenDay()) { a, t -> a + t }
                     else modelMap[activeDetailModel] ?: TokenDay()
-                if (modelIds.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            stringResource(R.string.session_details_model),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.width(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.session_details_tokens),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(140.dp),
+                    )
+                    if (modelIds.isNotEmpty()) {
                         Box {
                             Text(
                                 if (activeDetailModel == "all") stringResource(R.string.model_all) else activeDetailModel,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontFamily = MonoFontFamily,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
                                     .clickable { modelMenu = true }
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
                             )
                             DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
                                 DropdownMenuItem(
@@ -2000,28 +2003,41 @@ private fun SessionDetailsScreen(
                                 }
                             }
                         }
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(
+                        buildString {
+                            val day = selDay
+                            append(stringResource(R.string.session_details_tokens_in, formatTokens(day?.input ?: tokens?.input ?: 0L, shortTokens)))
+                            appendLine()
+                            append(stringResource(R.string.session_details_tokens_out, formatTokens(day?.output ?: tokens?.output ?: 0L, shortTokens)))
+                            if ((day?.reasoning ?: tokens?.reasoning ?: 0L) > 0) {
+                                appendLine()
+                                append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(day?.reasoning ?: tokens?.reasoning ?: 0L, shortTokens)))
+                            }
+                            appendLine()
+                            append(stringResource(R.string.session_details_tokens_cache_read, formatTokens(day?.cacheRead ?: tokens?.cache?.read ?: 0L, shortTokens)))
+                            if ((day?.cacheWrite ?: tokens?.cache?.write ?: 0L) > 0) {
+                                appendLine()
+                                append(stringResource(R.string.session_details_tokens_cache_write, formatTokens(day?.cacheWrite ?: tokens?.cache?.write ?: 0L, shortTokens)))
+                            }
+                        },
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (tokens != null) {
+                        Text(
+                            "⎘",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.clickable {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText(null, "${tokens.input}/${tokens.output}/${tokens.reasoning}/${tokens.cache?.read ?: 0}/${tokens.cache?.write ?: 0}"))
+                                Toast.makeText(context, context.getString(R.string.copied), Toast.LENGTH_SHORT).show()
+                            },
+                        )
                     }
                 }
-                DetailRow(
-                    label = stringResource(R.string.session_details_tokens),
-                    value = buildString {
-                        val day = selDay
-                        append(stringResource(R.string.session_details_tokens_in, formatTokens(day?.input ?: tokens?.input ?: 0L, shortTokens)))
-                        appendLine()
-                        append(stringResource(R.string.session_details_tokens_out, formatTokens(day?.output ?: tokens?.output ?: 0L, shortTokens)))
-                        if ((day?.reasoning ?: tokens?.reasoning ?: 0L) > 0) {
-                            appendLine()
-                            append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(day?.reasoning ?: tokens?.reasoning ?: 0L, shortTokens)))
-                        }
-                        appendLine()
-                        append(stringResource(R.string.session_details_tokens_cache_read, formatTokens(day?.cacheRead ?: tokens?.cache?.read ?: 0L, shortTokens)))
-                        if ((day?.cacheWrite ?: tokens?.cache?.write ?: 0L) > 0) {
-                            appendLine()
-                            append(stringResource(R.string.session_details_tokens_cache_write, formatTokens(day?.cacheWrite ?: tokens?.cache?.write ?: 0L, shortTokens)))
-                        }
-                    },
-                    onCopyValue = tokens?.let { "${it.input}/${it.output}/${it.reasoning}/${it.cache?.read ?: 0}/${it.cache?.write ?: 0}" },
-                )
 
                 HorizontalDivider()
 

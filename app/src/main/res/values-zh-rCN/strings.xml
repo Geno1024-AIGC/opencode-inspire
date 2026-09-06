@@ -205,11 +205,12 @@
     <string name="settings_about">关于</string>
     <string name="about_repo">开源仓库</string>
     <string name="about_subtitle">一个开源的 Android OpenCode 客户端</string>
+    <string name="about_credit">作者：Geno1024</string>
     <string name="about_issue">报告问题</string>
     <string name="about_license">许可证</string>
     <string name="about_license_text">MIT 许可证</string>
     <string name="about_acknowledgments">致谢</string>
-    <string name="about_ack_text">整个项目由 OpenCode 免费模型编写：先是 DeepSeek V4 Flash，后是 big-pickle。基于 Jetpack Compose、Ktor 和 Kotlin。</string>
+    <string name="about_ack_text">整个项目由 OpenCode 的 big-pickle 模型编写。基于 Jetpack Compose、Ktor 和 Kotlin。</string>
     <string name="about_tokens_used">本应用开发消耗 Token</string>
     <string name="about_token_in">输入</string>
     <string name="about_token_out">输出</string>
