@@ -403,6 +403,22 @@ fun TokenCalendarScreen(
                     2 -> WeekColumnCard(buckets = viewHourByWeek, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
                     3 -> MonthColumnCard(buckets = viewHourByMonth, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
                 }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.chart_model_usage),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+                ModelUsageChart(modelStats = tokenModelStats, short = shortTokens)
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.chart_trend_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+                DailyTrendChart(history = history, days = 14, short = shortTokens)
             }
         }
     }

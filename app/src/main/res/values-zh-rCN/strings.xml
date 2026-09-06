@@ -176,6 +176,9 @@
     <string name="calendar_token_crd">crd</string>
     <string name="calendar_token_cwr">cwr</string>
     <string name="calendar_msgs_total">total</string>
+    <string name="stats_tab_msgs">消息</string>
+    <string name="chart_model_usage">模型用量</string>
+    <string name="chart_trend_title">趋势 · 最近 14 天</string>
     <string name="calendar_msgs_user">user</string>
     <string name="calendar_msgs_assistant">assistant</string>
     <string name="calendar_table_month">本月</string>

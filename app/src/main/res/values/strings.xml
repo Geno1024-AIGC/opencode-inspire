@@ -176,6 +176,9 @@
     <string name="calendar_token_crd">crd</string>
     <string name="calendar_token_cwr">cwr</string>
     <string name="calendar_msgs_total">total</string>
+    <string name="stats_tab_msgs">msgs</string>
+    <string name="chart_model_usage">Model usage</string>
+    <string name="chart_trend_title">Trend · last 14 days</string>
     <string name="calendar_msgs_user">user</string>
     <string name="calendar_msgs_assistant">assistant</string>
     <string name="calendar_table_month">This month</string>
