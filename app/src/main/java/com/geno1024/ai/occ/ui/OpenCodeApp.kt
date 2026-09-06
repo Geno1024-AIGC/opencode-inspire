@@ -230,6 +230,20 @@ private fun DrawerContent(
     val sessionCosts = remember(sessionModelTokens) {
         sessionModelTokens.mapValues { (_, models) -> models.values.sumOf { it.cost } }
     }
+    val projectSummaries = remember(sessionModelTokens, projects) {
+        projects.associate { p ->
+            val fresh = p.sessions.sumOf { s ->
+                sessionModelTokens[s.id]?.values?.sumOf { it.input + it.output + it.reasoning } ?: 0L
+            }
+            val msgs = p.sessions.sumOf { s ->
+                sessionModelTokens[s.id]?.values?.sumOf { it.msgs } ?: 0L
+            }
+            val cost = p.sessions.sumOf { s ->
+                sessionModelTokens[s.id]?.values?.sumOf { it.cost } ?: 0.0
+            }
+            p.id to ProjectSummary(fresh = fresh, msgs = msgs, cost = cost)
+        }
+    }
     var menuExpanded by remember { mutableStateOf(false) }
 
     ModalDrawerSheet {
@@ -307,6 +321,7 @@ private fun DrawerContent(
                         shortTokens = shortTokens,
                         favorites = favorites,
                         sessionCosts = sessionCosts,
+                        summary = projectSummaries[project.id],
                         onOpenSession = { viewModel.openSession(it) },
                         onNewSession = { viewModel.newSession(project.worktree) },
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
@@ -337,6 +352,7 @@ private fun ExpandableProject(
     shortTokens: Boolean = true,
     favorites: Set<String> = emptySet(),
     sessionCosts: Map<String, Double> = emptyMap(),
+    summary: ProjectSummary? = null,
     onOpenSession: (String) -> Unit,
     onNewSession: () -> Unit,
     onToggleFavorite: (String) -> Unit,
@@ -370,6 +386,16 @@ private fun ExpandableProject(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = MonoFontFamily,
+                    )
+                }
+                if (summary != null && (summary.fresh + summary.msgs > 0L || summary.cost > 0.0)) {
+                    Text(
+                        "${formatTokens(summary.fresh, shortTokens)}, ${formatTokens(summary.msgs, shortTokens)}, ${formatCost(summary.cost)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        fontFamily = MonoFontFamily,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -929,3 +955,9 @@ private fun parentOfRelative(path: String): String {
     if (idx <= 0) return ""
     return p.substring(0, idx)
 }
+
+data class ProjectSummary(
+    val fresh: Long = 0L,
+    val msgs: Long = 0L,
+    val cost: Double = 0.0,
+)
