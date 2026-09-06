@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -52,12 +53,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.drawText
@@ -78,6 +81,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 private enum class TokenCategory(val labelRes: Int) {
     TOKEN(R.string.calendar_cat_token),
@@ -165,6 +169,21 @@ fun TokenCalendarScreen(
                             viewModel.loadTokenHistory()
                         }) {
                             Text(stringResource(R.string.calendar_full))
+                        }
+                        val exportCtx = LocalContext.current
+                        val exportScope = rememberCoroutineScope()
+                        IconButton(onClick = {
+                            exportScope.launch {
+                                val r = viewModel.exportUsage()
+                                val msg = if (r != null) {
+                                    exportCtx.getString(R.string.export_saved, "${r.csvName}, ${r.jsonName}")
+                                } else {
+                                    exportCtx.getString(R.string.export_failed)
+                                }
+                                android.widget.Toast.makeText(exportCtx, msg, android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }) {
+                            Icon(Icons.Filled.Share, stringResource(R.string.calendar_export))
                         }
                     }
                 },

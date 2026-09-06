@@ -35,7 +35,12 @@ import com.geno1024.ai.occ.data.TokenDay
 import com.geno1024.ai.occ.data.TokenModelStats
 import com.geno1024.ai.occ.data.Tokens
 import com.geno1024.ai.occ.data.Updater
+import com.geno1024.ai.occ.data.UsageExportDoc
+import com.geno1024.ai.occ.data.UsageExportResult
+import com.geno1024.ai.occ.data.buildUsageCsv
+import com.geno1024.ai.occ.data.buildUsageJson
 import com.geno1024.ai.occ.data.promptTokens
+import com.geno1024.ai.occ.data.saveTextFileToDownloads
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -564,6 +569,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun loadTokenHistory() = runTokenLoad(incremental = false)
 
     fun incrementTokenHistory() = runTokenLoad(incremental = true)
+
+    suspend fun exportUsage(): UsageExportResult? = withContext(Dispatchers.IO) {
+        val history = _tokenHistory.value
+        val modelStats = _tokenModelStats.value
+        val sessions = _sessionModelTokens.value
+        val titles = _projects.value
+            .flatMap { it.sessions }
+            .associate { it.id to (it.title ?: "") }
+        val doc = UsageExportDoc(
+            exportedAt = java.time.Instant.now().toString(),
+            generatedBy = "opencode-inspire ${BuildConfig.VERSION_NAME}",
+            dates = history,
+            models = modelStats,
+            sessions = sessions,
+            sessionTitles = titles,
+        )
+        val ctx = getApplication<Application>()
+        val csvName = "opencodeclient-usage.csv"
+        val jsonName = "opencodeclient-usage.json"
+        val okCsv = saveTextFileToDownloads(ctx, csvName, buildUsageCsv(history))
+        val okJson = saveTextFileToDownloads(ctx, jsonName, buildUsageJson(doc))
+        if (okCsv && okJson) UsageExportResult(csvName, jsonName) else null
+    }
 
     private fun runTokenLoad(incremental: Boolean) {
         if (_tokenHistoryLoading.value) return
