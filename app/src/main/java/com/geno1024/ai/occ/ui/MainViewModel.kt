@@ -25,6 +25,7 @@ import com.geno1024.ai.occ.data.Project
 import com.geno1024.ai.occ.data.QuestionRequest
 import com.geno1024.ai.occ.data.ServerProfile
 import com.geno1024.ai.occ.data.Session
+import com.geno1024.ai.occ.data.SessionV2Info
 import com.geno1024.ai.occ.data.SettingsRepository
 import com.geno1024.ai.occ.data.StoredHistoryStats
 import com.geno1024.ai.occ.data.TokenDay
@@ -150,6 +151,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _activeSession = MutableStateFlow<Session?>(null)
     val activeSession: StateFlow<Session?> = _activeSession.asStateFlow()
+    private val titleRefreshPending = mutableSetOf<String>()
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
@@ -1312,6 +1314,43 @@ private fun sessionTitle(sid: String): String {
         }
     }
 
+    private fun isDefaultSessionTitle(title: String?): Boolean {
+        val t = title?.trim().orEmpty()
+        return t.isEmpty() || t.startsWith("New session", ignoreCase = true)
+    }
+
+    private fun refreshAutoSessionTitleIfNeeded(sid: String) {
+        val c = client ?: return
+        if (_activeSession.value?.id != sid) return
+        if (!isDefaultSessionTitle(_activeSession.value?.title)) return
+        if (!titleRefreshPending.add(sid)) return
+        viewModelScope.launch {
+            try {
+                var detail: SessionV2Info? = null
+                repeat(3) { attempt ->
+                    if (attempt > 0) delay(500)
+                    detail = withContext(Dispatchers.IO) {
+                        runCatching { c.sessionDetail(sid) }.getOrNull()
+                    }
+                    val t = detail?.title?.trim().orEmpty()
+                    if (!isDefaultSessionTitle(t)) return@repeat
+                }
+                val title = detail?.title?.trim().orEmpty()
+                if (!isDefaultSessionTitle(title) && _activeSession.value?.id == sid) {
+                    _activeSession.value = _activeSession.value?.copy(title = title)
+                    _projects.value = _projects.value.map { p ->
+                        p.copy(sessions = p.sessions.map {
+                            if (it.id == sid && isDefaultSessionTitle(it.title)) it.copy(title = title) else it
+                        })
+                    }
+                }
+            } catch (_: Exception) {
+            } finally {
+                titleRefreshPending.remove(sid)
+            }
+        }
+    }
+
     fun send(text: String) {
         if (text.isBlank()) return
         val c = client ?: return
@@ -2000,6 +2039,7 @@ text = e.message ?: getAppString(R.string.send_failed),
                         if (elapsed != null && elapsed > 0) _sessionElapsed.value = elapsed
                         recomputeSessionTotalElapsed()
                         autoUpdateTimingForSession(sid)
+                        refreshAutoSessionTitleIfNeeded(sid)
                     }
                     if (wasBusy) notifySessionDone(sid, _sessionTokens.value?.total ?: 0L)
                 } else {
