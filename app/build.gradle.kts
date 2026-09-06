@@ -12,6 +12,10 @@ val commitSha: String = providers.exec {
     commandLine("git", "rev-parse", "--short=8", "HEAD")
 }.standardOutput.asText.get().trim().ifBlank { "00000000" }
 
+val commitDate: String = providers.exec {
+    commandLine("git", "show", "-s", "--format=%cI", "HEAD")
+}.standardOutput.asText.get().trim().ifBlank { "unknown" }
+
 val commitCount: Int = providers.exec {
     commandLine("git", "rev-list", "--count", "HEAD")
 }.standardOutput.asText.get().trim().toIntOrNull() ?: 0
@@ -53,6 +57,7 @@ android {
         versionCode = 1
         versionName = appVersionName
         buildConfigField("String", "GIT_COMMIT", "\"$commitSha\"")
+        buildConfigField("String", "BUILD_TIME", "\"$commitDate\"")
         buildConfigField("int", "PACK", "$pack")
         buildConfigField("int", "BUILD", "$build")
         buildConfigField("long", "TOKENS_TOTAL", "${tokensTotal}L")

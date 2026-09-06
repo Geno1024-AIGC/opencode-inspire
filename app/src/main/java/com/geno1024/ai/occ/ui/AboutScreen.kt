@@ -112,6 +112,12 @@ fun AboutScreen(onBack: () -> Unit) {
                 fontFamily = MonoFontFamily,
             )
             Text(
+                BuildConfig.BUILD_TIME.replace("T", " "),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontFamily = MonoFontFamily,
+            )
+            Text(
                 stringResource(R.string.about_tokens_used),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
