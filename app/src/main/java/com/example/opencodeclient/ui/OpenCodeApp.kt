@@ -226,6 +226,10 @@ private fun DrawerContent(
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val storedStats by viewModel.storedStats.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val sessionModelTokens by viewModel.sessionModelTokens.collectAsStateWithLifecycle()
+    val sessionCosts = remember(sessionModelTokens) {
+        sessionModelTokens.mapValues { (_, models) -> models.values.sumOf { it.cost } }
+    }
     var menuExpanded by remember { mutableStateOf(false) }
 
     ModalDrawerSheet {
@@ -302,6 +306,7 @@ private fun DrawerContent(
                         storedStats = storedStats,
                         shortTokens = shortTokens,
                         favorites = favorites,
+                        sessionCosts = sessionCosts,
                         onOpenSession = { viewModel.openSession(it) },
                         onNewSession = { viewModel.newSession(project.worktree) },
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
@@ -331,6 +336,7 @@ private fun ExpandableProject(
     storedStats: Map<String, StoredHistoryStats> = emptyMap(),
     shortTokens: Boolean = true,
     favorites: Set<String> = emptySet(),
+    sessionCosts: Map<String, Double> = emptyMap(),
     onOpenSession: (String) -> Unit,
     onNewSession: () -> Unit,
     onToggleFavorite: (String) -> Unit,
@@ -377,6 +383,7 @@ private fun ExpandableProject(
                     isActive = s.id == activeSessionId,
                     isFavorite = s.id in favorites,
                     totalElapsed = if (storedElapsed > 0L) storedElapsed else null,
+                    cost = sessionCosts[s.id] ?: 0.0,
                     shortTokens = shortTokens,
                     onClick = { onOpenSession(s.id) },
                     onToggleFavorite = { onToggleFavorite(s.id) },
@@ -407,6 +414,7 @@ private fun SessionRow(
     isActive: Boolean,
     isFavorite: Boolean = false,
     totalElapsed: Long? = null,
+    cost: Double = 0.0,
     shortTokens: Boolean = true,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit = {},
@@ -440,26 +448,16 @@ private fun SessionRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-        }
-        s.tokens?.let { t ->
-            val total = t.input + t.output + t.reasoning
-            if (total > 0) {
-                Text(
-                    formatTokens(total, shortTokens),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        totalElapsed?.let { elapsed ->
-            if (elapsed > 0) {
-                Spacer(Modifier.padding(horizontal = 4.dp))
-                Text(
-                    formatElapsed(elapsed),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
+            val fresh = s.tokens?.let { it.input + it.output + it.reasoning } ?: 0L
+            val elapsedStr = totalElapsed?.takeIf { it > 0L }?.let { formatElapsed(it) } ?: "0s"
+            Text(
+                "${formatTokens(fresh, shortTokens)}, $elapsedStr, ${formatCost(cost)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                fontFamily = MonoFontFamily,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         Spacer(Modifier.padding(horizontal = 4.dp))
         IconButton(
