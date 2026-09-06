@@ -1,4 +1,4 @@
-package com.example.opencodeclient.ui
+package com.geno1024.ai.occ.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -66,9 +66,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.ui.res.painterResource
-import com.example.opencodeclient.R
-import com.example.opencodeclient.data.Message
-import com.example.opencodeclient.data.Session
+import com.geno1024.ai.occ.R
+import com.geno1024.ai.occ.data.Message
+import com.geno1024.ai.occ.data.Session
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.AlertDialog
@@ -105,12 +105,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-import com.example.opencodeclient.data.FileNode
-import com.example.opencodeclient.data.ModelInfo
-import com.example.opencodeclient.data.QuestionRequest
-import com.example.opencodeclient.data.StoredHistoryStats
-import com.example.opencodeclient.data.TokenDay
-import com.example.opencodeclient.data.Tokens
+import com.geno1024.ai.occ.data.FileNode
+import com.geno1024.ai.occ.data.ModelInfo
+import com.geno1024.ai.occ.data.QuestionRequest
+import com.geno1024.ai.occ.data.StoredHistoryStats
+import com.geno1024.ai.occ.data.TokenDay
+import com.geno1024.ai.occ.data.Tokens
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -756,7 +756,7 @@ private fun HistoryStatsDialog(
 
 @Composable
 private fun PermissionDialog(
-    permission: com.example.opencodeclient.data.PermissionRequest,
+    permission: com.geno1024.ai.occ.data.PermissionRequest,
     directory: String?,
     onReply: (String) -> Unit,
 ) {
@@ -993,11 +993,11 @@ private fun MarkdownMessage(content: String, color: Color = Color.Unspecified) {
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.material3.LocalContentColor provides color
             ) {
-                com.example.opencodeclient.ui.MarkdownMessage(content)
+                com.geno1024.ai.occ.ui.MarkdownMessage(content)
             }
         }
     } else {
-        com.example.opencodeclient.ui.MarkdownMessage(content)
+        com.geno1024.ai.occ.ui.MarkdownMessage(content)
     }
 }
 

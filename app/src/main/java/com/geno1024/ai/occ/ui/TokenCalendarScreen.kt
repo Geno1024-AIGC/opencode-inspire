@@ -1,4 +1,4 @@
-package com.example.opencodeclient.ui
+package com.geno1024.ai.occ.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
@@ -69,8 +69,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.opencodeclient.R
-import com.example.opencodeclient.data.TokenDay
+import com.geno1024.ai.occ.R
+import com.geno1024.ai.occ.data.TokenDay
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth

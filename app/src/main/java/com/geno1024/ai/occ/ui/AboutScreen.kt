@@ -1,4 +1,4 @@
-package com.example.opencodeclient.ui
+package com.geno1024.ai.occ.ui
 
 import android.content.Context
 import android.content.Intent
@@ -40,8 +40,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.opencodeclient.BuildConfig
-import com.example.opencodeclient.R
+import com.geno1024.ai.occ.BuildConfig
+import com.geno1024.ai.occ.R
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)

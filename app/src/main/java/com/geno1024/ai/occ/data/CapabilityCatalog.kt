@@ -1,6 +1,6 @@
-package com.example.opencodeclient.data
+package com.geno1024.ai.occ.data
 
-import com.example.opencodeclient.R
+import com.geno1024.ai.occ.R
 
 data class Version(
     val major: Int,

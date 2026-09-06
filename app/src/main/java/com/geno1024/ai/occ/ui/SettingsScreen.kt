@@ -1,6 +1,6 @@
-package com.example.opencodeclient.ui
+package com.geno1024.ai.occ.ui
 
-import com.example.opencodeclient.BuildConfig
+import com.geno1024.ai.occ.BuildConfig
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,9 +61,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.opencodeclient.R
-import com.example.opencodeclient.ui.theme.ThemePreset
-import com.example.opencodeclient.ui.theme.PresetDarkSchemes
+import com.geno1024.ai.occ.R
+import com.geno1024.ai.occ.ui.theme.ThemePreset
+import com.geno1024.ai.occ.ui.theme.PresetDarkSchemes
 import kotlinx.serialization.builtins.serializer
 
 private val presetColors = listOf(

@@ -43,11 +43,11 @@ val tokensModels = tokenLines.drop(7).joinToString("\n") { it.trim() }.trim('\n'
 val appVersionName = "0.1.$pack.$build.$commitSha"
 
 android {
-    namespace = "com.example.opencodeclient"
+    namespace = "com.geno1024.ai.occ"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.example.opencodeclient"
+        applicationId = "com.geno1024.ai.occ"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

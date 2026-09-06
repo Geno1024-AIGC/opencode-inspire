@@ -1,4 +1,4 @@
-package com.example.opencodeclient.ui
+package com.geno1024.ai.occ.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,8 +44,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.opencodeclient.R
-import com.example.opencodeclient.data.ServerProfile
+import com.geno1024.ai.occ.R
+import com.geno1024.ai.occ.data.ServerProfile
 
 @Composable
 fun ConnectScreen(

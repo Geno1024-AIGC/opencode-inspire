@@ -1,4 +1,4 @@
-package com.example.opencodeclient.ui
+package com.geno1024.ai.occ.ui
 
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily

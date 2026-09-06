@@ -1,4 +1,4 @@
-package com.example.opencodeclient.data
+package com.geno1024.ai.occ.data
 
 import java.io.IOException
 import java.util.concurrent.TimeUnit

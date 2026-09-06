@@ -1,4 +1,4 @@
-package com.example.opencodeclient.ui
+package com.geno1024.ai.occ.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -61,13 +61,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.opencodeclient.R
-import com.example.opencodeclient.data.CapabilityState
-import com.example.opencodeclient.data.FeatureGroup
-import com.example.opencodeclient.data.FeatureStatus
-import com.example.opencodeclient.data.ServerProfile
-import com.example.opencodeclient.data.Session
-import com.example.opencodeclient.data.StoredHistoryStats
+import com.geno1024.ai.occ.R
+import com.geno1024.ai.occ.data.CapabilityState
+import com.geno1024.ai.occ.data.FeatureGroup
+import com.geno1024.ai.occ.data.FeatureStatus
+import com.geno1024.ai.occ.data.ServerProfile
+import com.geno1024.ai.occ.data.Session
+import com.geno1024.ai.occ.data.StoredHistoryStats
 import kotlinx.coroutines.launch
 
 sealed class Screen {
@@ -830,7 +830,7 @@ private fun ServerFolderBrowser(
 ) {
     var baseDir by remember { mutableStateOf<String?>(null) }
     var currentPath by rememberSaveable { mutableStateOf("") }
-    var entries by remember { mutableStateOf(emptyList<com.example.opencodeclient.data.FileNode>()) }
+    var entries by remember { mutableStateOf(emptyList<com.geno1024.ai.occ.data.FileNode>()) }
     var loading by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {

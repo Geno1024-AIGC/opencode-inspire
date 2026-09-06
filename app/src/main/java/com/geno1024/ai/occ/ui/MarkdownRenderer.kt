@@ -1,6 +1,6 @@
-package com.example.opencodeclient.ui
+package com.geno1024.ai.occ.ui
 
-import com.example.opencodeclient.R
+import com.geno1024.ai.occ.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box

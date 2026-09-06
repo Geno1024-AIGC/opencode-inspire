@@ -1,4 +1,4 @@
-package com.example.opencodeclient.data
+package com.geno1024.ai.occ.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

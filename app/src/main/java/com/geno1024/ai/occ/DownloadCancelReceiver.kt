@@ -1,4 +1,4 @@
-package com.example.opencodeclient
+package com.geno1024.ai.occ
 
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
@@ -10,7 +10,7 @@ class DownloadCancelReceiver : BroadcastReceiver() {
         context.getSystemService(Context.NOTIFICATION_SERVICE)?.let { service ->
             (service as? NotificationManager)?.cancel(1002)
         }
-        val cancelIntent = Intent("com.example.opencodeclient.DOWNLOAD_CANCELLED")
+        val cancelIntent = Intent("com.geno1024.ai.occ.DOWNLOAD_CANCELLED")
         context.sendBroadcast(cancelIntent)
     }
 }

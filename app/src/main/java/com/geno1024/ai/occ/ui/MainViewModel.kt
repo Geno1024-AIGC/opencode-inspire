@@ -1,4 +1,4 @@
-package com.example.opencodeclient.ui
+package com.geno1024.ai.occ.ui
 
 import android.app.Application
 import android.app.NotificationChannel
@@ -9,29 +9,29 @@ import android.content.Intent
 import android.content.res.Configuration
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.opencodeclient.BuildConfig
-import com.example.opencodeclient.R
+import com.geno1024.ai.occ.BuildConfig
+import com.geno1024.ai.occ.R
 import java.util.Locale
-import com.example.opencodeclient.data.CapabilityCatalog
-import com.example.opencodeclient.data.CapabilityReport
-import com.example.opencodeclient.data.Command
-import com.example.opencodeclient.data.FeatureStatus
-import com.example.opencodeclient.data.Message
-import com.example.opencodeclient.data.ModelInfo
-import com.example.opencodeclient.data.OpenCodeClient
-import com.example.opencodeclient.data.Part
-import com.example.opencodeclient.data.PermissionRequest
-import com.example.opencodeclient.data.Project
-import com.example.opencodeclient.data.QuestionRequest
-import com.example.opencodeclient.data.ServerProfile
-import com.example.opencodeclient.data.Session
-import com.example.opencodeclient.data.SettingsRepository
-import com.example.opencodeclient.data.StoredHistoryStats
-import com.example.opencodeclient.data.TokenDay
-import com.example.opencodeclient.data.TokenModelStats
-import com.example.opencodeclient.data.Tokens
-import com.example.opencodeclient.data.Updater
-import com.example.opencodeclient.data.promptTokens
+import com.geno1024.ai.occ.data.CapabilityCatalog
+import com.geno1024.ai.occ.data.CapabilityReport
+import com.geno1024.ai.occ.data.Command
+import com.geno1024.ai.occ.data.FeatureStatus
+import com.geno1024.ai.occ.data.Message
+import com.geno1024.ai.occ.data.ModelInfo
+import com.geno1024.ai.occ.data.OpenCodeClient
+import com.geno1024.ai.occ.data.Part
+import com.geno1024.ai.occ.data.PermissionRequest
+import com.geno1024.ai.occ.data.Project
+import com.geno1024.ai.occ.data.QuestionRequest
+import com.geno1024.ai.occ.data.ServerProfile
+import com.geno1024.ai.occ.data.Session
+import com.geno1024.ai.occ.data.SettingsRepository
+import com.geno1024.ai.occ.data.StoredHistoryStats
+import com.geno1024.ai.occ.data.TokenDay
+import com.geno1024.ai.occ.data.TokenModelStats
+import com.geno1024.ai.occ.data.Tokens
+import com.geno1024.ai.occ.data.Updater
+import com.geno1024.ai.occ.data.promptTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -444,13 +444,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val contentIntent = PendingIntent.getActivity(
             context, 1002,
-            Intent(context, com.example.opencodeclient.MainActivity::class.java)
+            Intent(context, com.geno1024.ai.occ.MainActivity::class.java)
                 .putExtra("open_download", true),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val cancelIntent = PendingIntent.getBroadcast(
             context, 0,
-            Intent(context, com.example.opencodeclient.DownloadCancelReceiver::class.java),
+            Intent(context, com.geno1024.ai.occ.DownloadCancelReceiver::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
@@ -1172,7 +1172,7 @@ private fun sessionTitle(sid: String): String {
         }
     }
 
-    suspend fun listServerFiles(locationDir: String?, path: String? = null): List<com.example.opencodeclient.data.FileNode> {
+    suspend fun listServerFiles(locationDir: String?, path: String? = null): List<com.geno1024.ai.occ.data.FileNode> {
         val c = client ?: return emptyList()
         return try {
             withContext(Dispatchers.IO) { c.listDirectory(locationDir, path) }
@@ -1444,7 +1444,7 @@ text = e.message ?: getAppString(R.string.send_failed),
             runCatching { withContext(Dispatchers.IO) { c.switchModel(sid, providerId, modelId) } }
                 .onSuccess {
                     _currentModelId.value = modelId
-                    _activeSession.value = _activeSession.value?.copy(model = com.example.opencodeclient.data.ModelV2Ref(id = modelId, providerId = providerId))
+                    _activeSession.value = _activeSession.value?.copy(model = com.geno1024.ai.occ.data.ModelV2Ref(id = modelId, providerId = providerId))
                     rollSessionStats(c, sid)
                 }
                 .onFailure { e ->
@@ -1848,7 +1848,7 @@ text = e.message ?: getAppString(R.string.send_failed),
         _exportMarkdown.value = null
     }
 
-    suspend fun listSessionDirFiles(relPath: String, locationDir: String): List<com.example.opencodeclient.data.FileNode> {
+    suspend fun listSessionDirFiles(relPath: String, locationDir: String): List<com.geno1024.ai.occ.data.FileNode> {
         val c = client ?: return emptyList()
         return try {
             withContext(Dispatchers.IO) { c.listDirectory(locationDir, relPath) }

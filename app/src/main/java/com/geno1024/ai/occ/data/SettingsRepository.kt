@@ -1,4 +1,4 @@
-package com.example.opencodeclient.data
+package com.geno1024.ai.occ.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey

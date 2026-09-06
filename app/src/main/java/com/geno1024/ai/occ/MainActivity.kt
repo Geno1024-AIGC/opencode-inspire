@@ -1,4 +1,4 @@
-package com.example.opencodeclient
+package com.geno1024.ai.occ
 
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -30,17 +30,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import com.example.opencodeclient.ui.MonoFontFamily
+import com.geno1024.ai.occ.ui.MonoFontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.opencodeclient.ui.MainViewModel
-import com.example.opencodeclient.ui.OpenCodeApp
-import com.example.opencodeclient.ui.formatBytes
-import com.example.opencodeclient.ui.formatEta
-import com.example.opencodeclient.ui.formatSpeed
-import com.example.opencodeclient.ui.theme.OpenCodeTheme
-import com.example.opencodeclient.ui.theme.ThemePreset
+import com.geno1024.ai.occ.ui.MainViewModel
+import com.geno1024.ai.occ.ui.OpenCodeApp
+import com.geno1024.ai.occ.ui.formatBytes
+import com.geno1024.ai.occ.ui.formatEta
+import com.geno1024.ai.occ.ui.formatSpeed
+import com.geno1024.ai.occ.ui.theme.OpenCodeTheme
+import com.geno1024.ai.occ.ui.theme.ThemePreset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive

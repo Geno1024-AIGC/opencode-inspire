@@ -1,4 +1,4 @@
-package com.example.opencodeclient.ui.theme
+package com.geno1024.ai.occ.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
