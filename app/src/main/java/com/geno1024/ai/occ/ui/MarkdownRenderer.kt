@@ -45,7 +45,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private data class MdSpan(val start: Int, val end: Int, val style: SpanStyle?)
-private data class MdLine(val type: String, val content: String, val level: Int = 0, val lang: String = "")
+private data class MdLine(val type: String, val content: String, val level: Int = 0, val lang: String = "", val num: Int = 0)
 private data class MdTable(val headers: List<String>, val rows: List<List<String>>)
 private const val InlineCodeFontScale = 0.85f
 
@@ -401,8 +401,9 @@ private fun parseMarkdown(text: String): List<Any> {
             }
             line.matches(Regex("^\\s*\\d+\\.\\s.*")) -> {
                 val indent = line.length - line.trimStart().length
-                val content = line.trimStart().replace(Regex("^\\d+\\.\\s"), "")
-                result.add(MdLine("ordered", content, indent / 2))
+                val num = Regex("^\\d+").find(line.trimStart())?.value?.toIntOrNull() ?: 0
+                val content = line.trimStart().replace(Regex("^\\d+\\.\\s+"), "")
+                result.add(MdLine("ordered", content, indent / 2, num = num))
             }
             line.startsWith("> ") -> result.add(MdLine("quote", line.removePrefix("> ")))
             line.matches(Regex("^\\s*[-*_]{3,}\\s*$")) -> result.add(MdLine("hr", ""))
@@ -477,6 +478,7 @@ fun MarkdownMessage(content: String) {
                                 MaterialTheme.typography.bodyLarge,
                                 Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
                                 MaterialTheme.colorScheme.primary,
+                                prefix = "${item.num}.  ",
                             )
                             "task_checked" -> InlineMarkdownText(
                                 item.content,
