@@ -214,7 +214,7 @@
     <string name="about_tokens_used">App dev</string>
     <string name="usage_cost">Cost</string>
     <string name="calendar_cost_info_title">Monthly cost unavailable</string>
-    <string name="calendar_cost_info_msg">Per-message cost is not reported by the server, so the cost of a session cannot be reliably attributed to a specific month. Monthly cost is hidden; only the session-level total is trustworthy.</string>
+    <string name="calendar_cost_info_msg">Per-message cost is not reported by the server, so a session\'s cost cannot be reliably attributed to a specific month. Monthly cost is hidden; only the session-level total is trustworthy.</string>
     <string name="about_token_in">Input</string>
     <string name="about_token_out">Output</string>
     <string name="about_token_reasoning">Reasoning</string>
