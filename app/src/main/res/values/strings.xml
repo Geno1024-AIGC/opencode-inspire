@@ -46,6 +46,10 @@
     <string name="settings_backup_export_failed">Export failed</string>
     <string name="settings_backup_restored">Backup restored</string>
     <string name="settings_backup_restore_failed">Restore failed</string>
+    <string name="quick_title">Quick commands</string>
+    <string name="quick_search_hint">Search commands and sessions…</string>
+    <string name="quick_sessions">Sessions</string>
+    <string name="quick_no_results">No results</string>
     <string name="session_group_today">Today</string>
     <string name="session_group_yesterday">Yesterday</string>
     <string name="session_group_earlier">Earlier</string>

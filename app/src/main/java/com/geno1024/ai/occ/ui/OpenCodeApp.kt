@@ -2,6 +2,7 @@ package com.geno1024.ai.occ.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -16,6 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Add
@@ -23,8 +28,12 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -39,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
@@ -55,12 +65,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.occ.R
 import com.geno1024.ai.occ.data.CapabilityState
@@ -130,6 +150,8 @@ fun OpenCodeApp(viewModel: MainViewModel) {
                     screenKey = Screen.Connect.key
                 },
                 onOpenSettings = { screenKey = Screen.Settings.key },
+                onOpenCalendar = { screenKey = Screen.Calendar.key },
+                onOpenAbout = { screenKey = Screen.About.key },
             )
         }
         is Screen.Settings -> saveableStateHolder.SaveableStateProvider(Screen.Settings.key) {
@@ -160,6 +182,8 @@ private fun MainScreen(
     viewModel: MainViewModel,
     onDisconnect: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenCalendar: () -> Unit,
+    onOpenAbout: () -> Unit,
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -167,6 +191,7 @@ private fun MainScreen(
     var showServers by remember { mutableStateOf(false) }
     var showAddProject by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
+    var showQuickCommand by remember { mutableStateOf(false) }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -179,14 +204,32 @@ private fun MainScreen(
                 onServers = { showServers = true },
                 onAddProject = { showAddProject = true },
                 onCapabilities = { showCapabilities = true },
+                onQuickCommand = { showQuickCommand = true },
                 onDisconnect = onDisconnect,
             )
         },
     ) {
-        ChatScreen(
-            viewModel = viewModel,
-            onMenu = { scope.launch { drawerState.open() } },
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .focusable()
+                .onPreviewKeyEvent { keyEvent ->
+                    if (keyEvent.type == androidx.compose.ui.input.key.KeyEventType.KeyDown &&
+                        (keyEvent.isCtrlPressed || keyEvent.isMetaPressed) &&
+                        keyEvent.key == androidx.compose.ui.input.key.Key.K
+                    ) {
+                        showQuickCommand = true
+                        true
+                    } else {
+                        false
+                    }
+                },
+        ) {
+            ChatScreen(
+                viewModel = viewModel,
+                onMenu = { scope.launch { drawerState.open() } },
+            )
+        }
     }
 
     if (showServers) {
@@ -207,8 +250,190 @@ private fun MainScreen(
             onDismiss = { showCapabilities = false },
         )
     }
+    if (showQuickCommand) {
+        QuickCommandDialog(
+            viewModel = viewModel,
+            onDismiss = { showQuickCommand = false },
+            onAddProject = { showQuickCommand = false; showAddProject = true },
+            onServers = { showQuickCommand = false; showServers = true },
+            onCapabilities = { showQuickCommand = false; showCapabilities = true },
+            onSettings = { showQuickCommand = false; onOpenSettings() },
+            onCalendar = { showQuickCommand = false; onOpenCalendar() },
+            onAbout = { showQuickCommand = false; onOpenAbout() },
+        )
+    }
     LaunchedEffect(Unit) {
         viewModel.ensureLoaded()
+    }
+}
+
+private data class QuickAction(
+    val icon: ImageVector,
+    val label: String,
+    val subtitle: String,
+    val run: () -> Unit,
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuickCommandDialog(
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit,
+    onAddProject: () -> Unit,
+    onServers: () -> Unit,
+    onCapabilities: () -> Unit,
+    onSettings: () -> Unit,
+    onCalendar: () -> Unit,
+    onAbout: () -> Unit,
+) {
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
+    val sessionRefs = remember(projects) { projects.flatMap { p -> p.sessions.map { it to p.worktree } } }
+    var query by remember { mutableStateOf("") }
+    val q = query.trim().lowercase()
+
+    val cmds = stringResource(R.string.quick_title)
+    val cmdAdd = stringResource(R.string.drawer_add_project)
+    val cmdServers = stringResource(R.string.servers_title)
+    val cmdCapabilities = stringResource(R.string.capabilities_title)
+    val cmdSettings = stringResource(R.string.settings_title)
+    val cmdCalendar = stringResource(R.string.calendar_title)
+    val cmdAbout = stringResource(R.string.settings_about)
+
+    val actions = listOf(
+        QuickAction(Icons.Filled.Add, cmdAdd, "", onAddProject),
+        QuickAction(Icons.Filled.List, cmdServers, "", onServers),
+        QuickAction(Icons.Filled.Refresh, cmdCapabilities, "", onCapabilities),
+        QuickAction(Icons.Filled.Settings, cmdSettings, "", onSettings),
+        QuickAction(Icons.Filled.Home, cmdCalendar, "", onCalendar),
+        QuickAction(Icons.Filled.Info, cmdAbout, "", onAbout),
+    )
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(Modifier.statusBarsPadding()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, end = 12.dp, top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Search, stringResource(R.string.quick_search_hint)) }
+                    BasicTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
+                        modifier = Modifier.weight(1f),
+                        decorationBox = { inner ->
+                            if (query.isEmpty()) {
+                                Text(
+                                    stringResource(R.string.quick_search_hint),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            inner()
+                        },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    )
+                    IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, stringResource(R.string.drawer_close)) }
+                }
+                HorizontalDivider()
+                LazyColumn(Modifier.fillMaxSize()) {
+                    val filteredActions = if (q.isEmpty()) actions else actions.filter {
+                        it.label.contains(q, ignoreCase = true) || it.subtitle.contains(q, ignoreCase = true)
+                    }
+                    val filteredSessions = if (q.isEmpty()) sessionRefs else sessionRefs.filter { (s, path) ->
+                        s.title.contains(q, ignoreCase = true) || path.contains(q, ignoreCase = true)
+                    }
+                    if (filteredActions.isNotEmpty()) {
+                        item { QuickListHeader(cmds) }
+                        items(filteredActions.size) { i ->
+                            val a = filteredActions[i]
+                            QuickActionRow(a) {
+                                a.run()
+                            }
+                        }
+                    }
+                    if (filteredSessions.isNotEmpty()) {
+                        item { QuickListHeader(stringResource(R.string.quick_sessions)) }
+                        items(filteredSessions, key = { it.first.id }) { (s, path) ->
+                            QuickSessionRow(
+                                title = s.title.ifBlank { stringResource(R.string.untitled_session) },
+                                subtitle = path,
+                                onClick = {
+                                    onDismiss()
+                                    viewModel.openSession(s.id)
+                                },
+                            )
+                        }
+                    }
+                    if (filteredActions.isEmpty() && filteredSessions.isEmpty()) {
+                        item {
+                            Text(
+                                stringResource(R.string.quick_no_results),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(16.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickListHeader(label: String) {
+    Text(
+        label,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun QuickActionRow(action: QuickAction, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(action.icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 12.dp))
+        Column {
+            Text(action.label, style = MaterialTheme.typography.bodyLarge)
+            if (action.subtitle.isNotBlank()) {
+                Text(action.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickSessionRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.Star, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 12.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
@@ -221,6 +446,7 @@ private fun DrawerContent(
     onServers: () -> Unit,
     onAddProject: () -> Unit,
     onCapabilities: () -> Unit,
+    onQuickCommand: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
     val projects by viewModel.projects.collectAsStateWithLifecycle()
@@ -313,8 +539,11 @@ private fun DrawerContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.drawer_projects), style = MaterialTheme.typography.labelLarge)
-                IconButton(onClick = onAddProject) { Icon(Icons.Filled.Add, stringResource(R.string.drawer_add_project)) }
-                IconButton(onClick = { viewModel.refresh() }) { Icon(Icons.Filled.Refresh, stringResource(R.string.drawer_refresh)) }
+                Row {
+                    IconButton(onClick = onQuickCommand) { Icon(Icons.Filled.Search, stringResource(R.string.quick_title)) }
+                    IconButton(onClick = onAddProject) { Icon(Icons.Filled.Add, stringResource(R.string.drawer_add_project)) }
+                    IconButton(onClick = { viewModel.refresh() }) { Icon(Icons.Filled.Refresh, stringResource(R.string.drawer_refresh)) }
+                }
             }
             LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)) {
                 item {
