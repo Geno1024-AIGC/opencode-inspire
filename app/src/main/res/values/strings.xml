@@ -38,6 +38,9 @@
     <string name="session_archive">Archive</string>
     <string name="session_unarchive">Unarchive</string>
     <string name="drawer_archived">Archived (%1$d)</string>
+    <string name="session_group_today">Today</string>
+    <string name="session_group_yesterday">Yesterday</string>
+    <string name="session_group_earlier">Earlier</string>
     <string name="drawer_servers">Servers</string>
     <string name="drawer_projects">Projects</string>
     <string name="drawer_refresh">Refresh</string>

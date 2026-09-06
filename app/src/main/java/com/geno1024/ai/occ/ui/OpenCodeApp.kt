@@ -69,6 +69,9 @@ import com.geno1024.ai.occ.data.FeatureStatus
 import com.geno1024.ai.occ.data.ServerProfile
 import com.geno1024.ai.occ.data.Session
 import com.geno1024.ai.occ.data.StoredHistoryStats
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.launch
 
 sealed class Screen {
@@ -379,6 +382,7 @@ private fun ExpandableProject(
     val orderedSessions = remember(project.sessions, favorites, archived) {
         project.sessions.filter { it.id !in archived }.sortedByDescending { it.id in favorites }
     }
+    val groupedSessions = remember(orderedSessions) { groupSessionsByDay(orderedSessions) }
     Column {
         Row(
             modifier = Modifier
@@ -420,19 +424,33 @@ private fun ExpandableProject(
             Icon(if (expanded) painterResource(R.drawable.ic_expand_less) else painterResource(R.drawable.ic_expand_more), null)
         }
         if (expanded) {
-            orderedSessions.forEach { s ->
-                SessionRow(
-                    s = s,
-                    isActive = s.id == activeSessionId,
-                    isFavorite = s.id in favorites,
-                    isArchived = s.id in archived,
-                    totalElapsed = storedStats[s.id]?.totalElapsed,
-                    cost = sessionCosts[s.id] ?: 0.0,
-                    shortTokens = shortTokens,
-                    onClick = { onOpenSession(s.id) },
-                    onToggleFavorite = { onToggleFavorite(s.id) },
-                    onToggleArchived = { onToggleArchived(s.id) },
+            groupedSessions.forEach { (key, sessions) ->
+                Text(
+                    stringResource(
+                        when (key) {
+                            "today" -> R.string.session_group_today
+                            "yesterday" -> R.string.session_group_yesterday
+                            else -> R.string.session_group_earlier
+                        }
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 40.dp, end = 16.dp, top = 6.dp),
                 )
+                sessions.forEach { s ->
+                    SessionRow(
+                        s = s,
+                        isActive = s.id == activeSessionId,
+                        isFavorite = s.id in favorites,
+                        isArchived = s.id in archived,
+                        totalElapsed = storedStats[s.id]?.totalElapsed,
+                        cost = sessionCosts[s.id] ?: 0.0,
+                        shortTokens = shortTokens,
+                        onClick = { onOpenSession(s.id) },
+                        onToggleFavorite = { onToggleFavorite(s.id) },
+                        onToggleArchived = { onToggleArchived(s.id) },
+                    )
+                }
             }
             Row(
                 modifier = Modifier
@@ -540,6 +558,34 @@ private fun SessionRow(
             }
         }
     }
+}
+
+private fun sessionCreatedMillis(s: Session): Long {
+    val v = s.time?.created ?: 0L
+    return when {
+        v <= 0L -> 0L
+        v < 10_000_000_000L -> v * 1000L
+        else -> v
+    }
+}
+
+private fun groupSessionsByDay(sessions: List<Session>): List<Pair<String, List<Session>>> {
+    val now = LocalDate.now()
+    val yesterday = now.minusDays(1)
+    val groups = HashMap<String, MutableList<Session>>()
+    for (s in sessions) {
+        val millis = sessionCreatedMillis(s)
+        val key = if (millis <= 0L) "earlier" else {
+            val d = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+            when (d) {
+                now -> "today"
+                yesterday -> "yesterday"
+                else -> "earlier"
+            }
+        }
+        groups.getOrPut(key) { mutableListOf() }.add(s)
+    }
+    return listOf("today", "yesterday", "earlier").mapNotNull { groups[it]?.let { g -> it to g } }
 }
 
 @Composable
