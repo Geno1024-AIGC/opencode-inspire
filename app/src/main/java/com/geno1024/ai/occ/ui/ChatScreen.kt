@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -390,7 +391,7 @@ fun ChatScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -479,9 +480,13 @@ fun ChatScreen(
                         }
                     }
                 }
-                IconButton(
-                    onClick = { attachLauncher.launch("*/*") },
-                    modifier = Modifier.padding(bottom = 4.dp),
+                Box(
+                    modifier = Modifier
+                        .padding(bottom = 4.dp)
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .clickable { attachLauncher.launch("*/*") },
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         painterResource(R.drawable.ic_insert_drive_file),
@@ -489,29 +494,37 @@ fun ChatScreen(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(
-                    onClick = {
-                        val uri = attachedFile
-                        if (uri != null) {
-                            val content = runCatching {
-                                context.contentResolver.openInputStream(uri)?.use {
-                                    it.readBytes().decodeToString()
-                                }.orEmpty()
-                            }.getOrDefault("")
-                            val name = selectedFileName ?: "attachment"
-                            viewModel.sendWithFile(input.trim(), name, content)
-                        } else {
-                            viewModel.send(input.trim())
-                        }
-                        attachedFile = null
-                        input = ""
-                        if (activeId != null) viewModel.clearDraft(activeId)
-                     },
-                     enabled = input.isNotBlank() || attachedFile != null,
-                     modifier = Modifier.padding(bottom = 4.dp),
-                 ) {
-                     Icon(Icons.AutoMirrored.Filled.Send, "Send")
-                 }
+                val canSend = input.isNotBlank() || attachedFile != null
+                Box(
+                    modifier = Modifier
+                        .padding(bottom = 4.dp)
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .clickable(enabled = canSend) {
+                            val uri = attachedFile
+                            if (uri != null) {
+                                val content = runCatching {
+                                    context.contentResolver.openInputStream(uri)?.use {
+                                        it.readBytes().decodeToString()
+                                    }.orEmpty()
+                                }.getOrDefault("")
+                                val name = selectedFileName ?: "attachment"
+                                viewModel.sendWithFile(input.trim(), name, content)
+                            } else {
+                                viewModel.send(input.trim())
+                            }
+                            attachedFile = null
+                            input = ""
+                            if (activeId != null) viewModel.clearDraft(activeId)
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        "Send",
+                        tint = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    )
+                }
              }
          }
      }
