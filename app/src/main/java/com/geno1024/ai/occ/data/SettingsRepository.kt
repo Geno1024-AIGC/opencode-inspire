@@ -47,6 +47,7 @@ class SettingsRepository(private val context: Context) {
         val ASSIST_BUBBLE_COLOR = longPreferencesKey("assistant_bubble_color")
         val AUTO_UPDATE_TIMING = booleanPreferencesKey("auto_update_timing")
         val FAVORITES = stringPreferencesKey("favorites")
+        val ARCHIVED = stringPreferencesKey("archived")
         val HISTORY_STATS = stringPreferencesKey("history_stats")
         val TOKEN_HISTORY = stringPreferencesKey("token_history")
         val TOKEN_ELAPSED = stringPreferencesKey("token_elapsed")
@@ -90,6 +91,11 @@ class SettingsRepository(private val context: Context) {
     val autoUpdateTiming: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_UPDATE_TIMING] ?: false }
     val favorites: Flow<Set<String>> = context.dataStore.data.map { prefs ->
         prefs[Keys.FAVORITES]?.let { raw ->
+            runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
+        } ?: emptySet()
+    }
+    val archived: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.ARCHIVED]?.let { raw ->
             runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
         } ?: emptySet()
     }
@@ -212,6 +218,17 @@ class SettingsRepository(private val context: Context) {
                 runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
             } ?: emptySet()
             prefs[Keys.FAVORITES] = json.encodeToString(
+                if (sessionId in current) current - sessionId else current + sessionId
+            )
+        }
+    }
+
+    suspend fun toggleArchived(sessionId: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.ARCHIVED]?.let { raw ->
+                runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
+            } ?: emptySet()
+            prefs[Keys.ARCHIVED] = json.encodeToString(
                 if (sessionId in current) current - sessionId else current + sessionId
             )
         }

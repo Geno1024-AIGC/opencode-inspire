@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -226,6 +227,7 @@ private fun DrawerContent(
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val storedStats by viewModel.storedStats.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val archived by viewModel.archived.collectAsStateWithLifecycle()
     val sessionModelTokens by viewModel.sessionModelTokens.collectAsStateWithLifecycle()
     val sessionCosts = remember(sessionModelTokens) {
         sessionModelTokens.mapValues { (_, models) -> models.values.sumOf { it.cost } }
@@ -320,14 +322,28 @@ private fun DrawerContent(
                         storedStats = storedStats,
                         shortTokens = shortTokens,
                         favorites = favorites,
+                        archived = archived,
                         sessionCosts = sessionCosts,
                         summary = projectSummaries[project.id],
                         onOpenSession = { viewModel.openSession(it) },
                         onNewSession = { viewModel.newSession(project.worktree) },
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
+                        onToggleArchived = { viewModel.toggleArchived(it) },
                     )
                 }
             }
+            ArchivedSection(
+                sessions = remember(projects, archived) {
+                    projects.flatMap { it.sessions }.filter { it.id in archived }
+                },
+                activeSessionId = activeSession?.id,
+                activeSessionTotalElapsed = activeSessionTotalElapsed,
+                storedStats = storedStats,
+                shortTokens = shortTokens,
+                sessionCosts = sessionCosts,
+                onOpenSession = { viewModel.openSession(it) },
+                onToggleArchived = { viewModel.toggleArchived(it) },
+            )
         }
 
         HorizontalDivider()
@@ -351,15 +367,17 @@ private fun ExpandableProject(
     storedStats: Map<String, StoredHistoryStats> = emptyMap(),
     shortTokens: Boolean = true,
     favorites: Set<String> = emptySet(),
+    archived: Set<String> = emptySet(),
     sessionCosts: Map<String, Double> = emptyMap(),
     summary: ProjectSummary? = null,
     onOpenSession: (String) -> Unit,
     onNewSession: () -> Unit,
     onToggleFavorite: (String) -> Unit,
+    onToggleArchived: (String) -> Unit,
 ) {
     var expanded by rememberSaveable(project.id) { mutableStateOf(project.sessions.isEmpty()) }
-    val orderedSessions = remember(project.sessions, favorites) {
-        project.sessions.sortedByDescending { it.id in favorites }
+    val orderedSessions = remember(project.sessions, favorites, archived) {
+        project.sessions.filter { it.id !in archived }.sortedByDescending { it.id in favorites }
     }
     Column {
         Row(
@@ -407,11 +425,13 @@ private fun ExpandableProject(
                     s = s,
                     isActive = s.id == activeSessionId,
                     isFavorite = s.id in favorites,
+                    isArchived = s.id in archived,
                     totalElapsed = storedStats[s.id]?.totalElapsed,
                     cost = sessionCosts[s.id] ?: 0.0,
                     shortTokens = shortTokens,
                     onClick = { onOpenSession(s.id) },
                     onToggleFavorite = { onToggleFavorite(s.id) },
+                    onToggleArchived = { onToggleArchived(s.id) },
                 )
             }
             Row(
@@ -438,17 +458,19 @@ private fun SessionRow(
     s: Session,
     isActive: Boolean,
     isFavorite: Boolean = false,
+    isArchived: Boolean = false,
     totalElapsed: Long? = null,
     cost: Double = 0.0,
     shortTokens: Boolean = true,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit = {},
+    onToggleArchived: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(start = 40.dp, end = 24.dp, top = 4.dp, bottom = 4.dp),
+            .padding(start = 40.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -496,6 +518,73 @@ private fun SessionRow(
                 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                 modifier = Modifier.size(18.dp),
             )
+        }
+        var rowMenu by remember { mutableStateOf(false) }
+        Box {
+            IconButton(onClick = { rowMenu = true }, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    Icons.Filled.MoreVert,
+                    stringResource(R.string.session_more),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            DropdownMenu(expanded = rowMenu, onDismissRequest = { rowMenu = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (isArchived) R.string.session_unarchive else R.string.session_archive)) },
+                    onClick = {
+                        rowMenu = false
+                        onToggleArchived()
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArchivedSection(
+    sessions: List<Session>,
+    activeSessionId: String?,
+    activeSessionTotalElapsed: Long? = null,
+    storedStats: Map<String, StoredHistoryStats> = emptyMap(),
+    shortTokens: Boolean = true,
+    sessionCosts: Map<String, Double> = emptyMap(),
+    onOpenSession: (String) -> Unit,
+    onToggleArchived: (String) -> Unit,
+) {
+    if (sessions.isEmpty()) return
+    var expanded by rememberSaveable { mutableStateOf(true) }
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.drawer_archived, sessions.size),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(if (expanded) painterResource(R.drawable.ic_expand_less) else painterResource(R.drawable.ic_expand_more), null)
+        }
+        if (expanded) {
+            sessions.forEach { s ->
+                SessionRow(
+                    s = s,
+                    isActive = s.id == activeSessionId,
+                    isFavorite = false,
+                    isArchived = true,
+                    totalElapsed = storedStats[s.id]?.totalElapsed,
+                    cost = sessionCosts[s.id] ?: 0.0,
+                    shortTokens = shortTokens,
+                    onClick = { onOpenSession(s.id) },
+                    onToggleArchived = { onToggleArchived(s.id) },
+                )
+            }
         }
     }
 }

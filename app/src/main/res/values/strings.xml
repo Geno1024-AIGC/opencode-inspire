@@ -34,6 +34,10 @@
     <string name="drawer_close">Close</string>
     <string name="drawer_settings">Settings</string>
     <string name="favorite_toggle">Toggle favorite</string>
+    <string name="session_more">Session actions</string>
+    <string name="session_archive">Archive</string>
+    <string name="session_unarchive">Unarchive</string>
+    <string name="drawer_archived">Archived (%1$d)</string>
     <string name="drawer_servers">Servers</string>
     <string name="drawer_projects">Projects</string>
     <string name="drawer_refresh">Refresh</string>

@@ -209,6 +209,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val autoTiming: StateFlow<Boolean> = _autoTiming.asStateFlow()
     private val _favorites = MutableStateFlow<Set<String>>(emptySet())
     val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
+    private val _archived = MutableStateFlow<Set<String>>(emptySet())
+    val archived: StateFlow<Set<String>> = _archived.asStateFlow()
 
     private val _tokenHistory = MutableStateFlow<Map<String, TokenDay>>(emptyMap())
     val tokenHistory: StateFlow<Map<String, TokenDay>> = _tokenHistory.asStateFlow()
@@ -394,6 +396,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.favorites.collect { _favorites.value = it }
+        }
+        viewModelScope.launch {
+            settings.archived.collect { _archived.value = it }
         }
         viewModelScope.launch {
             settings.tokenHistory.collect { _tokenHistory.value = it }
@@ -1908,6 +1913,10 @@ text = e.message ?: getAppString(R.string.send_failed),
 
     fun toggleFavorite(sessionId: String) {
         viewModelScope.launch { settings.toggleFavorite(sessionId) }
+    }
+
+    fun toggleArchived(sessionId: String) {
+        viewModelScope.launch { settings.toggleArchived(sessionId) }
     }
 
     fun autoUpdateTimingForSession(sid: String) {
