@@ -55,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -844,17 +845,17 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
                 modifier = Modifier.weight(1f),
             )
         }
-        SummaryRow(labelWidth, labels[0], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor, dividerThickness = 2.dp)
-        SummaryRow(labelWidth, labels[1], fmtTokens(month.msgs, short), fmtTokens(total.msgs, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[0], formatClock(monthElapsed), formatClock(totalElapsed), mono, labelColor)
+        SummaryRow(labelWidth, labels[1], fmtTokens(month.msgs, short), fmtTokens(total.msgs, short), mono, labelColor, topLine = 2.dp)
         SummaryRow(labelWidth, labels[2], fmtTokens(month.msgsSent, short), fmtTokens(total.msgsSent, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[3], fmtTokens(month.msgsReceived, short), fmtTokens(total.msgsReceived, short), mono, labelColor, dividerThickness = 1.dp)
-        SummaryRow(labelWidth, labels[4], fmtTokens(month.total, short), fmtTokens(total.total, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[3], fmtTokens(month.msgsReceived, short), fmtTokens(total.msgsReceived, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[4], fmtTokens(month.total, short), fmtTokens(total.total, short), mono, labelColor, topLine = 1.dp)
         SummaryRow(labelWidth, labels[5], fmtTokens(month.input, short), fmtTokens(total.input, short), mono, labelColor)
         SummaryRow(labelWidth, labels[6], fmtTokens(month.output, short), fmtTokens(total.output, short), mono, labelColor)
         SummaryRow(labelWidth, labels[7], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
         SummaryRow(labelWidth, labels[8], fmtTokens(month.cacheRead, short), fmtTokens(total.cacheRead, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[9], fmtTokens(month.cacheWrite, short), fmtTokens(total.cacheWrite, short), mono, labelColor, dividerThickness = 1.dp)
-        SummaryRow(labelWidth, labels[10], formatCost(month.cost), formatCost(total.cost), mono, labelColor)
+        SummaryRow(labelWidth, labels[9], fmtTokens(month.cacheWrite, short), fmtTokens(total.cacheWrite, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[10], formatCost(month.cost), formatCost(total.cost), mono, labelColor, topLine = 1.dp)
     }
 }
 
@@ -866,9 +867,25 @@ private fun SummaryRow(
     total: String,
     mono: androidx.compose.ui.text.font.FontFamily,
     labelColor: Color,
-    dividerThickness: androidx.compose.ui.unit.Dp = 0.dp,
+    topLine: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
-    Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+    val lineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    val lineWidthPx = with(LocalDensity.current) { topLine.toPx() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (topLine > 0.dp) Modifier.drawBehind {
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(0f, lineWidthPx / 2f),
+                        end = Offset(size.width, lineWidthPx / 2f),
+                        strokeWidth = lineWidthPx,
+                    )
+                } else Modifier
+            )
+            .padding(top = 4.dp),
+    ) {
         Text(
             label,
             color = labelColor,
@@ -877,13 +894,6 @@ private fun SummaryRow(
         )
         Text(month, fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth().weight(1f), maxLines = 1)
         Text(total, fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth().weight(1f), maxLines = 1)
-    }
-    if (dividerThickness > 0.dp) {
-        HorizontalDivider(
-            modifier = Modifier.padding(top = 6.dp),
-            thickness = dividerThickness,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-        )
     }
 }
 
