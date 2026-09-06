@@ -95,6 +95,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -107,6 +109,7 @@ import com.example.opencodeclient.data.FileNode
 import com.example.opencodeclient.data.ModelInfo
 import com.example.opencodeclient.data.QuestionRequest
 import com.example.opencodeclient.data.StoredHistoryStats
+import com.example.opencodeclient.data.TokenDay
 import com.example.opencodeclient.data.Tokens
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -127,6 +130,7 @@ fun ChatScreen(
     val sending by viewModel.sending.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
     val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
+    val sessionModelTokens by viewModel.sessionModelTokens.collectAsStateWithLifecycle()
     val contextWindow by viewModel.contextWindow.collectAsStateWithLifecycle()
     val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
     val cumulativeTokens by viewModel.cumulativeTokens.collectAsStateWithLifecycle()
@@ -590,6 +594,7 @@ fun ChatScreen(
             viewModel = viewModel,
             session = session,
             sessionTokens = sessionTokens,
+            sessionModelTokens = sessionModelTokens,
             historyStats = historyStats,
             storedStats = storedStats[session.id],
             autoTiming = autoTiming,
@@ -1887,6 +1892,7 @@ private fun SessionDetailsScreen(
     viewModel: MainViewModel,
     session: Session,
     sessionTokens: Tokens?,
+    sessionModelTokens: Map<String, Map<String, TokenDay>>,
     historyStats: HistoryStats?,
     storedStats: StoredHistoryStats?,
     autoTiming: Boolean,
@@ -1897,6 +1903,11 @@ private fun SessionDetailsScreen(
     var showDelete by remember { mutableStateOf(false) }
     val tokens = sessionTokens ?: session.tokens
     val stored = storedStats
+    var detailModel by rememberSaveable { mutableStateOf("all") }
+    var modelMenu by remember { mutableStateOf(false) }
+    val modelMap = sessionModelTokens[session.id] ?: emptyMap()
+    val modelIds = modelMap.keys.sorted()
+    val activeDetailModel = if (detailModel in modelIds) detailModel else "all"
     val hasStored = stored != null && stored.totalElapsed > 0L
     val canIncremental = stored != null && !stored.lastMessageId.isNullOrEmpty()
 
@@ -1950,21 +1961,63 @@ private fun SessionDetailsScreen(
                     onCopyValue = if (session.time?.created != null && session.time!!.created > 0L)
                         session.time!!.created.toString() else null,
                 )
+                val selDay = if (modelIds.isEmpty()) null
+                    else if (activeDetailModel == "all") modelMap.values.fold(TokenDay()) { a, t -> a + t }
+                    else modelMap[activeDetailModel] ?: TokenDay()
+                if (modelIds.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.session_details_model),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Box {
+                            Text(
+                                if (activeDetailModel == "all") stringResource(R.string.model_all) else activeDetailModel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontFamily = MonoFontFamily,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable { modelMenu = true }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                            DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.model_all), fontFamily = MonoFontFamily) },
+                                    onClick = { detailModel = "all"; modelMenu = false },
+                                )
+                                modelIds.forEach { id ->
+                                    DropdownMenuItem(
+                                        text = { Text(id, fontFamily = MonoFontFamily) },
+                                        onClick = { detailModel = id; modelMenu = false },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 DetailRow(
                     label = stringResource(R.string.session_details_tokens),
                     value = buildString {
-                        append(stringResource(R.string.session_details_tokens_in, formatTokens(tokens?.input ?: 0L, shortTokens)))
+                        val day = selDay
+                        append(stringResource(R.string.session_details_tokens_in, formatTokens(day?.input ?: tokens?.input ?: 0L, shortTokens)))
                         appendLine()
-                        append(stringResource(R.string.session_details_tokens_out, formatTokens(tokens?.output ?: 0L, shortTokens)))
-                        if ((tokens?.reasoning ?: 0L) > 0) {
+                        append(stringResource(R.string.session_details_tokens_out, formatTokens(day?.output ?: tokens?.output ?: 0L, shortTokens)))
+                        if ((day?.reasoning ?: tokens?.reasoning ?: 0L) > 0) {
                             appendLine()
-                            append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(tokens?.reasoning ?: 0L, shortTokens)))
+                            append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(day?.reasoning ?: tokens?.reasoning ?: 0L, shortTokens)))
                         }
                         appendLine()
-                        append(stringResource(R.string.session_details_tokens_cache_read, formatTokens(tokens?.cache?.read ?: 0L, shortTokens)))
-                        if ((tokens?.cache?.write ?: 0L) > 0) {
+                        append(stringResource(R.string.session_details_tokens_cache_read, formatTokens(day?.cacheRead ?: tokens?.cache?.read ?: 0L, shortTokens)))
+                        if ((day?.cacheWrite ?: tokens?.cache?.write ?: 0L) > 0) {
                             appendLine()
-                            append(stringResource(R.string.session_details_tokens_cache_write, formatTokens(tokens?.cache?.write ?: 0L, shortTokens)))
+                            append(stringResource(R.string.session_details_tokens_cache_write, formatTokens(day?.cacheWrite ?: tokens?.cache?.write ?: 0L, shortTokens)))
                         }
                     },
                     onCopyValue = tokens?.let { "${it.input}/${it.output}/${it.reasoning}/${it.cache?.read ?: 0}/${it.cache?.write ?: 0}" },

@@ -306,6 +306,7 @@
     <string name="session_details_id">会话 ID</string>
     <string name="session_details_created">创建时间</string>
     <string name="session_details_tokens">Token</string>
+    <string name="session_details_model">模型</string>
     <string name="session_details_tokens_in">输入 %s</string>
     <string name="session_details_tokens_out">输出 %s</string>
     <string name="session_details_tokens_reasoning">推理 %s</string>
