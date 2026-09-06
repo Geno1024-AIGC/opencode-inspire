@@ -219,6 +219,7 @@ class MainActivity : ComponentActivity() {
                                             viewModel.dismissUpdate()
                                             viewModel.dismissDownload()
                                             if (uri != null) {
+                                                viewModel.noteDownloadedApk(fileName)
                                                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                                                     setDataAndType(uri, "application/vnd.android.package-archive")
                                                     addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)

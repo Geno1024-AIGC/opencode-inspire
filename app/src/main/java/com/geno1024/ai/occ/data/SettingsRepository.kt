@@ -57,6 +57,8 @@ class SettingsRepository(private val context: Context) {
         val SESSION_MODEL_TOKENS = stringPreferencesKey("session_model_tokens")
         val TOKEN_SYNC = longPreferencesKey("token_sync")
         val TOKEN_SYNC_AT = longPreferencesKey("token_sync_at")
+        val DOWNLOADED_APK = stringPreferencesKey("downloaded_apk")
+        val INSTALLED_VERSION = stringPreferencesKey("installed_version")
     }
 
     private val json = Json {
@@ -145,6 +147,8 @@ class SettingsRepository(private val context: Context) {
     }
     val tokenSync: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC] ?: 0L }
     val tokenSyncedAt: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC_AT] ?: 0L }
+    val downloadedApk: Flow<String?> = context.dataStore.data.map { it[Keys.DOWNLOADED_APK] }
+    val installedVersion: Flow<String?> = context.dataStore.data.map { it[Keys.INSTALLED_VERSION] }
     val tokenModelStats: Flow<Map<String, TokenModelStats>> = context.dataStore.data.map { prefs ->
         prefs[Keys.TOKEN_MODEL_STATS]?.let { raw ->
             runCatching { json.decodeFromString<Map<String, TokenModelStats>>(raw) }.getOrNull()
@@ -299,6 +303,20 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun getLastSessionId(): String? =
         context.dataStore.data.first()[Keys.LAST_SESSION]
+
+    suspend fun setDownloadedApk(name: String?) {
+        context.dataStore.edit { prefs ->
+            if (name == null) prefs.remove(Keys.DOWNLOADED_APK)
+            else prefs[Keys.DOWNLOADED_APK] = name
+        }
+    }
+
+    suspend fun setInstalledVersion(version: String?) {
+        context.dataStore.edit { prefs ->
+            if (version == null) prefs.remove(Keys.INSTALLED_VERSION)
+            else prefs[Keys.INSTALLED_VERSION] = version
+        }
+    }
 
     suspend fun setLastSessionId(id: String?) {
         context.dataStore.edit {

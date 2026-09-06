@@ -7,6 +7,9 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.geno1024.ai.occ.BuildConfig
@@ -44,6 +47,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -323,6 +327,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     init {
+        viewModelScope.launch {
+            val apk = settings.downloadedApk.first()
+            val recorded = settings.installedVersion.first()
+            if (apk != null && recorded != BuildConfig.VERSION_NAME) {
+                deleteDownloadedApk(apk)
+                settings.setDownloadedApk(null)
+                settings.setInstalledVersion(BuildConfig.VERSION_NAME)
+            }
+        }
         viewModelScope.launch {
             settings.serverUrl.collect { _serverUrl.value = it }
         }
@@ -1524,6 +1537,33 @@ text = e.message ?: getAppString(R.string.send_failed),
                 .onFailure { e ->
                     _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.send_failed))
                 }
+        }
+    }
+
+    private fun deleteDownloadedApk(apk: String) {
+        val app = getApplication<android.app.Application>()
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                    runCatching {
+                        app.contentResolver.delete(
+                            collection,
+                            "${MediaStore.Downloads.DISPLAY_NAME} = ? AND ${MediaStore.Downloads.RELATIVE_PATH} = ?",
+                            arrayOf(apk, Environment.DIRECTORY_DOWNLOADS + "/"),
+                        )
+                    }
+                } else {
+                    runCatching { java.io.File(app.cacheDir, apk).delete() }
+                }
+            }
+        }
+    }
+
+    fun noteDownloadedApk(fileName: String) {
+        viewModelScope.launch {
+            settings.setDownloadedApk(fileName)
+            settings.setInstalledVersion(BuildConfig.VERSION_NAME)
         }
     }
 
