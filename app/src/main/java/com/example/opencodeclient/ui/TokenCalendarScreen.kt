@@ -819,6 +819,7 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
         stringResource(R.string.calendar_table_reasoning),
         stringResource(R.string.calendar_table_cache_read),
         stringResource(R.string.calendar_table_cache_write),
+        stringResource(R.string.usage_cost),
     )
     val labelWidth = with(LocalDensity.current) {
         labels.maxOfOrNull {
@@ -853,6 +854,7 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
         SummaryRow(labelWidth, labels[7], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
         SummaryRow(labelWidth, labels[8], fmtTokens(month.cacheRead, short), fmtTokens(total.cacheRead, short), mono, labelColor)
         SummaryRow(labelWidth, labels[9], fmtTokens(month.cacheWrite, short), fmtTokens(total.cacheWrite, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[10], formatCost(month.cost), formatCost(total.cost), mono, labelColor)
     }
 }
 
