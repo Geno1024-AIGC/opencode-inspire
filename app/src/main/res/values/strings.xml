@@ -73,6 +73,14 @@
     <string name="export_punch_h">Horizontal</string>
     <string name="export_punch_v">Vertical</string>
     <string name="export_save">Save PNG</string>
+    <string name="export_range_label">Range</string>
+    <string name="export_range_custom">Custom</string>
+    <string name="export_range_from">From</string>
+    <string name="export_range_to">To</string>
+    <string name="export_layout_label">Layout</string>
+    <string name="export_layout_paged">Per month</string>
+    <string name="export_layout_continuous">Continuous</string>
+    <string name="export_month_fmt_label">Month format</string>
     <string name="session_group_today">Today</string>
     <string name="session_group_yesterday">Yesterday</string>
     <string name="session_group_earlier">Earlier</string>

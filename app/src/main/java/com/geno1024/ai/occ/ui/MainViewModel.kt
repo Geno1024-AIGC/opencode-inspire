@@ -293,6 +293,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _shortTokens = MutableStateFlow(true)
     val shortTokens: StateFlow<Boolean> = _shortTokens.asStateFlow()
+    private val _tableTimeFormat = MutableStateFlow(0)
+    val tableTimeFormat: StateFlow<Int> = _tableTimeFormat.asStateFlow()
+    private val _exportTransparent = MutableStateFlow(true)
+    val exportTransparent: StateFlow<Boolean> = _exportTransparent.asStateFlow()
+    private val _exportAuthor = MutableStateFlow("")
+    val exportAuthor: StateFlow<String> = _exportAuthor.asStateFlow()
 
     private val _theme = MutableStateFlow("system")
     val theme: StateFlow<String> = _theme.asStateFlow()
@@ -363,6 +369,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.shortTokens.collect { _shortTokens.value = it }
+        }
+        viewModelScope.launch {
+            settings.tableTimeFormat.collect { _tableTimeFormat.value = it }
+        }
+        viewModelScope.launch {
+            settings.exportTransparent.collect { _exportTransparent.value = it }
+        }
+        viewModelScope.launch {
+            settings.exportAuthor.collect { _exportAuthor.value = it }
         }
         viewModelScope.launch {
             settings.theme.collect { _theme.value = it }
@@ -950,6 +965,18 @@ private fun sessionTitle(sid: String): String {
 
     fun setShortTokens(enabled: Boolean) {
         viewModelScope.launch { settings.setShortTokens(enabled) }
+    }
+
+    fun cycleTableTimeFormat() {
+        viewModelScope.launch { settings.setTableTimeFormat((_tableTimeFormat.value + 1) % 3) }
+    }
+
+    fun setExportTransparent(v: Boolean) {
+        viewModelScope.launch { settings.setExportTransparent(v) }
+    }
+
+    fun setExportAuthor(v: String) {
+        viewModelScope.launch { settings.setExportAuthor(v) }
     }
 
     fun setTheme(value: String) {

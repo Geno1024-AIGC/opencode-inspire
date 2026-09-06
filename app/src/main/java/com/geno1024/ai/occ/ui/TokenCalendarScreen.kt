@@ -119,6 +119,7 @@ fun TokenCalendarScreen(
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
+    val timeFormat by viewModel.tableTimeFormat.collectAsStateWithLifecycle()
     var hiddenSyncAt by remember { mutableStateOf(false) }
     var categoryName by rememberSaveable { mutableStateOf(TokenCategory.TOKEN.name) }
     var tokenMetricName by rememberSaveable { mutableStateOf(TokenMetric.TOTAL.name) }
@@ -232,6 +233,8 @@ fun TokenCalendarScreen(
                     monthElapsed = monthElapsed,
                     totalElapsed = totalElapsed,
                     short = shortTokens,
+                    timeFormat = timeFormat,
+                    onCycleTime = { viewModel.cycleTableTimeFormat() },
                 )
                 if (syncedAt > 0L && !hiddenSyncAt) {
                     Text(
@@ -823,7 +826,7 @@ private fun HourCircle(
 }
 
 @Composable
-private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean) {
+private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean, timeFormat: Int = 0, onCycleTime: (() -> Unit)? = null) {
     val mono = MonoFontFamily
     val onSurface = MaterialTheme.colorScheme.onSurface
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -849,7 +852,7 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
             textMeasurer.measure(AnnotatedString(it), style = labelStyle).size.width.toDp()
         } ?: 0.dp
     } + 8.dp
-    var timeFormat by rememberSaveable { mutableIntStateOf(0) }
+    var timeFormatLocal by rememberSaveable { mutableIntStateOf(0) }
     val fmtTime = { ms: Long ->
         when (timeFormat) {
             1 -> formatClock(ms)
@@ -857,7 +860,7 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
             else -> formatSeconds(ms)
         }
     }
-    val cycleTime = { timeFormat = (timeFormat + 1) % 3 }
+    val cycleTime = { (onCycleTime ?: { timeFormatLocal = (timeFormatLocal + 1) % 3 })() }
     var showCostInfo by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(Modifier.fillMaxWidth()) {

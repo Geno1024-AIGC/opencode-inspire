@@ -42,7 +42,11 @@ data class SettingsBackup(
     val mirror: Boolean = false,
     val userBubbleColor: Long = -1L,
     val assistantBubbleColor: Long = -1L,
+    val draftTitles: Long = -1L,
     val autoUpdateTiming: Boolean = false,
+    val tableTimeFormat: Int = 0,
+    val exportTransparent: Boolean = true,
+    val exportAuthor: String = "",
     val servers: List<ServerProfile> = emptyList(),
     val favorites: Set<String> = emptySet(),
     val archived: Set<String> = emptySet(),
@@ -67,6 +71,9 @@ class SettingsRepository(private val context: Context) {
         val USER_BUBBLE_COLOR = longPreferencesKey("user_bubble_color")
         val ASSIST_BUBBLE_COLOR = longPreferencesKey("assistant_bubble_color")
         val AUTO_UPDATE_TIMING = booleanPreferencesKey("auto_update_timing")
+        val TABLE_TIME_FORMAT = intPreferencesKey("table_time_format")
+        val EXPORT_TRANSPARENT = booleanPreferencesKey("export_transparent")
+        val EXPORT_AUTHOR = stringPreferencesKey("export_author")
         val FAVORITES = stringPreferencesKey("favorites")
         val ARCHIVED = stringPreferencesKey("archived")
         val HISTORY_STATS = stringPreferencesKey("history_stats")
@@ -110,6 +117,9 @@ class SettingsRepository(private val context: Context) {
     val userBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.USER_BUBBLE_COLOR] ?: -1L }
     val assistantBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.ASSIST_BUBBLE_COLOR] ?: -1L }
     val autoUpdateTiming: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_UPDATE_TIMING] ?: false }
+    val tableTimeFormat: Flow<Int> = context.dataStore.data.map { it[Keys.TABLE_TIME_FORMAT] ?: 0 }
+    val exportTransparent: Flow<Boolean> = context.dataStore.data.map { it[Keys.EXPORT_TRANSPARENT] ?: true }
+    val exportAuthor: Flow<String> = context.dataStore.data.map { it[Keys.EXPORT_AUTHOR] ?: "" }
     val favorites: Flow<Set<String>> = context.dataStore.data.map { prefs ->
         prefs[Keys.FAVORITES]?.let { raw ->
             runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
@@ -231,6 +241,18 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAutoUpdateTiming(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_UPDATE_TIMING] = enabled }
+    }
+
+    suspend fun setTableTimeFormat(v: Int) {
+        context.dataStore.edit { it[Keys.TABLE_TIME_FORMAT] = v }
+    }
+
+    suspend fun setExportTransparent(v: Boolean) {
+        context.dataStore.edit { it[Keys.EXPORT_TRANSPARENT] = v }
+    }
+
+    suspend fun setExportAuthor(v: String) {
+        context.dataStore.edit { it[Keys.EXPORT_AUTHOR] = v }
     }
 
     suspend fun toggleFavorite(sessionId: String) {
@@ -385,6 +407,9 @@ class SettingsRepository(private val context: Context) {
             userBubbleColor = p[Keys.USER_BUBBLE_COLOR] ?: -1L,
             assistantBubbleColor = p[Keys.ASSIST_BUBBLE_COLOR] ?: -1L,
             autoUpdateTiming = p[Keys.AUTO_UPDATE_TIMING] ?: false,
+            tableTimeFormat = p[Keys.TABLE_TIME_FORMAT] ?: 0,
+            exportTransparent = p[Keys.EXPORT_TRANSPARENT] ?: true,
+            exportAuthor = p[Keys.EXPORT_AUTHOR] ?: "",
             servers = p[Keys.SERVERS]?.let { raw ->
                 runCatching { json.decodeFromString<List<ServerProfile>>(raw) }.getOrNull()
             } ?: emptyList(),
@@ -411,6 +436,9 @@ class SettingsRepository(private val context: Context) {
             p[Keys.LANGUAGE] = b.language
             p[Keys.CHANNEL] = b.channel
             p[Keys.MIRROR] = b.mirror
+            p[Keys.TABLE_TIME_FORMAT] = b.tableTimeFormat
+            p[Keys.EXPORT_TRANSPARENT] = b.exportTransparent
+            p[Keys.EXPORT_AUTHOR] = b.exportAuthor
             p[Keys.USER_BUBBLE_COLOR] = b.userBubbleColor
             p[Keys.ASSIST_BUBBLE_COLOR] = b.assistantBubbleColor
             p[Keys.AUTO_UPDATE_TIMING] = b.autoUpdateTiming

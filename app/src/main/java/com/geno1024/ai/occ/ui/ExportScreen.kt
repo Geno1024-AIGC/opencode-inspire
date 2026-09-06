@@ -16,17 +16,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -86,6 +90,8 @@ fun ExportScreen(
     val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
     val hourByDay by viewModel.hourByDay.collectAsStateWithLifecycle()
     val tokenModelStats by viewModel.tokenModelStats.collectAsStateWithLifecycle()
+    val commonTransparent by viewModel.exportTransparent.collectAsStateWithLifecycle()
+    val author by viewModel.exportAuthor.collectAsStateWithLifecycle()
 
     val locale = Locale.getDefault()
     val accent = MaterialTheme.colorScheme.primary.toArgb()
@@ -93,9 +99,7 @@ fun ExportScreen(
     val muted = 0xFF6B7280.toInt()
 
     // ── common image options ──
-    var exportType by remember { mutableStateOf(ExportType.IMAGE) }
-    var commonTransparent by remember { mutableStateOf(true) }
-    var author by rememberSaveable { mutableStateOf("") }
+    var exportType by rememberSaveable { mutableStateOf(ExportType.IMAGE) }
 
     // ── share card options ──
     var cardTrend by remember { mutableStateOf(false) }
@@ -147,22 +151,33 @@ fun ExportScreen(
     }
 
     // ── calendar options ──
-    var calRange by remember { mutableIntStateOf(0) }
+    var calRange by rememberSaveable { mutableIntStateOf(0) }
+    var calContinuous by rememberSaveable { mutableStateOf(false) }
+    var calMonthFormat by rememberSaveable { mutableStateOf(MonthFormats.default) }
+    var customStart by rememberSaveable { mutableStateOf(startMonth.minusMonths(2)) }
+    var customEnd by rememberSaveable { mutableStateOf(startMonth) }
     val monthCounts = listOf(1, 3, 6, Int.MAX_VALUE)
-    val calMonths = remember(history, startMonth, calRange) {
-        val count = monthCounts[calRange]
+    val allMonths = remember(history, startMonth) {
         val end = startMonth
-        val all = if (count == Int.MAX_VALUE) {
-            val keys = history.keys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
-            val min = keys.minOfOrNull { YearMonth.from(it) } ?: end
-            generateSequence(end) { it.minusMonths(1) }.takeWhile { it >= min }.take(24).toList()
-        } else {
-            (count - 1 downTo 0).map { end.minusMonths(it.toLong()) }
+        val keys = history.keys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+        val min = keys.minOfOrNull { YearMonth.from(it) } ?: end.minusMonths(11)
+        generateSequence(end) { it.minusMonths(1) }
+            .takeWhile { it >= min }.toList().sorted()
+    }
+    val startChoices = remember(allMonths, customEnd) { allMonths.filter { it <= customEnd } }
+    val endChoices = remember(allMonths, customStart) { allMonths.filter { it >= customStart } }
+    val calMonths = remember(allMonths, startMonth, calRange, customStart, customEnd) {
+        val sorted = when (calRange) {
+            0 -> listOf(startMonth)
+            1 -> (2 downTo 0).map { startMonth.minusMonths(it.toLong()) }
+            2 -> (5 downTo 0).map { startMonth.minusMonths(it.toLong()) }
+            3 -> allMonths
+            else -> generateSequence(customEnd) { it.minusMonths(1) }.takeWhile { it >= customStart }.toList()
         }
-        all.sorted()
+        sorted.sorted()
     }
     var calBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(history, calMonths, commonTransparent, author) {
+    LaunchedEffect(history, calMonths, commonTransparent, author, calMonthFormat, calContinuous) {
         calBitmap = withContext(Dispatchers.Default) {
             buildCalendarBitmap(
                 history = history,
@@ -174,6 +189,8 @@ fun ExportScreen(
                 transparent = commonTransparent,
                 appName = context.getString(R.string.app_name),
                 author = author.trim().ifBlank { null },
+                monthPattern = calMonthFormat,
+                continuous = calContinuous,
             )
         }
     }
@@ -255,10 +272,10 @@ fun ExportScreen(
             AnimatedVisibility(visible = exportType == ExportType.IMAGE) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Section(stringResource(R.string.export_section_common)) {
-                        OptionSwitch(stringResource(R.string.export_opt_transparent), commonTransparent) { commonTransparent = it }
+                        OptionSwitch(stringResource(R.string.export_opt_transparent), commonTransparent) { viewModel.setExportTransparent(it) }
                         OutlinedTextField(
                             value = author,
-                            onValueChange = { author = it },
+                            onValueChange = { viewModel.setExportAuthor(it) },
                             label = { Text(stringResource(R.string.export_opt_author)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -277,19 +294,56 @@ fun ExportScreen(
 
                     // Calendar
                     Section(stringResource(R.string.export_section_calendar)) {
-                        val ranges = listOf(
-                            stringResource(R.string.export_range_1),
-                            stringResource(R.string.export_range_3),
-                            stringResource(R.string.export_range_6),
-                            stringResource(R.string.export_range_all),
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            ranges.forEachIndexed { i, label ->
-                                FilterChip(selected = calRange == i, onClick = { calRange = i }, label = { Text(label) })
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.export_range_label), style = MaterialTheme.typography.bodyMedium)
+                            DropdownSelect(
+                                label = when (calRange) {
+                                    0 -> stringResource(R.string.export_range_1)
+                                    1 -> stringResource(R.string.export_range_3)
+                                    2 -> stringResource(R.string.export_range_6)
+                                    3 -> stringResource(R.string.export_range_all)
+                                    else -> stringResource(R.string.export_range_custom)
+                                },
+                                options = listOf(
+                                    stringResource(R.string.export_range_1),
+                                    stringResource(R.string.export_range_3),
+                                    stringResource(R.string.export_range_6),
+                                    stringResource(R.string.export_range_all),
+                                    stringResource(R.string.export_range_custom),
+                                ),
+                            ) { i -> calRange = i }
+                        }
+                        if (calRange == 4) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(stringResource(R.string.export_range_from), style = MaterialTheme.typography.bodyMedium)
+                                MonthSelect(
+                                    label = customStart.format(DateTimeFormatter.ofPattern("yyyy-MM", locale)),
+                                    months = startChoices,
+                                    selected = customStart,
+                                ) { m -> customStart = if (m <= customEnd) m else customEnd }
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.export_range_to), style = MaterialTheme.typography.bodyMedium)
+                                MonthSelect(
+                                    label = customEnd.format(DateTimeFormatter.ofPattern("yyyy-MM", locale)),
+                                    months = endChoices,
+                                    selected = customEnd,
+                                ) { m -> customEnd = if (m >= customStart) m else customStart }
                             }
                         }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.export_layout_label), style = MaterialTheme.typography.bodyMedium)
+                            FilterChip(selected = !calContinuous, onClick = { calContinuous = false }, label = { Text(stringResource(R.string.export_layout_paged)) })
+                            FilterChip(selected = calContinuous, onClick = { calContinuous = true }, label = { Text(stringResource(R.string.export_layout_continuous)) })
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.export_month_fmt_label), style = MaterialTheme.typography.bodyMedium)
+                            DropdownSelect(
+                                label = monthFormatTitle(calMonthFormat, startMonth, locale),
+                                options = CAL_MONTH_FORMATS + MonthFormats.default,
+                            ) { i -> calMonthFormat = (CAL_MONTH_FORMATS + MonthFormats.default)[i] }
+                        }
                         Preview(calBitmap, commonTransparent, null)
-                        Button(onClick = { save("opencodeclient-calendar-${monthCounts[calRange].let { if (it == Int.MAX_VALUE) "all" else it } }m.png", calBitmap) }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { save("opencodeclient-calendar-${if (calRange == 4) "custom" else monthCounts[calRange].let { if (it == Int.MAX_VALUE) "all" else it } }m.png", calBitmap) }, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.export_save))
                         }
                     }
@@ -446,5 +500,51 @@ private fun sharePalette(accentArgb: Int): List<Int> {
     val v = hsv[2].coerceAtLeast(0.6f)
     return listOf(0, 60, 120, 180, 240, 300).map { deg ->
         android.graphics.Color.HSVToColor(floatArrayOf((h + deg) % 360f, s, v))
+    }
+}
+
+private object MonthFormats {
+    const val default: String = "MMMM yyyy"
+}
+
+private val CAL_MONTH_FORMATS = listOf(
+    "yyyy 年 M 月",
+    "yyyy 年 MMMM",
+    "yyyy-MM",
+    "yyyy MMM",
+    "MMM yyyy",
+)
+
+private fun monthFormatTitle(fmt: String, m: YearMonth, locale: Locale): String {
+    val example = runCatching { m.format(DateTimeFormatter.ofPattern(fmt, locale)) }.getOrDefault(fmt)
+    return "$fmt  →  $example"
+}
+
+@Composable
+private fun DropdownSelect(label: String, options: List<String>, onSelect: (Int) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { open = true }) { Text(label, maxLines = 1) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            options.forEachIndexed { i, o ->
+                DropdownMenuItem(text = { Text(o) }, onClick = { open = false; onSelect(i) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthSelect(label: String, months: List<YearMonth>, selected: YearMonth, onSelect: (YearMonth) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { open = true }) { Text(label, maxLines = 1) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            months.forEach { m ->
+                DropdownMenuItem(
+                    text = { Text(m.format(DateTimeFormatter.ofPattern("yyyy-MM", Locale.getDefault())), fontWeight = if (m == selected) FontWeight.Bold else FontWeight.Normal) },
+                    onClick = { open = false; onSelect(m) },
+                )
+            }
+        }
     }
 }

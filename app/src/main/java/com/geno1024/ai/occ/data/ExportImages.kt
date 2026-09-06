@@ -46,7 +46,12 @@ fun buildCalendarBitmap(
     transparent: Boolean,
     appName: String,
     author: String? = null,
+    monthPattern: String = "MMMM yyyy",
+    continuous: Boolean = false,
 ): Bitmap {
+    if (continuous) {
+        return buildCalendarContinuous(history, months, locale, accent, ink, muted, transparent, appName, author, monthPattern)
+    }
     val contentW = W - MR * 2
     val cellGap = 10f
     val cell = (contentW - cellGap * 6) / 7f
@@ -124,7 +129,7 @@ fun buildCalendarBitmap(
         c.drawRoundRect(RectF(28f, y, W - 28f, y + blockH), 40f, 40f, card)
         c.drawRoundRect(RectF(28f, y, W - 28f, y + blockH), 40f, 40f, cardBorder)
         val cardTop = y + 30f
-        c.drawText(month.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)), W / 2f, cardTop + 52f, titlePaint)
+        c.drawText(month.format(DateTimeFormatter.ofPattern(monthPattern, locale)), W / 2f, cardTop + 52f, titlePaint)
 
         val monthDates = history.keys.mapNotNull { k ->
             runCatching { LocalDate.parse(k) }.getOrNull()
@@ -185,6 +190,159 @@ fun buildCalendarBitmap(
 
     if (!author.isNullOrBlank()) {
         c.drawText(author, W - MR.toFloat(), y + 28f, authorPaint)
+    }
+    return bmp
+}
+
+private fun buildCalendarContinuous(
+    history: Map<String, TokenDay>,
+    months: List<YearMonth>,
+    locale: Locale,
+    accent: Int,
+    ink: Int,
+    muted: Int,
+    transparent: Boolean,
+    appName: String,
+    author: String?,
+    monthPattern: String,
+): Bitmap {
+    if (months.isEmpty()) return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+    val startMonth = months.first()
+    val endMonth = months.last()
+    val start = startMonth.atDay(1)
+    val end = endMonth.atEndOfMonth()
+
+    val contentW = W - MR * 2
+    val cellGap = 10f
+    val cell = (contentW - cellGap * 6) / 7f
+    val wf = WeekFields.of(locale)
+    val startDow = DayOfWeek.of(wf.firstDayOfWeek.value)
+    val leading = (start.dayOfWeek.value - startDow.value + 7) % 7
+    val gridStart = start.minusDays(leading.toLong())
+    val dayCount = java.time.temporal.ChronoUnit.DAYS.between(start, end) + 1
+    val nRows = (dayCount.toInt() + leading + 6) / 7
+
+    val pageH = 96f
+    val cardTitleH = 92f
+    val dowH = 44f
+    val footerH = if (!author.isNullOrBlank()) 52f else 0f
+    val gridH = nRows * (cell + cellGap)
+    val blockH = cardTitleH + dowH + gridH + 40f
+    val h = (pageH + blockH + footerH + 40f).toInt()
+    val bmp = Bitmap.createBitmap(W, h, Bitmap.Config.ARGB_8888)
+    val c = Canvas(bmp)
+    if (!transparent) c.drawColor(0xFFF6F8FB.toInt())
+
+    val card = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = if (transparent) 0xFFFFFFF.toInt() else Color.WHITE
+        style = Paint.Style.FILL
+    }
+    val cardBorder = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = (ink and 0x00FFFFFF) or 0x18000000
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+    }
+    val accentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accent }
+    val weekdayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = muted
+        textSize = 28f
+        textAlign = Paint.Align.CENTER
+        letterSpacing = 0.08f
+    }
+    val appPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = ink
+        textSize = 32f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        letterSpacing = 0.12f
+    }
+    val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = ink
+        textSize = 46f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+    }
+    val totalPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = muted
+        textSize = 32f
+        textAlign = Paint.Align.RIGHT
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+    }
+    val dayLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = ink
+        textSize = 22f
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+    }
+    val dayTokensPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = darkened(accent, 0.55f)
+        textSize = 20f
+        textAlign = Paint.Align.CENTER
+    }
+    val authorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = muted
+        textSize = 26f
+        textAlign = Paint.Align.RIGHT
+    }
+
+    var y = 0f
+    c.drawRoundRect(RectF(48f, 66f, 72f, 90f), 8f, 8f, accentPaint)
+    c.drawText("${appName.uppercase()}  ·  USAGE CALENDAR", 96f, 88f, appPaint)
+    y = 96f
+
+    val total = (0L until dayCount).map { history[start.plusDays(it).toString()]?.fresh ?: 0L }
+    val dayMax = (total.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    val dayTotal = total.sum()
+
+    c.drawRoundRect(RectF(28f, y, W - 28f, y + blockH), 40f, 40f, card)
+    c.drawRoundRect(RectF(28f, y, W - 28f, y + blockH), 40f, 40f, cardBorder)
+    val cardTop = y + 30f
+
+    val startLabel = startMonth.format(DateTimeFormatter.ofPattern(monthPattern, locale))
+    val endLabel = endMonth.format(DateTimeFormatter.ofPattern(monthPattern, locale))
+    val rangeLabel = if (startMonth == endMonth) startLabel else "$startLabel — $endLabel"
+    c.drawText(rangeLabel, W / 2f, cardTop + 52f, titlePaint)
+    c.drawText("Σ " + NumberFormat.getIntegerInstance().format(dayTotal), W - 28f - 40f, cardTop + 52f, totalPaint)
+
+    repeat(7) { i ->
+        val cx = MR + cell / 2f + i * (cell + cellGap)
+        c.drawText(startDow.plus(i.toLong()).getDisplayName(TextStyle.SHORT, locale).uppercase(locale), cx, cardTop + 84f, weekdayPaint)
+    }
+    val gridTop = cardTop + 92f
+    val today = LocalDate.now()
+    for (r in 0 until nRows) {
+        for (col in 0 until 7) {
+            val date = gridStart.plusDays((r * 7 + col).toLong())
+            val inRange = !date.isBefore(start) && !date.isAfter(end)
+            val cx = MR + cell / 2f + col * (cell + cellGap)
+            val cy = gridTop + r * (cell + cellGap) + cell / 2f
+            val radius = cell / 2f - 5f
+            if (inRange) {
+                val tokens = history[date.toString()]?.fresh ?: 0L
+                if (date != today && tokens > 0L) {
+                    val frac = (tokens.toFloat() / dayMax).coerceIn(0f, 1f)
+                    c.drawCircle(
+                        cx, cy, radius,
+                        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            color = accent
+                            alpha = ((0.12f + 0.62f * frac) * 255f).toInt().coerceIn(0, 225)
+                        },
+                    )
+                }
+                if (date == today) {
+                    c.drawCircle(cx, cy, radius, accentPaint)
+                }
+                val numColor = if (date == today) Color.WHITE else if (tokens > 0L) darkened(accent, 0.5f) else ink
+                c.drawText(date.format(DateTimeFormatter.ofPattern("MM-dd", locale)), cx, cy + 8f, dayLabelPaint.apply { color = numColor })
+                if (tokens > 0L && date != today) {
+                    c.drawText(compactTokens(tokens), cx, cy + 34f, dayTokensPaint)
+                }
+            }
+        }
+    }
+
+    val footerY = pageH + blockH + 40f
+    if (!author.isNullOrBlank()) {
+        c.drawText(author, W - MR.toFloat(), footerY + 28f, authorPaint)
     }
     return bmp
 }
@@ -385,6 +543,20 @@ private fun buildPunchcardDaily(
 
     if (orientation == PunchOrientation.HORIZONTAL) {
         dowOrder.forEachIndexed { i, dow ->
+            val x = domainX + i * (cell + gap) + cell / 2
+            c.drawText(dow.getDisplayName(TextStyle.SHORT, locale).uppercase(locale), x, 30f, head)
+        }
+        weekStartDates.forEachIndexed { wi, w ->
+            val y = domainY + wi * (cell + gap) + cell / 2
+            val label = if (w.dayOfMonth <= 7) {
+                if (w.monthValue == 1 && w.dayOfMonth <= 7) w.year.toString() else "${w.monthValue}/${w.dayOfMonth}"
+            } else {
+                "${w.monthValue}/${w.dayOfMonth}"
+            }
+            c.drawText(label, leftW + 2f, y + 7f, tick)
+        }
+    } else {
+        dowOrder.forEachIndexed { i, dow ->
             val y = domainY + i * (cell + gap) + cell / 2
             c.drawText(dow.getDisplayName(TextStyle.SHORT, locale).uppercase(locale), leftW + 2f, y + 7f, tick)
         }
@@ -397,20 +569,6 @@ private fun buildPunchcardDaily(
                     w.month.getDisplayName(TextStyle.SHORT, locale).uppercase(locale)
                 c.drawText(label, x, 30f, head)
             }
-        }
-    } else {
-        dowOrder.forEachIndexed { i, dow ->
-            val x = domainX + i * (cell + gap) + cell / 2
-            c.drawText(dow.getDisplayName(TextStyle.SHORT, locale).uppercase(locale), x, 30f, head)
-        }
-        weekStartDates.forEachIndexed { wi, w ->
-            val y = domainY + wi * (cell + gap) + cell / 2
-            val label = if (w.dayOfMonth <= 7) {
-                if (w.monthValue == 1 && w.dayOfMonth <= 7) w.year.toString() else "${w.monthValue}/${w.dayOfMonth}"
-            } else {
-                "${w.monthValue}/${w.dayOfMonth}"
-            }
-            c.drawText(label, leftW + 2f, y + 7f, tick)
         }
     }
 
