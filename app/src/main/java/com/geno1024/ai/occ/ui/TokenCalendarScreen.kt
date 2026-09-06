@@ -53,15 +53,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.drawText
@@ -74,11 +71,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.occ.R
-import com.geno1024.ai.occ.data.ShareCardData
-import com.geno1024.ai.occ.data.ShareCardModel
 import com.geno1024.ai.occ.data.TokenDay
-import com.geno1024.ai.occ.data.buildShareCardBitmap
-import com.geno1024.ai.occ.data.saveBitmapToDownloads
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -86,9 +79,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private enum class TokenCategory(val labelRes: Int) {
     TOKEN(R.string.calendar_cat_token),
@@ -116,6 +107,7 @@ private enum class MsgMetric(val labelRes: Int) {
 fun TokenCalendarScreen(
     viewModel: MainViewModel,
     onBack: () -> Unit,
+    onOpenExport: (YearMonth) -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
@@ -177,87 +169,8 @@ fun TokenCalendarScreen(
                         }) {
                             Text(stringResource(R.string.calendar_full))
                         }
-                        val exportCtx = LocalContext.current
-                        val exportScope = rememberCoroutineScope()
-                        val shareAccent = MaterialTheme.colorScheme.primary.toArgb()
-                        var exportMenu by remember { mutableStateOf(false) }
-                        Box {
-                            IconButton(onClick = { exportMenu = true }) {
-                                Icon(Icons.Filled.Share, stringResource(R.string.calendar_export))
-                            }
-                            DropdownMenu(expanded = exportMenu, onDismissRequest = { exportMenu = false }) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.export_csv_json)) },
-                                    onClick = {
-                                        exportMenu = false
-                                        exportScope.launch {
-                                            val r = viewModel.exportUsage()
-                                            val msg = if (r != null) {
-                                                exportCtx.getString(R.string.export_saved, "${r.csvName}, ${r.jsonName}")
-                                            } else {
-                                                exportCtx.getString(R.string.export_failed)
-                                            }
-                                            android.widget.Toast.makeText(exportCtx, msg, android.widget.Toast.LENGTH_LONG).show()
-                                        }
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.export_image)) },
-                                    onClick = {
-                                        exportMenu = false
-                                        exportScope.launch {
-                                            val monthName = shownMonth.month.getDisplayName(TextStyle.FULL, locale)
-                                            val today = LocalDate.now()
-                                            val days = (13 downTo 0).map { off ->
-                                                history[today.minusDays(off.toLong()).toString()]?.fresh ?: 0L
-                                            }
-                                            val palette = sharePalette(shareAccent)
-                                            val modelShares = tokenModelStats.mapNotNull { (id, st) ->
-                                                val fresh = st.history.values.fold(TokenDay()) { a, b -> a + b }.fresh
-                                                if (fresh <= 0L) null else id to fresh
-                                            }.sortedByDescending { it.second }.take(5)
-                                            val totalFresh = totalDay.fresh
-                                            val models = modelShares.mapIndexed { i, (id, fresh) ->
-                                                ShareCardModel(
-                                                    name = id,
-                                                    share = if (totalFresh > 0) fresh.toDouble() / totalFresh.toDouble() else 0.0,
-                                                    color = palette[i % palette.size],
-                                                )
-                                            }
-                                            val card = buildShareCardBitmap(
-                                                ShareCardData(
-                                                    appName = exportCtx.getString(R.string.app_name),
-                                                    monthLabel = "$monthName ${shownMonth.year}",
-                                                    sublabel = exportCtx.getString(R.string.share_card_subtitle),
-                                                    totalTokens = totalDay.fresh,
-                                                    input = totalDay.input,
-                                                    output = totalDay.output,
-                                                    reasoning = totalDay.reasoning,
-                                                    cacheRead = totalDay.cacheRead,
-                                                    messages = totalDay.msgs,
-                                                    cost = totalDay.cost,
-                                                    days = days,
-                                                    models = models,
-                                                    accent = shareAccent,
-                                                    ink = 0xFF161A1E.toInt(),
-                                                    muted = 0xFF6B7280.toInt(),
-                                                    footer = today.toString(),
-                                                )
-                                            )
-                                            val fileName = "opencodeclient-usage-card.png"
-                                            val ok = withContext(Dispatchers.IO) {
-                                                saveBitmapToDownloads(exportCtx, fileName, card)
-                                            }
-                                            val msg = if (ok) {
-                                                exportCtx.getString(R.string.export_saved, fileName)
-                                            } else {
-                                                exportCtx.getString(R.string.export_failed)
-                                            }
-                                            android.widget.Toast.makeText(exportCtx, msg, android.widget.Toast.LENGTH_LONG).show()
-                                        }
-                                    },
-                                )
-                            }
+                        IconButton(onClick = { onOpenExport(shownMonth) }) {
+                            Icon(Icons.Filled.Share, stringResource(R.string.calendar_export))
                         }
                     }
                 },
@@ -1264,13 +1177,3 @@ private fun formatClockDays(ms: Long): String {
     return "%d.%02d:%02d:%02d.%d".format(Locale.ROOT, days, h, m, s, d)
 }
 
-private fun sharePalette(accentArgb: Int): List<Int> {
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV(accentArgb, hsv)
-    val h = hsv[0]
-    val s = hsv[1].coerceAtLeast(0.35f)
-    val v = hsv[2].coerceAtLeast(0.6f)
-    return listOf(0, 60, 120, 180, 240, 300).map { deg ->
-        android.graphics.Color.HSVToColor(floatArrayOf((h + deg) % 360f, s, v))
-    }
-}

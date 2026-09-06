@@ -99,6 +99,7 @@ sealed class Screen {
     data object Main : Screen()
     data object Settings : Screen()
     data object Calendar : Screen()
+    data object Export : Screen()
     data object About : Screen()
 
     val key: String
@@ -107,6 +108,7 @@ sealed class Screen {
             Main -> "main"
             Settings -> "settings"
             Calendar -> "calendar"
+            Export -> "export"
             About -> "about"
         }
 
@@ -115,6 +117,7 @@ sealed class Screen {
             "main" -> Main
             "settings" -> Settings
             "calendar" -> Calendar
+            "export" -> Export
             "about" -> About
             else -> Connect
         }
@@ -126,6 +129,7 @@ fun OpenCodeApp(viewModel: MainViewModel) {
     var screenKey by rememberSaveable { mutableStateOf(Screen.Connect.key) }
     val screen = Screen.fromKey(screenKey)
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
+    var exportStartMonth by remember { mutableStateOf(java.time.YearMonth.now()) }
 
     LaunchedEffect(serverUrl) {
         if (serverUrl != null && screen is Screen.Connect) {
@@ -166,6 +170,17 @@ fun OpenCodeApp(viewModel: MainViewModel) {
             TokenCalendarScreen(
                 viewModel = viewModel,
                 onBack = { screenKey = Screen.Settings.key },
+                onOpenExport = { m ->
+                    exportStartMonth = m
+                    screenKey = Screen.Export.key
+                },
+            )
+        }
+        is Screen.Export -> saveableStateHolder.SaveableStateProvider(Screen.Export.key) {
+            ExportScreen(
+                viewModel = viewModel,
+                startMonth = exportStartMonth,
+                onBack = { screenKey = Screen.Calendar.key },
             )
         }
         is Screen.About -> saveableStateHolder.SaveableStateProvider(Screen.About.key) {
