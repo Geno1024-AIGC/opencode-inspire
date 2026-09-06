@@ -317,6 +317,22 @@ private fun DrawerContent(
                 IconButton(onClick = { viewModel.refresh() }) { Icon(Icons.Filled.Refresh, stringResource(R.string.drawer_refresh)) }
             }
             LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)) {
+                item {
+                    PinnedSection(
+                        sessions = remember(projects, favorites) {
+                            projects.flatMap { it.sessions }.filter { it.id in favorites }
+                        },
+                        activeSessionId = activeSession?.id,
+                        activeSessionTotalElapsed = activeSessionTotalElapsed,
+                        storedStats = storedStats,
+                        shortTokens = shortTokens,
+                        archived = archived,
+                        sessionCosts = sessionCosts,
+                        onOpenSession = { viewModel.openSession(it) },
+                        onToggleFavorite = { viewModel.toggleFavorite(it) },
+                        onToggleArchived = { viewModel.toggleArchived(it) },
+                    )
+                }
                 items(projects, key = { it.id }) { project ->
                     ExpandableProject(
                         project = project,
@@ -380,7 +396,7 @@ private fun ExpandableProject(
 ) {
     var expanded by rememberSaveable(project.id) { mutableStateOf(project.sessions.isEmpty()) }
     val orderedSessions = remember(project.sessions, favorites, archived) {
-        project.sessions.filter { it.id !in archived }.sortedByDescending { it.id in favorites }
+        project.sessions.filter { it.id !in archived && it.id !in favorites }.sortedByDescending { it.id in favorites }
     }
     val groupedSessions = remember(orderedSessions) { groupSessionsByDay(orderedSessions) }
     Column {
@@ -586,6 +602,62 @@ private fun groupSessionsByDay(sessions: List<Session>): List<Pair<String, List<
         groups.getOrPut(key) { mutableListOf() }.add(s)
     }
     return listOf("today", "yesterday", "earlier").mapNotNull { groups[it]?.let { g -> it to g } }
+}
+
+@Composable
+private fun PinnedSection(
+    sessions: List<Session>,
+    activeSessionId: String?,
+    activeSessionTotalElapsed: Long? = null,
+    storedStats: Map<String, StoredHistoryStats> = emptyMap(),
+    shortTokens: Boolean = true,
+    archived: Set<String> = emptySet(),
+    sessionCosts: Map<String, Double> = emptyMap(),
+    onOpenSession: (String) -> Unit,
+    onToggleFavorite: (String) -> Unit,
+    onToggleArchived: (String) -> Unit,
+) {
+    if (sessions.isEmpty()) return
+    var expanded by rememberSaveable { mutableStateOf(true) }
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.Star,
+                null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(end = 8.dp),
+            )
+            Text(
+                stringResource(R.string.drawer_pinned, sessions.size),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(if (expanded) painterResource(R.drawable.ic_expand_less) else painterResource(R.drawable.ic_expand_more), null)
+        }
+        if (expanded) {
+            sessions.forEach { s ->
+                SessionRow(
+                    s = s,
+                    isActive = s.id == activeSessionId,
+                    isFavorite = true,
+                    isArchived = s.id in archived,
+                    totalElapsed = storedStats[s.id]?.totalElapsed,
+                    cost = sessionCosts[s.id] ?: 0.0,
+                    shortTokens = shortTokens,
+                    onClick = { onOpenSession(s.id) },
+                    onToggleFavorite = { onToggleFavorite(s.id) },
+                    onToggleArchived = { onToggleArchived(s.id) },
+                )
+            }
+        }
+    }
 }
 
 @Composable

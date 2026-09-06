@@ -38,6 +38,7 @@
     <string name="session_archive">归档</string>
     <string name="session_unarchive">取消归档</string>
     <string name="drawer_archived">已归档（%1$d）</string>
+    <string name="drawer_pinned">置顶会话（%1$d）</string>
     <string name="session_group_today">今天</string>
     <string name="session_group_yesterday">昨天</string>
     <string name="session_group_earlier">更早</string>
