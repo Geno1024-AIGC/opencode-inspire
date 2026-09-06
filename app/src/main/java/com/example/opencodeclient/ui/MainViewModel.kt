@@ -600,12 +600,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         var turnStart = 0L
                         var turnEnd = 0L
                         var lastDayKey = ""
-                        for ((msg, _) in messages) {
+                        var sesElapsed = 0L
+                        var sesMsgs = 0L
+                        var sesUser = 0L
+                        var sesAssistant = 0L
+                        var sesTools = 0L
+                        var sesLatest = 0L
+                        for ((msg, parts) in messages) {
                             coroutineContext.ensureActive()
                             val created = serverTimeToMillis(msg.time?.created)
                             val completed = serverTimeToMillis(msg.time?.completed)
                             if (created <= 0L) continue
                             if (created > maxMsgMs) maxMsgMs = created
+                            sesMsgs++
+                            if (msg.role == "user") sesUser++ else if (msg.role == "assistant") sesAssistant++
+                            sesTools += parts.count { it.type == "tool" }
+                            if (completed > sesLatest) sesLatest = completed
+                            if (created > sesLatest) sesLatest = created
                             val zdt = java.time.Instant.ofEpochMilli(created).atZone(zone)
                             val day = zdt.toLocalDate()
                             val toks = msg.tokens
@@ -657,9 +668,11 @@ val dayKey = day.toString()
                                 (sessionTokens[s.id]?.get(mid) ?: TokenDay()) + frag
                             if (msg.role == "user") {
                                 if (turnStart > 0L && turnEnd > turnStart) {
+                                    val inc = turnEnd - turnStart
+                                    sesElapsed += inc
                                     val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
-                                    elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
-                                    st.elapsed[d] = (st.elapsed[d] ?: 0L) + (turnEnd - turnStart)
+                                    elapsed[d] = (elapsed[d] ?: 0L) + inc
+                                    st.elapsed[d] = (st.elapsed[d] ?: 0L) + inc
                                 }
                                 turnStart = created
                                 turnEnd = created
@@ -675,6 +688,21 @@ val dayKey = day.toString()
                             stS.history[lastDayKey] = (stS.history[lastDayKey] ?: TokenDay()) + costFrag
                             sessionTokens.getOrPut(s.id) { mutableMapOf() }[sMid] =
                                 (sessionTokens[s.id]?.get(sMid) ?: TokenDay()) + costFrag
+                        }
+                        if (!hasFreshCache && sesMsgs > 0L && _storedStats.value[s.id] == null) {
+                            persistStats(
+                                s.id,
+                                HistoryStats(
+                                    totalElapsed = sesElapsed,
+                                    messageCount = sesMsgs,
+                                    userMessages = sesUser,
+                                    assistantMessages = sesAssistant,
+                                    exchanges = sesUser,
+                                    toolCalls = sesTools,
+                                    computed = true,
+                                    lastTimestamp = sesLatest,
+                                ),
+                            )
                         }
                         if (turnStart > 0L && turnEnd > turnStart) {
                             val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()

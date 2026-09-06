@@ -377,12 +377,11 @@ private fun ExpandableProject(
         }
         if (expanded) {
             orderedSessions.forEach { s ->
-                val storedElapsed = storedStats[s.id]?.totalElapsed ?: 0L
                 SessionRow(
                     s = s,
                     isActive = s.id == activeSessionId,
                     isFavorite = s.id in favorites,
-                    totalElapsed = if (storedElapsed > 0L) storedElapsed else null,
+                    totalElapsed = storedStats[s.id]?.totalElapsed,
                     cost = sessionCosts[s.id] ?: 0.0,
                     shortTokens = shortTokens,
                     onClick = { onOpenSession(s.id) },
@@ -449,7 +448,7 @@ private fun SessionRow(
                 overflow = TextOverflow.Ellipsis,
             )
             val fresh = s.tokens?.let { it.input + it.output + it.reasoning } ?: 0L
-            val elapsedStr = totalElapsed?.takeIf { it > 0L }?.let { formatElapsed(it) } ?: "0s"
+            val elapsedStr = totalElapsed?.let { formatElapsed(it).ifBlank { "0s" } } ?: "-"
             Text(
                 "${formatTokens(fresh, shortTokens)}, $elapsedStr, ${formatCost(cost)}",
                 style = MaterialTheme.typography.labelSmall,
