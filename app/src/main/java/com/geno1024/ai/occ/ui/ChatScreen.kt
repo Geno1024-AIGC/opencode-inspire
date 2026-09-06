@@ -129,6 +129,7 @@ fun ChatScreen(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val sending by viewModel.sending.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
+    val sessionDrafts by viewModel.sessionDrafts.collectAsStateWithLifecycle()
     val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
     val sessionCost by viewModel.sessionCost.collectAsStateWithLifecycle()
     val sessionModelTokens by viewModel.sessionModelTokens.collectAsStateWithLifecycle()
@@ -170,7 +171,17 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    var input by rememberSaveable { mutableStateOf("") }
+    val activeId = activeSession?.id
+    val drafts = sessionDrafts
+    var input by rememberSaveable(activeId) { mutableStateOf("") }
+    var draftLoaded by rememberSaveable(activeId) { mutableStateOf("") }
+    LaunchedEffect(drafts, activeId) {
+        val d = activeId?.let { drafts[it] }.orEmpty()
+        if (d != draftLoaded) {
+            input = d
+            draftLoaded = d
+        }
+    }
     var commandMenuOpen by remember { mutableStateOf(false) }
     var recentCommands by rememberSaveable { mutableStateOf(listOf<String>()) }
     var showFiles by rememberSaveable { mutableStateOf(false) }
@@ -414,9 +425,10 @@ fun ChatScreen(
                     }
                     OutlinedTextField(
                         value = input,
-                        onValueChange = {
-                            input = it
-                            if (it.startsWith("/") && !it.trimStart().contains(" ")) commandMenuOpen = true
+                        onValueChange = { v ->
+                            input = v
+                            if (activeId != null) viewModel.updateDraft(activeId, v)
+                            if (v.startsWith("/") && !v.trimStart().contains(" ")) commandMenuOpen = true
                         },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text(stringResource(R.string.chat_placeholder)) },
@@ -459,6 +471,7 @@ fun ChatScreen(
                                             recentCommands = listOf(cmd.name) + recentCommands.filter { it != cmd.name }
                                             viewModel.runCommand(cmd)
                                             input = ""
+                                            if (activeId != null) viewModel.clearDraft(activeId)
                                         },
                                     )
                                 }
@@ -492,6 +505,7 @@ fun ChatScreen(
                         }
                         attachedFile = null
                         input = ""
+                        if (activeId != null) viewModel.clearDraft(activeId)
                      },
                      enabled = input.isNotBlank() || attachedFile != null,
                      modifier = Modifier.padding(bottom = 4.dp),

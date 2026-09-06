@@ -156,6 +156,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _activeSession = MutableStateFlow<Session?>(null)
     val activeSession: StateFlow<Session?> = _activeSession.asStateFlow()
     private val titleRefreshPending = mutableSetOf<String>()
+    private val _sessionDrafts = MutableStateFlow<Map<String, String>>(emptyMap())
+    val sessionDrafts: StateFlow<Map<String, String>> = _sessionDrafts.asStateFlow()
+    private val draftFlushJobs = mutableMapOf<String, Job>()
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
@@ -335,6 +338,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 settings.setDownloadedApk(null)
                 settings.setInstalledVersion(BuildConfig.VERSION_NAME)
             }
+        }
+        viewModelScope.launch {
+            settings.drafts.collect { _sessionDrafts.value = it }
         }
         viewModelScope.launch {
             settings.serverUrl.collect { _serverUrl.value = it }
@@ -1564,6 +1570,30 @@ text = e.message ?: getAppString(R.string.send_failed),
         viewModelScope.launch {
             settings.setDownloadedApk(fileName)
             settings.setInstalledVersion(BuildConfig.VERSION_NAME)
+        }
+    }
+
+    fun updateDraft(sid: String, text: String) {
+        if (sid.isEmpty()) return
+        _sessionDrafts.value = if (text.isBlank()) {
+            _sessionDrafts.value - sid
+        } else {
+            _sessionDrafts.value + (sid to text)
+        }
+        draftFlushJobs[sid]?.cancel()
+        draftFlushJobs[sid] = viewModelScope.launch {
+            delay(500)
+            settings.setDrafts(_sessionDrafts.value)
+        }
+    }
+
+    fun clearDraft(sid: String) {
+        if (sid.isEmpty()) return
+        draftFlushJobs[sid]?.cancel()
+        draftFlushJobs.remove(sid)
+        if (sid in _sessionDrafts.value) {
+            _sessionDrafts.value = _sessionDrafts.value - sid
+            viewModelScope.launch { settings.setDrafts(_sessionDrafts.value) }
         }
     }
 
