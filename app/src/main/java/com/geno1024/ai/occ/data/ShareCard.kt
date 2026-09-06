@@ -36,6 +36,7 @@ data class ShareCardData(
     val includeTrend: Boolean = false,
     val includeModelChart: Boolean = false,
     val background: Int? = null,
+    val author: String? = null,
 )
 
 fun buildShareCardBitmap(data: ShareCardData): Bitmap {
@@ -135,6 +136,9 @@ fun buildShareCardBitmap(data: ShareCardData): Bitmap {
     c.drawText(data.appName, margin + 44f, 92f, appPaint)
     val footerW = subtitlePaint.measureText(data.footer)
     c.drawText(data.footer, w - margin - footerW, 92f, subtitlePaint)
+    if (!data.author.isNullOrBlank()) {
+        c.drawText("by ${data.author}", (w - margin).toFloat(), 142f, subtitlePaint)
+    }
 
     y = 178f
     c.drawText(data.monthLabel.uppercase(), margin.toFloat(), y, titlePaint)

@@ -597,13 +597,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     suspend fun exportUsage(): UsageExportResult? = withContext(Dispatchers.IO) {
+        val ctx = getApplication<Application>()
+        val okCsv = saveTextFileToDownloads(ctx, "opencodeclient-usage.csv", buildUsageCsv(_tokenHistory.value))
+        val okJson = saveTextFileToDownloads(ctx, "opencodeclient-usage.json", buildUsageJson(usageDoc()))
+        if (okCsv && okJson) UsageExportResult("opencodeclient-usage.csv", "opencodeclient-usage.json") else null
+    }
+
+    suspend fun exportUsageCsv(): String? = withContext(Dispatchers.IO) {
+        val ctx = getApplication<Application>()
+        val name = "opencodeclient-usage.csv"
+        if (saveTextFileToDownloads(ctx, name, buildUsageCsv(_tokenHistory.value))) name else null
+    }
+
+    suspend fun exportUsageJson(): String? = withContext(Dispatchers.IO) {
+        val ctx = getApplication<Application>()
+        val name = "opencodeclient-usage.json"
+        if (saveTextFileToDownloads(ctx, name, buildUsageJson(usageDoc()))) name else null
+    }
+
+    private fun usageDoc(): UsageExportDoc {
         val history = _tokenHistory.value
         val modelStats = _tokenModelStats.value
         val sessions = _sessionModelTokens.value
         val titles = _projects.value
             .flatMap { it.sessions }
             .associate { it.id to (it.title ?: "") }
-        val doc = UsageExportDoc(
+        return UsageExportDoc(
             exportedAt = java.time.Instant.now().toString(),
             generatedBy = "opencode-inspire ${BuildConfig.VERSION_NAME}",
             dates = history,
@@ -611,12 +630,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             sessions = sessions,
             sessionTitles = titles,
         )
-        val ctx = getApplication<Application>()
-        val csvName = "opencodeclient-usage.csv"
-        val jsonName = "opencodeclient-usage.json"
-        val okCsv = saveTextFileToDownloads(ctx, csvName, buildUsageCsv(history))
-        val okJson = saveTextFileToDownloads(ctx, jsonName, buildUsageJson(doc))
-        if (okCsv && okJson) UsageExportResult(csvName, jsonName) else null
     }
 
     private fun runTokenLoad(incremental: Boolean) {

@@ -14,7 +14,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
-import kotlin.math.min
 
 private const val W = 1080
 private const val MR = 44
@@ -37,9 +36,6 @@ private fun darkened(argb: Int, factor: Float): Int {
     return Color.rgb(r, g, b)
 }
 
-/**
- * Vertical long image stacking one calendar month grid each.
- */
 fun buildCalendarBitmap(
     history: Map<String, TokenDay>,
     months: List<YearMonth>,
@@ -49,6 +45,7 @@ fun buildCalendarBitmap(
     muted: Int,
     transparent: Boolean,
     appName: String,
+    author: String? = null,
 ): Bitmap {
     val contentW = W - MR * 2
     val cellGap = 10f
@@ -57,8 +54,9 @@ fun buildCalendarBitmap(
     val pageH = 96f
     val blockGap = 44f
     val monthsCapped = months.take(24)
+    val footerH = if (!author.isNullOrBlank()) 52f else 0f
 
-    val h = (pageH + monthsCapped.size * blockH + (monthsCapped.size - 1).coerceAtLeast(0) * blockGap + 40f).toInt()
+    val h = (pageH + monthsCapped.size * blockH + (monthsCapped.size - 1).coerceAtLeast(0) * blockGap + footerH + 40f).toInt()
     val bmp = Bitmap.createBitmap(W, h, Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     if (!transparent) c.drawColor(0xFFF6F8FB.toInt())
@@ -106,6 +104,11 @@ fun buildCalendarBitmap(
         color = (muted and 0x00FFFFFF) or 0x55000000
         textSize = 30f
         textAlign = Paint.Align.CENTER
+    }
+    val authorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = muted
+        textSize = 26f
+        textAlign = Paint.Align.RIGHT
     }
 
     val nf = NumberFormat.getIntegerInstance()
@@ -179,31 +182,48 @@ fun buildCalendarBitmap(
         c.drawText("Σ " + nf.format(monthTotal), W - 28f - 40f, cardTop + 52f, totalPaint)
         y += blockH + blockGap
     }
+
+    if (!author.isNullOrBlank()) {
+        c.drawText("by $author", W - MR.toFloat(), y + 28f, authorPaint)
+    }
     return bmp
 }
 
+enum class PunchMode { HOURLY, DAILY }
 enum class PunchOrientation { HORIZONTAL, VERTICAL }
 
-/**
- * Long image of the 24-hour punchcard heatmap.
- * HORIZONTAL: days across (wide), hours down.
- * VERTICAL: days down (tall), hours across.
- */
 fun buildPunchcardBitmap(
+    history: Map<String, TokenDay>,
     hourByDay: Map<String, Map<Int, TokenDay>>,
+    mode: PunchMode,
     orientation: PunchOrientation,
     accent: Int,
     ink: Int,
     muted: Int,
     transparent: Boolean,
     locale: Locale,
+    author: String? = null,
 ): Bitmap {
-    val days = hourByDay.keys.sorted().takeLast(730)
     val cell = 20f
     val gap = 3f
     val padLR = 24f
     val topLabelH = 52f
     val legendH = 100f
+
+    if (mode == PunchMode.HOURLY) {
+        return buildPunchcardHourly(hourByDay, orientation, accent, ink, muted, transparent, locale, author, cell, gap, padLR, topLabelH, legendH)
+    }
+    return buildPunchcardDaily(history, orientation, accent, ink, muted, transparent, locale, author, cell, gap, padLR, topLabelH, legendH)
+}
+
+private fun buildPunchcardHourly(
+    hourByDay: Map<String, Map<Int, TokenDay>>,
+    orientation: PunchOrientation,
+    accent: Int, ink: Int, muted: Int, transparent: Boolean, locale: Locale,
+    author: String?,
+    cell: Float, gap: Float, padLR: Float, topLabelH: Float, legendH: Float,
+): Bitmap {
+    val days = hourByDay.keys.sorted().takeLast(730)
     val leftW = if (orientation == PunchOrientation.HORIZONTAL) 58f else 108f
 
     val nCols = if (orientation == PunchOrientation.HORIZONTAL) days.size else 24
@@ -251,18 +271,14 @@ fun buildPunchcardBitmap(
         }
     }
 
-    val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f }
+    val monoBold: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+    val monoPlain: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+    val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; typeface = monoPlain }
     val head = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ink
-        textSize = 26f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        textAlign = Paint.Align.CENTER
+        color = ink; textSize = 26f; typeface = monoBold; textAlign = Paint.Align.CENTER
     }
     val rightHead = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = muted
-        textSize = 24f
-        textAlign = Paint.Align.RIGHT
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        color = muted; textSize = 24f; textAlign = Paint.Align.RIGHT; typeface = monoBold
     }
     val dates = days.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
     if (orientation == PunchOrientation.HORIZONTAL) {
@@ -291,9 +307,125 @@ fun buildPunchcardBitmap(
         }
     }
 
-    // legend
+    drawLegend(c, accent, muted, maxV, w, h, padLR, fill)
+    if (!author.isNullOrBlank()) {
+        val ap = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; textAlign = Paint.Align.RIGHT; typeface = monoPlain }
+        c.drawText("by $author", w - padLR, h - 12f, ap)
+    }
+    return bmp
+}
+
+private fun buildPunchcardDaily(
+    history: Map<String, TokenDay>,
+    orientation: PunchOrientation,
+    accent: Int, ink: Int, muted: Int, transparent: Boolean, locale: Locale,
+    author: String?,
+    cell: Float, gap: Float, padLR: Float, topLabelH: Float, legendH: Float,
+): Bitmap {
+    val today = LocalDate.now()
+    val dates = history.keys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+        .sorted().takeLast(730)
+    if (dates.isEmpty()) {
+        return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+    }
+    val wf = WeekFields.of(locale)
+    fun weekStart(d: LocalDate): LocalDate = d.with(wf.dayOfWeek(), 1L)
+
+    val weekStartDates = dates.map { weekStart(it) }.distinct().sorted()
+    val weekToIndex = weekStartDates.withIndex().associate { (i, w) -> w to i }
+    val dowOrder: List<DayOfWeek> = (0L until 7L).map { wf.firstDayOfWeek.plus(it) }
+    val dowIndex = dowOrder.withIndex().associate { (i, d) -> d.value to i }
+
+    val weeks = weekStartDates.size
+    val nCols = if (orientation == PunchOrientation.HORIZONTAL) 7 else weeks
+    val nRows = if (orientation == PunchOrientation.HORIZONTAL) weeks else 7
+    val leftW = if (orientation == PunchOrientation.HORIZONTAL) 62f else 120f
+    val topRowH = if (orientation == PunchOrientation.HORIZONTAL) 44f else topLabelH
+    val bodyW = (cell + gap) * nCols
+    val bodyH = (cell + gap) * nRows
+    val domainX = leftW + padLR
+    val w = (domainX + bodyW + padLR).toInt()
+    val h = (topRowH + padLR + bodyH + legendH).toInt()
+
+    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val c = Canvas(bmp)
+    if (!transparent) c.drawColor(0xFFF6F8FB.toInt())
+
+    var maxV = 1L
+    for (d in dates) {
+        val v = history[d.toString()]?.fresh ?: 0L
+        if (v > maxV) maxV = v
+    }
+
+    val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    val domainY = topRowH + padLR
+    for (date in dates) {
+        val v = history[date.toString()]?.fresh ?: 0L
+        val wIdx = weekToIndex[weekStart(date)]!!
+        val dIdx = dowIndex[date.dayOfWeek.value]!!
+        val (col, row) = if (orientation == PunchOrientation.HORIZONTAL) dIdx to wIdx else wIdx to dIdx
+        val x = domainX + col * (cell + gap)
+        val y = domainY + row * (cell + gap)
+        if (v > 0L) {
+            val frac = (v.toFloat() / maxV).coerceIn(0f, 1f)
+            fill.color = accent
+            fill.alpha = ((0.12f + 0.82f * frac) * 255f).toInt().coerceIn(0, 235)
+        } else {
+            fill.color = if (transparent) Color.TRANSPARENT else 0x08000000.toInt()
+        }
+        c.drawRoundRect(RectF(x, y, x + cell, y + cell), 5f, 5f, fill)
+    }
+
+    val monoBold: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+    val monoPlain: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+    val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 22f; typeface = monoPlain }
+    val head = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = ink; textSize = 24f; typeface = monoBold; textAlign = Paint.Align.CENTER
+    }
+
+    if (orientation == PunchOrientation.HORIZONTAL) {
+        dowOrder.forEachIndexed { i, dow ->
+            val y = domainY + i * (cell + gap) + cell / 2
+            c.drawText(dow.getDisplayName(TextStyle.SHORT, locale).uppercase(locale), leftW + 2f, y + 7f, tick)
+        }
+        weekStartDates.forEachIndexed { wi, w ->
+            if (w.dayOfMonth <= 7) {
+                val x = domainX + wi * (cell + gap) + cell / 2
+                val label = if (w.monthValue == 1 && w.dayOfMonth <= 7)
+                    w.year.toString()
+                else
+                    w.month.getDisplayName(TextStyle.SHORT, locale).uppercase(locale)
+                c.drawText(label, x, 30f, head)
+            }
+        }
+    } else {
+        dowOrder.forEachIndexed { i, dow ->
+            val x = domainX + i * (cell + gap) + cell / 2
+            c.drawText(dow.getDisplayName(TextStyle.SHORT, locale).uppercase(locale), x, 30f, head)
+        }
+        weekStartDates.forEachIndexed { wi, w ->
+            val y = domainY + wi * (cell + gap) + cell / 2
+            val label = if (w.dayOfMonth <= 7) {
+                if (w.monthValue == 1 && w.dayOfMonth <= 7) w.year.toString() else "${w.monthValue}/${w.dayOfMonth}"
+            } else {
+                "${w.monthValue}/${w.dayOfMonth}"
+            }
+            c.drawText(label, leftW + 2f, y + 7f, tick)
+        }
+    }
+
+    drawLegend(c, accent, muted, maxV, w, h, padLR, fill)
+    if (!author.isNullOrBlank()) {
+        val ap = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; textAlign = Paint.Align.RIGHT; typeface = monoPlain }
+        c.drawText("by $author", w - padLR, h - 12f, ap)
+    }
+    return bmp
+}
+
+private fun drawLegend(c: Canvas, accent: Int, muted: Int, maxV: Long, w: Int, h: Int, padLR: Float, fill: Paint) {
     fill.color = accent
     val legendY = h - 44f
+    val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL) }
     c.drawText("LESS", padLR, legendY, tick)
     val steps = 10
     val stepW = 22f
@@ -303,6 +435,8 @@ fun buildPunchcardBitmap(
         c.drawRoundRect(RectF(gradX + i * stepW, legendY - 14f, gradX + i * stepW + stepW - 3f, legendY + 12f), 4f, 4f, fill)
     }
     c.drawText("MORE", gradX + steps * stepW + 10f, legendY + 9f, tick)
+    val rightHead = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = muted; textSize = 24f; textAlign = Paint.Align.RIGHT; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+    }
     c.drawText(compactTokens(maxV) + " max", w - padLR, legendY, rightHead)
-    return bmp
 }

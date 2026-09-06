@@ -52,6 +52,13 @@
     <string name="quick_no_results">No results</string>
     <string name="share_card_subtitle">Token usage report</string>
     <string name="export_title">Export</string>
+    <string name="export_section_type">Export type</string>
+    <string name="export_type_image">Image</string>
+    <string name="export_section_common">Common options</string>
+    <string name="export_opt_author">Your name (drawn on image)</string>
+    <string name="export_punch_hourly">Per hour</string>
+    <string name="export_punch_daily">Per day</string>
+    <string name="export_data_desc">Raw usage data as a single file.</string>
     <string name="export_section_data">Data</string>
     <string name="export_section_card">Share card</string>
     <string name="export_section_calendar">Calendar</string>
