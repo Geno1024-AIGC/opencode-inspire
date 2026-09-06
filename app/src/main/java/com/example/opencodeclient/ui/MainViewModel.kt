@@ -162,6 +162,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _sessionTokens = MutableStateFlow<Tokens?>(null)
     val sessionTokens: StateFlow<Tokens?> = _sessionTokens.asStateFlow()
+    private val _sessionCost = MutableStateFlow(0.0)
+    val sessionCost: StateFlow<Double> = _sessionCost.asStateFlow()
 
     private val _contextWindow = MutableStateFlow(0L)
     val contextWindow: StateFlow<Long> = _contextWindow.asStateFlow()
@@ -593,8 +595,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         } else {
                             runCatching { c.sessionMessagesAll(s.id) }.getOrNull()
                         } ?: return@forEach
+                        val sessionCost = if (hasFreshCache) 0.0
+                            else runCatching { c.sessionDetail(s.id)?.cost ?: 0.0 }.getOrDefault(0.0)
                         var turnStart = 0L
                         var turnEnd = 0L
+                        var lastDayKey = ""
                         for ((msg, _) in messages) {
                             coroutineContext.ensureActive()
                             val created = serverTimeToMillis(msg.time?.created)
@@ -622,6 +627,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 msgsReceived = if (msg.role == "assistant") 1L else 0L,
                             )
 val dayKey = day.toString()
+                            lastDayKey = dayKey
                             tokens[dayKey] = (tokens[dayKey] ?: TokenDay()) + frag
                             val hour = zdt.hour
                             val dBuckets = dayHours.getOrPut(dayKey) { mutableMapOf() }
@@ -660,6 +666,15 @@ val dayKey = day.toString()
                             } else if (turnStart > 0L && completed > turnEnd) {
                                 turnEnd = completed
                             }
+                        }
+                        if (sessionCost > 0.0 && lastDayKey.isNotEmpty()) {
+                            val sMid = s.model?.id?.ifBlank { null } ?: "unknown"
+                            val costFrag = TokenDay(cost = sessionCost)
+                            tokens[lastDayKey] = (tokens[lastDayKey] ?: TokenDay()) + costFrag
+                            val stS = modelStats.getOrPut(sMid) { MutableTokenModelStats() }
+                            stS.history[lastDayKey] = (stS.history[lastDayKey] ?: TokenDay()) + costFrag
+                            sessionTokens.getOrPut(s.id) { mutableMapOf() }[sMid] =
+                                (sessionTokens[s.id]?.get(sMid) ?: TokenDay()) + costFrag
                         }
                         if (turnStart > 0L && turnEnd > turnStart) {
                             val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
@@ -1111,6 +1126,7 @@ private fun sessionTitle(sid: String): String {
             val detail = withContext(Dispatchers.IO) { c.sessionDetail(id) }
             if (detail != null) {
                 _sessionTokens.value = detail.tokens
+                _sessionCost.value = detail.cost
                 val modelId = detail.model?.id
                 _contextWindow.value = withContext(Dispatchers.IO) { c.contextWindow(modelId) }
             }

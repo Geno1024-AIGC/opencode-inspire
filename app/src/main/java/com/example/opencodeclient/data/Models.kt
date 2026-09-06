@@ -122,6 +122,7 @@ data class TokenDay(
     val msgs: Long = 0L,
     val msgsSent: Long = 0L,
     val msgsReceived: Long = 0L,
+    val cost: Double = 0.0,
 ) {
     val fresh: Long
         get() = input + output + reasoning
@@ -136,6 +137,7 @@ data class TokenDay(
         msgs = msgs + other.msgs,
         msgsSent = msgsSent + other.msgsSent,
         msgsReceived = msgsReceived + other.msgsReceived,
+        cost = cost + other.cost,
     )
 }
 
