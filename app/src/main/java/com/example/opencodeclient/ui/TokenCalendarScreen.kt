@@ -111,6 +111,7 @@ fun TokenCalendarScreen(
     val hourByMonth by viewModel.hourByMonth.collectAsStateWithLifecycle()
     val hourByWeek by viewModel.hourByWeek.collectAsStateWithLifecycle()
     val hourByDay by viewModel.hourByDay.collectAsStateWithLifecycle()
+    val tokenModelStats by viewModel.tokenModelStats.collectAsStateWithLifecycle()
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
@@ -120,12 +121,22 @@ fun TokenCalendarScreen(
     var msgMetricName by rememberSaveable { mutableStateOf(MsgMetric.TOTAL.name) }
     var catMenu by remember { mutableStateOf(false) }
     var metricMenu by remember { mutableStateOf(false) }
+    var modelMenu by remember { mutableStateOf(false) }
+    var modelName by rememberSaveable { mutableStateOf("all") }
     val category = TokenCategory.valueOf(categoryName)
     val tokenMetric = TokenMetric.valueOf(tokenMetricName)
     val msgMetric = MsgMetric.valueOf(msgMetricName)
 
-    val totalDay = history.values.fold(TokenDay()) { acc, t -> acc + t }
-    val totalElapsed = elapsed.values.sum()
+    val modelIds = remember(tokenModelStats) { tokenModelStats.keys.sorted() }
+    val activeModel = if (modelName in modelIds) modelName else "all"
+    val viewHistory = if (activeModel == "all") history else (tokenModelStats[activeModel]?.history ?: emptyMap())
+    val viewElapsed = if (activeModel == "all") elapsed else (tokenModelStats[activeModel]?.elapsed ?: emptyMap())
+    val viewHourByDay = if (activeModel == "all") hourByDay else (tokenModelStats[activeModel]?.hourByDay ?: emptyMap())
+    val viewHourByWeek = if (activeModel == "all") hourByWeek else (tokenModelStats[activeModel]?.hourByWeek ?: emptyMap())
+    val viewHourByMonth = if (activeModel == "all") hourByMonth else (tokenModelStats[activeModel]?.hourByMonth ?: emptyMap())
+
+    val totalDay = viewHistory.values.fold(TokenDay()) { acc, t -> acc + t }
+    val totalElapsed = viewElapsed.values.sum()
     val locale = Locale.getDefault()
     val today = LocalDate.now()
     var shownMonth by remember { mutableStateOf(YearMonth.now()) }
@@ -170,8 +181,44 @@ fun TokenCalendarScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState()),
             ) {
-                val monthDay = history.filterKeys { isInMonth(it, shownMonth) }.values.fold(TokenDay()) { acc, t -> acc + t }
-                val monthElapsed = elapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.calendar_model_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        Text(
+                            if (activeModel == "all") stringResource(R.string.model_all) else activeModel,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { modelMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.model_all), fontFamily = MonoFontFamily) },
+                                onClick = { modelName = "all"; modelMenu = false },
+                            )
+                            modelIds.forEach { id ->
+                                DropdownMenuItem(
+                                    text = { Text(id, fontFamily = MonoFontFamily) },
+                                    onClick = { modelName = id; modelMenu = false },
+                                )
+                            }
+                        }
+                    }
+                }
+                val monthDay = viewHistory.filterKeys { isInMonth(it, shownMonth) }.values.fold(TokenDay()) { acc, t -> acc + t }
+                val monthElapsed = viewElapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
                 SummaryTable(
                     month = monthDay,
                     total = totalDay,
@@ -271,8 +318,8 @@ fun TokenCalendarScreen(
                 }
                 when (tab) {
                     0 -> DailyCalendarTab(
-                        history = history,
-                        elapsed = elapsed,
+                        history = viewHistory,
+                        elapsed = viewElapsed,
                         shownMonth = shownMonth,
                         selected = selected,
                         locale = locale,
@@ -285,15 +332,15 @@ fun TokenCalendarScreen(
                         onSelect = { selected = it },
                     )
                     1 -> DayColumnCard(
-                        buckets = hourByDay,
+                        buckets = viewHourByDay,
                         locale = locale,
                         category = category,
                         tokenMetric = tokenMetric,
                         msgMetric = msgMetric,
                         modifier = Modifier.fillMaxWidth().height(viewportH),
                     )
-                    2 -> WeekColumnCard(buckets = hourByWeek, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
-                    3 -> MonthColumnCard(buckets = hourByMonth, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    2 -> WeekColumnCard(buckets = viewHourByWeek, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    3 -> MonthColumnCard(buckets = viewHourByMonth, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
                 }
             }
         }

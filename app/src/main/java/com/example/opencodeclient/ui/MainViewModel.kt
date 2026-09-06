@@ -28,6 +28,7 @@ import com.example.opencodeclient.data.Session
 import com.example.opencodeclient.data.SettingsRepository
 import com.example.opencodeclient.data.StoredHistoryStats
 import com.example.opencodeclient.data.TokenDay
+import com.example.opencodeclient.data.TokenModelStats
 import com.example.opencodeclient.data.Tokens
 import com.example.opencodeclient.data.Updater
 import com.example.opencodeclient.data.promptTokens
@@ -205,6 +206,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val hourByWeek: StateFlow<Map<String, Map<Int, TokenDay>>> = _hourByWeek.asStateFlow()
     private val _hourByDay = MutableStateFlow<Map<String, Map<Int, TokenDay>>>(emptyMap())
     val hourByDay: StateFlow<Map<String, Map<Int, TokenDay>>> = _hourByDay.asStateFlow()
+    private val _tokenModelStats = MutableStateFlow<Map<String, TokenModelStats>>(emptyMap())
+    val tokenModelStats: StateFlow<Map<String, TokenModelStats>> = _tokenModelStats.asStateFlow()
+    private val _sessionModelTokens = MutableStateFlow<Map<String, Map<String, TokenDay>>>(emptyMap())
+    val sessionModelTokens: StateFlow<Map<String, Map<String, TokenDay>>> = _sessionModelTokens.asStateFlow()
 
     private val _tokenSync = MutableStateFlow(0L)
 
@@ -376,6 +381,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.tokenDayHours.collect { _hourByDay.value = it }
+        }
+        viewModelScope.launch {
+            settings.tokenModelStats.collect { _tokenModelStats.value = it }
+        }
+        viewModelScope.launch {
+            settings.sessionModelTokens.collect { _sessionModelTokens.value = it }
         }
         viewModelScope.launch {
             settings.tokenSync.collect { _tokenSync.value = it }
@@ -560,6 +571,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
                     val dayHours = (if (incremental) _hourByDay.value else emptyMap())
                         .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
+                    val modelStats = (if (incremental) _tokenModelStats.value else emptyMap())
+                        .mapValues { (_, st) ->
+                            MutableTokenModelStats().apply {
+                                history.putAll(st.history)
+                                elapsed.putAll(st.elapsed)
+                                st.hourByDay.forEach { (k, m) -> hourByDay[k] = m.toMutableMap() }
+                                st.hourByWeek.forEach { (k, m) -> hourByWeek[k] = m.toMutableMap() }
+                                st.hourByMonth.forEach { (k, m) -> hourByMonth[k] = m.toMutableMap() }
+                            }
+                        }.toMutableMap()
+                    val sessionTokens = (if (incremental) _sessionModelTokens.value else emptyMap())
+                        .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
 
                     var maxMsgMs = baseSync
 
@@ -613,10 +636,24 @@ val dayKey = day.toString()
                                 val wBuckets = week.getOrPut(ws) { mutableMapOf() }
                                 wBuckets[hour] = (wBuckets[hour] ?: TokenDay()) + frag
                             }
+                            val mid = s.model?.id?.ifBlank { null } ?: "unknown"
+                            val st = modelStats.getOrPut(mid) { MutableTokenModelStats() }
+                            st.history[dayKey] = (st.history[dayKey] ?: TokenDay()) + frag
+                            st.hourByDay.getOrPut(dayKey) { mutableMapOf() }[hour] =
+                                (st.hourByDay[dayKey]?.get(hour) ?: TokenDay()) + frag
+                            st.hourByMonth.getOrPut(mKey) { mutableMapOf() }[hour] =
+                                (st.hourByMonth[mKey]?.get(hour) ?: TokenDay()) + frag
+                            if (ws in weekStartSet) {
+                                st.hourByWeek.getOrPut(ws) { mutableMapOf() }[hour] =
+                                    (st.hourByWeek[ws]?.get(hour) ?: TokenDay()) + frag
+                            }
+                            sessionTokens.getOrPut(s.id) { mutableMapOf() }[mid] =
+                                (sessionTokens[s.id]?.get(mid) ?: TokenDay()) + frag
                             if (msg.role == "user") {
                                 if (turnStart > 0L && turnEnd > turnStart) {
                                     val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
                                     elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
+                                    st.elapsed[d] = (st.elapsed[d] ?: 0L) + (turnEnd - turnStart)
                                 }
                                 turnStart = created
                                 turnEnd = created
@@ -627,6 +664,9 @@ val dayKey = day.toString()
                         if (turnStart > 0L && turnEnd > turnStart) {
                             val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
                             elapsed[d] = (elapsed[d] ?: 0L) + (turnEnd - turnStart)
+                            val midEnd = s.model?.id?.ifBlank { null } ?: "unknown"
+                            val stEnd = modelStats.getOrPut(midEnd) { MutableTokenModelStats() }
+                            stEnd.elapsed[d] = (stEnd.elapsed[d] ?: 0L) + (turnEnd - turnStart)
                         }
                     }
 
@@ -634,17 +674,31 @@ val dayKey = day.toString()
                     val weekOut = week.filterKeys { it in weekStartDatesStr }
                     val dayOut = dayHours
 
+                    val modelOut = modelStats.mapValues { (_, b) ->
+                        TokenModelStats(
+                            history = b.history,
+                            elapsed = b.elapsed,
+                            hourByDay = b.hourByDay,
+                            hourByWeek = b.hourByWeek.filterKeys { it in weekStartDatesStr },
+                            hourByMonth = b.hourByMonth.filterKeys { it in monthKeys },
+                        )
+                    }
+
                     _tokenHistory.value = tokens
                     _tokenElapsed.value = elapsed
                     _hourByMonth.value = monthOut
                     _hourByWeek.value = weekOut
                     _hourByDay.value = dayOut
+                    _tokenModelStats.value = modelOut
+                    _sessionModelTokens.value = sessionTokens
                     _tokenSync.value = maxMsgMs
                     if (coroutineContext.isActive) {
                         val syncedAtMs = System.currentTimeMillis()
                         _tokenSyncedAt.value = syncedAtMs
                         settings.saveTokenHistory(tokens, elapsed)
                         settings.saveTokenCalendar(monthOut, weekOut, dayOut, maxMsgMs, syncedAtMs)
+                        settings.saveTokenModelStats(modelOut)
+                        settings.saveSessionModelTokens(sessionTokens)
                     }
                 }
             } finally {
@@ -653,14 +707,22 @@ val dayKey = day.toString()
         }
     }
 
-    private fun sessionTitle(sid: String): String {
-        for (p in _projects.value) {
-            for (s in p.sessions) {
-                if (s.id == sid && s.title.isNotBlank()) return s.title
-            }
+private class MutableTokenModelStats {
+    val history = mutableMapOf<String, TokenDay>()
+    val elapsed = mutableMapOf<String, Long>()
+    val hourByDay = mutableMapOf<String, MutableMap<Int, TokenDay>>()
+    val hourByWeek = mutableMapOf<String, MutableMap<Int, TokenDay>>()
+    val hourByMonth = mutableMapOf<String, MutableMap<Int, TokenDay>>()
+}
+
+private fun sessionTitle(sid: String): String {
+    for (p in _projects.value) {
+        for (s in p.sessions) {
+            if (s.id == sid && s.title.isNotBlank()) return s.title
         }
-        return _activeSession.value?.title.orEmpty()
     }
+    return _activeSession.value?.title.orEmpty()
+}
 
     fun connect(serverUrl: String, username: String? = null, password: String? = null, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {

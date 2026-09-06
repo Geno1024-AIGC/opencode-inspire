@@ -140,6 +140,34 @@ data class TokenDay(
 }
 
 @Serializable
+data class TokenModelStats(
+    val history: Map<String, TokenDay> = emptyMap(),
+    val elapsed: Map<String, Long> = emptyMap(),
+    val hourByDay: Map<String, Map<Int, TokenDay>> = emptyMap(),
+    val hourByWeek: Map<String, Map<Int, TokenDay>> = emptyMap(),
+    val hourByMonth: Map<String, Map<Int, TokenDay>> = emptyMap(),
+)
+
+fun TokenModelStats.plus(other: TokenModelStats): TokenModelStats = TokenModelStats(
+    history = mergeTokenDayMap(history, other.history),
+    elapsed = (elapsed.keys + other.elapsed.keys).associateWith { (elapsed[it] ?: 0L) + (other.elapsed[it] ?: 0L) },
+    hourByDay = mergeHourMap(hourByDay, other.hourByDay),
+    hourByWeek = mergeHourMap(hourByWeek, other.hourByWeek),
+    hourByMonth = mergeHourMap(hourByMonth, other.hourByMonth),
+)
+
+private fun <K> mergeTokenDayMap(a: Map<K, TokenDay>, b: Map<K, TokenDay>): Map<K, TokenDay> =
+    (a.keys + b.keys).associateWith { (a[it] ?: TokenDay()) + (b[it] ?: TokenDay()) }
+
+private fun mergeHourMap(
+    a: Map<String, Map<Int, TokenDay>>,
+    b: Map<String, Map<Int, TokenDay>>,
+): Map<String, Map<Int, TokenDay>> =
+    (a.keys + b.keys).associateWith { key ->
+        mergeTokenDayMap(a[key] ?: emptyMap(), b[key] ?: emptyMap())
+    }
+
+@Serializable
 data class TodoInfo(
     val id: String = "",
     val content: String = "",

@@ -159,6 +159,8 @@
     <string name="calendar_table_msgs_sent">user</string>
     <string name="calendar_table_msgs_rcv">assistant</string>
     <string name="calendar_stats_metric_label">Show:</string>
+    <string name="calendar_model_label">Model:</string>
+    <string name="model_all">All</string>
     <string name="calendar_cat_token">token</string>
     <string name="calendar_cat_msgs">msgs</string>
     <string name="calendar_token_total">total</string>
