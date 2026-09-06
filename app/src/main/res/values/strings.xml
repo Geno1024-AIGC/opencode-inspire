@@ -79,7 +79,7 @@
     <string name="chat_reject_all">Reject all</string>
     <string name="scroll_to_bottom">Scroll to bottom</string>
     <string name="session_elapsed">Replied in %.1fs</string>
-    <string name="session_stats_line">time %1$.1f s, msgs %2$d</string>
+    <string name="session_stats_line">time %1$.1f s, msgs %2$d, cost %3$s</string>
     <string name="chat_working">Working…</string>
     <string name="chat_abort">Abort</string>
     <string name="chat_refresh">Refresh</string>
@@ -210,8 +210,9 @@
     <string name="about_license">License</string>
     <string name="about_license_text">MIT License</string>
     <string name="about_acknowledgments">Acknowledgments</string>
-    <string name="about_ack_text">The entire project was written by the OpenCode big-pickle model. Built on Jetpack Compose, Ktor, and Kotlin.</string>
-    <string name="about_tokens_used">App dev tokens</string>
+    <string name="about_ack_text">The entire project was written with free models provided by OpenCode Zen (the big-pickle model). Built on Jetpack Compose, Ktor, and Kotlin.</string>
+    <string name="about_tokens_used">App dev</string>
+    <string name="usage_cost">Cost</string>
     <string name="about_token_in">Input</string>
     <string name="about_token_out">Output</string>
     <string name="about_token_reasoning">Reasoning</string>
