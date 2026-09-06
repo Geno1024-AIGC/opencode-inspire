@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.occ.R
+import com.geno1024.ai.occ.data.CalendarMetric
 import com.geno1024.ai.occ.data.PunchMode
 import com.geno1024.ai.occ.data.PunchOrientation
 import com.geno1024.ai.occ.data.ShareCardData
@@ -154,6 +155,14 @@ fun ExportScreen(
     var calRange by rememberSaveable { mutableIntStateOf(0) }
     var calContinuous by rememberSaveable { mutableStateOf(false) }
     var calMonthFormat by rememberSaveable { mutableStateOf(MonthFormats.default) }
+    var calMetrics by rememberSaveable { mutableStateOf(listOf(CalendarMetric.FRESH)) }
+    fun toggleMetric(m: CalendarMetric) {
+        calMetrics = if (m in calMetrics) {
+            if (calMetrics.size > 1) calMetrics - m else calMetrics
+        } else {
+            calMetrics + m
+        }
+    }
     var customStart by rememberSaveable { mutableStateOf(startMonth.minusMonths(2)) }
     var customEnd by rememberSaveable { mutableStateOf(startMonth) }
     val monthCounts = listOf(1, 3, 6, Int.MAX_VALUE)
@@ -177,7 +186,7 @@ fun ExportScreen(
         sorted.sorted()
     }
     var calBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(history, calMonths, commonTransparent, author, calMonthFormat, calContinuous) {
+    LaunchedEffect(history, calMonths, commonTransparent, author, calMonthFormat, calContinuous, calMetrics) {
         calBitmap = withContext(Dispatchers.Default) {
             buildCalendarBitmap(
                 history = history,
@@ -191,6 +200,7 @@ fun ExportScreen(
                 author = author.trim().ifBlank { null },
                 monthPattern = calMonthFormat,
                 continuous = calContinuous,
+                metrics = calMetrics,
             )
         }
     }
@@ -341,6 +351,18 @@ fun ExportScreen(
                                 label = monthFormatTitle(calMonthFormat, startMonth, locale),
                                 options = CAL_MONTH_FORMATS + MonthFormats.default,
                             ) { i -> calMonthFormat = (CAL_MONTH_FORMATS + MonthFormats.default)[i] }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.export_metric_label), style = MaterialTheme.typography.bodyMedium)
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                CalendarMetric.entries.forEach { m ->
+                                    FilterChip(
+                                        selected = m in calMetrics,
+                                        onClick = { toggleMetric(m) },
+                                        label = { Text(stringResource(metricLabelRes(m))) },
+                                    )
+                                }
+                            }
                         }
                         Preview(calBitmap, commonTransparent, null)
                         Button(onClick = { save("opencodeclient-calendar-${if (calRange == 4) "custom" else monthCounts[calRange].let { if (it == Int.MAX_VALUE) "all" else it } }m.png", calBitmap) }, modifier = Modifier.fillMaxWidth()) {
@@ -501,6 +523,13 @@ private fun sharePalette(accentArgb: Int): List<Int> {
     return listOf(0, 60, 120, 180, 240, 300).map { deg ->
         android.graphics.Color.HSVToColor(floatArrayOf((h + deg) % 360f, s, v))
     }
+}
+
+private fun metricLabelRes(m: CalendarMetric): Int = when (m) {
+    CalendarMetric.FRESH -> R.string.export_metric_fresh
+    CalendarMetric.TOTAL -> R.string.export_metric_total
+    CalendarMetric.MSGS_USER -> R.string.export_metric_msgs_user
+    CalendarMetric.MSGS_TOTAL -> R.string.export_metric_msgs_total
 }
 
 private object MonthFormats {

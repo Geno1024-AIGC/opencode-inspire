@@ -59,22 +59,24 @@ fun buildShareCardBitmap(data: ShareCardData): Bitmap {
     val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = data.muted
         textSize = 32f
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
         letterSpacing = 0.08f
     }
     val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = data.muted
         textSize = 40f
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
     }
     val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = data.ink
         textSize = 96f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
         letterSpacing = 0.05f
     }
     val appPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = data.ink
         textSize = 34f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
         letterSpacing = 0.14f
     }
     val chipValue = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -90,6 +92,7 @@ fun buildShareCardBitmap(data: ShareCardData): Bitmap {
     val legendName = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = data.ink
         textSize = 34f
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
     }
     val legendPct = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = data.muted
@@ -141,6 +144,7 @@ fun buildShareCardBitmap(data: ShareCardData): Bitmap {
             color = data.muted
             textSize = 40f
             textAlign = Paint.Align.RIGHT
+            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
         }
         c.drawText(data.author!!, (w - margin).toFloat(), 142f, ownerPaint)
     }

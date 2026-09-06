@@ -81,6 +81,11 @@
     <string name="export_layout_paged">一月一页</string>
     <string name="export_layout_continuous">连续</string>
     <string name="export_month_fmt_label">月份格式</string>
+    <string name="export_metric_label">指标</string>
+    <string name="export_metric_fresh">新增</string>
+    <string name="export_metric_total">总计</string>
+    <string name="export_metric_msgs_user">用户消息</string>
+    <string name="export_metric_msgs_total">全部消息</string>
     <string name="session_group_today">今天</string>
     <string name="session_group_yesterday">昨天</string>
     <string name="session_group_earlier">更早</string>

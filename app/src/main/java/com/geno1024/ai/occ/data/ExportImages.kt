@@ -36,6 +36,20 @@ private fun darkened(argb: Int, factor: Float): Int {
     return Color.rgb(r, g, b)
 }
 
+enum class CalendarMetric { FRESH, TOTAL, MSGS_USER, MSGS_TOTAL }
+
+fun TokenDay.metric(m: CalendarMetric): Long = when (m) {
+    CalendarMetric.FRESH -> fresh
+    CalendarMetric.TOTAL -> total
+    CalendarMetric.MSGS_USER -> msgsSent
+    CalendarMetric.MSGS_TOTAL -> msgs
+}
+
+private val ZH_DOWS = listOf("一", "二", "三", "四", "五", "六", "日")
+
+private fun dowLabel(dow: DayOfWeek, locale: Locale): String =
+    if (locale.language.startsWith("zh")) ZH_DOWS[(dow.value - 1) % 7] else dow.getDisplayName(TextStyle.SHORT, locale)
+
 fun buildCalendarBitmap(
     history: Map<String, TokenDay>,
     months: List<YearMonth>,
@@ -48,9 +62,10 @@ fun buildCalendarBitmap(
     author: String? = null,
     monthPattern: String = "MMMM yyyy",
     continuous: Boolean = false,
+    metrics: List<CalendarMetric> = listOf(CalendarMetric.FRESH),
 ): Bitmap {
     if (continuous) {
-        return buildCalendarContinuous(history, months, locale, accent, ink, muted, transparent, appName, author, monthPattern)
+        return buildCalendarContinuous(history, months, locale, accent, ink, muted, transparent, appName, author, monthPattern, metrics)
     }
     val contentW = W - MR * 2
     val cellGap = 10f
@@ -76,22 +91,16 @@ fun buildCalendarBitmap(
         strokeWidth = 2f
     }
     val accentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accent }
-    val weekdayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = muted
-        textSize = 28f
-        textAlign = Paint.Align.CENTER
-        letterSpacing = 0.08f
-    }
     val appPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink
         textSize = 32f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
         letterSpacing = 0.12f
     }
     val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink
         textSize = 46f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
         textAlign = Paint.Align.CENTER
     }
     val totalPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -102,8 +111,16 @@ fun buildCalendarBitmap(
     }
     val dayTokensPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = darkened(accent, 0.55f)
-        textSize = 22f
+        textSize = 20f
         textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+    }
+    val weekHeaderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = muted
+        textSize = 28f
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        letterSpacing = 0.06f
     }
     val mutedOut = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = (muted and 0x00FFFFFF) or 0x55000000
@@ -134,8 +151,9 @@ fun buildCalendarBitmap(
         val monthDates = history.keys.mapNotNull { k ->
             runCatching { LocalDate.parse(k) }.getOrNull()
         }.filter { it.year == month.year && it.month == month.month }
-        val monthMax = monthDates.mapNotNull { history[it.toString()] }.maxOfOrNull { it.fresh } ?: 0L
-        val monthTotal = monthDates.sumOf { history[it.toString()]?.fresh ?: 0L }
+        val primary = metrics.firstOrNull() ?: CalendarMetric.FRESH
+        val monthMax = monthDates.mapNotNull { history[it.toString()] }.maxOfOrNull { it.metric(primary) } ?: 0L
+        val monthTotal = monthDates.sumOf { history[it.toString()]?.metric(primary) ?: 0L }
 
         val first = month.atDay(1)
         val leading = (first.dayOfWeek.value - startDow.value + 7) % 7
@@ -144,19 +162,19 @@ fun buildCalendarBitmap(
 
         repeat(7) { i ->
             val cx = MR + cell / 2f + i * (cell + cellGap)
-            val label = startDow.plus(i.toLong()).getDisplayName(TextStyle.SHORT, locale)
-            c.drawText(label.uppercase(locale), cx, gridTop + 8f, weekdayPaint)
+            c.drawText(dowLabel(startDow.plus(i.toLong()), locale), cx, gridTop + 8f, weekHeaderPaint)
         }
         for (r in 0 until 6) {
             for (col in 0 until 7) {
                 val date = gridStart.plusDays((r * 7 + col).toLong())
                 val inMonth = date.month == first.month && date.year == first.year
-                val tokens = if (inMonth) (history[date.toString()]?.fresh ?: 0L) else 0L
+                val day = history[date.toString()]
+                val primaryVal = if (inMonth) (day?.metric(primary) ?: 0L) else 0L
                 val cx = MR + cell / 2f + col * (cell + cellGap)
                 val cy = gridTop + 44f + r * (cell + cellGap) + cell / 2f
                 val radius = cell / 2f - 5f
-                if (inMonth && date != today && tokens > 0L) {
-                    val frac = (tokens.toDouble() / monthMax).toFloat().coerceIn(0f, 1f)
+                if (inMonth && date != today && primaryVal > 0L) {
+                    val frac = (primaryVal.toDouble() / monthMax).toFloat().coerceIn(0f, 1f)
                     c.drawCircle(
                         cx, cy, radius,
                         Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -171,16 +189,22 @@ fun buildCalendarBitmap(
                 val numPainter = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     textSize = if (inMonth) 34f else 30f
                     textAlign = Paint.Align.CENTER
+                    typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
                     color = when {
                         date == today -> Color.WHITE
-                        inMonth && tokens > 0L -> darkened(accent, 0.5f)
+                        inMonth && primaryVal > 0L -> darkened(accent, 0.5f)
                         inMonth -> ink
                         else -> (muted and 0x00FFFFFF) or 0x40000000
                     }
                 }
                 c.drawText(date.dayOfMonth.toString(), cx, cy + 12f, numPainter)
-                if (inMonth && tokens > 0L && date != today) {
-                    c.drawText(compactTokens(tokens), cx, cy + 42f, dayTokensPaint)
+                if (inMonth && day != null && date != today) {
+                    metrics.forEachIndexed { mi, m ->
+                        val v = day.metric(m)
+                        if (v > 0L) {
+                            c.drawText(compactTokens(v), cx, cy + 44f + mi * 26f, dayTokensPaint)
+                        }
+                    }
                 }
             }
         }
@@ -205,6 +229,7 @@ private fun buildCalendarContinuous(
     appName: String,
     author: String?,
     monthPattern: String,
+    metrics: List<CalendarMetric>,
 ): Bitmap {
     if (months.isEmpty()) return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
     val startMonth = months.first()
@@ -243,22 +268,23 @@ private fun buildCalendarContinuous(
         strokeWidth = 2f
     }
     val accentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accent }
-    val weekdayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    val weekHeaderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = muted
         textSize = 28f
         textAlign = Paint.Align.CENTER
-        letterSpacing = 0.08f
+        letterSpacing = 0.06f
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
     }
     val appPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink
         textSize = 32f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
         letterSpacing = 0.12f
     }
     val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink
         textSize = 46f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
         textAlign = Paint.Align.CENTER
     }
     val totalPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -277,11 +303,13 @@ private fun buildCalendarContinuous(
         color = darkened(accent, 0.55f)
         textSize = 20f
         textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
     }
     val authorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = muted
         textSize = 26f
         textAlign = Paint.Align.RIGHT
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
     }
 
     var y = 0f
@@ -289,7 +317,8 @@ private fun buildCalendarContinuous(
     c.drawText("${appName.uppercase()}  ·  USAGE CALENDAR", 96f, 88f, appPaint)
     y = 96f
 
-    val total = (0L until dayCount).map { history[start.plusDays(it).toString()]?.fresh ?: 0L }
+    val primary = metrics.firstOrNull() ?: CalendarMetric.FRESH
+    val total = (0L until dayCount).map { history[start.plusDays(it).toString()]?.metric(primary) ?: 0L }
     val dayMax = (total.maxOrNull() ?: 0L).coerceAtLeast(1L)
     val dayTotal = total.sum()
 
@@ -305,7 +334,7 @@ private fun buildCalendarContinuous(
 
     repeat(7) { i ->
         val cx = MR + cell / 2f + i * (cell + cellGap)
-        c.drawText(startDow.plus(i.toLong()).getDisplayName(TextStyle.SHORT, locale).uppercase(locale), cx, cardTop + 84f, weekdayPaint)
+        c.drawText(dowLabel(startDow.plus(i.toLong()), locale), cx, cardTop + 84f, weekHeaderPaint)
     }
     val gridTop = cardTop + 92f
     val today = LocalDate.now()
@@ -317,9 +346,10 @@ private fun buildCalendarContinuous(
             val cy = gridTop + r * (cell + cellGap) + cell / 2f
             val radius = cell / 2f - 5f
             if (inRange) {
-                val tokens = history[date.toString()]?.fresh ?: 0L
-                if (date != today && tokens > 0L) {
-                    val frac = (tokens.toFloat() / dayMax).coerceIn(0f, 1f)
+                val day = history[date.toString()]
+                val primaryVal = day?.metric(primary) ?: 0L
+                if (date != today && primaryVal > 0L) {
+                    val frac = (primaryVal.toFloat() / dayMax).coerceIn(0f, 1f)
                     c.drawCircle(
                         cx, cy, radius,
                         Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -331,10 +361,15 @@ private fun buildCalendarContinuous(
                 if (date == today) {
                     c.drawCircle(cx, cy, radius, accentPaint)
                 }
-                val numColor = if (date == today) Color.WHITE else if (tokens > 0L) darkened(accent, 0.5f) else ink
+                val numColor = if (date == today) Color.WHITE else if (primaryVal > 0L) darkened(accent, 0.5f) else ink
                 c.drawText(date.format(DateTimeFormatter.ofPattern("MM-dd", locale)), cx, cy + 8f, dayLabelPaint.apply { color = numColor })
-                if (tokens > 0L && date != today) {
-                    c.drawText(compactTokens(tokens), cx, cy + 34f, dayTokensPaint)
+                if (day != null && date != today) {
+                    metrics.forEachIndexed { mi, m ->
+                        val v = day.metric(m)
+                        if (v > 0L) {
+                            c.drawText(compactTokens(v), cx, cy + 34f + mi * 24f, dayTokensPaint)
+                        }
+                    }
                 }
             }
         }
@@ -432,6 +467,7 @@ private fun buildPunchcardHourly(
     val monoBold: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
     val monoPlain: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
     val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; typeface = monoPlain }
+    val tickRight = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; typeface = monoPlain; textAlign = Paint.Align.RIGHT }
     val head = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink; textSize = 26f; typeface = monoBold; textAlign = Paint.Align.CENTER
     }
@@ -449,7 +485,7 @@ private fun buildPunchcardHourly(
         c.drawText("${dates.size} days", domainX + bodyW + padLR, 44f, rightHead)
         for (hour in 0 until 24) {
             val y = domainY + hour * (cell + gap) + cell / 2
-            c.drawText("%02d".format(Locale.ROOT, hour), leftW + 4f, y + 8f, tick)
+            c.drawText("%02d".format(Locale.ROOT, hour), domainX - 10f, y + 8f, tickRight)
         }
     } else {
         for (hour in 0 until 24) {
@@ -460,7 +496,7 @@ private fun buildPunchcardHourly(
             if (date.dayOfMonth == 1) {
                 val y = domainY + di * (cell + gap) + cell / 2
                 val txt = if (date.monthValue == 1) date.year.toString() else date.month.getDisplayName(TextStyle.SHORT, locale).uppercase(locale)
-                c.drawText(txt, leftW + 2f, y + 9f, tick)
+                c.drawText(txt, domainX - 10f, y + 9f, tickRight)
             }
         }
     }
@@ -537,6 +573,7 @@ private fun buildPunchcardDaily(
     val monoBold: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
     val monoPlain: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
     val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 22f; typeface = monoPlain }
+    val tickRight = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 22f; typeface = monoPlain; textAlign = Paint.Align.RIGHT }
     val head = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink; textSize = 24f; typeface = monoBold; textAlign = Paint.Align.CENTER
     }
@@ -544,7 +581,7 @@ private fun buildPunchcardDaily(
     if (orientation == PunchOrientation.HORIZONTAL) {
         dowOrder.forEachIndexed { i, dow ->
             val x = domainX + i * (cell + gap) + cell / 2
-            c.drawText(dow.getDisplayName(TextStyle.SHORT, locale).uppercase(locale), x, 30f, head)
+            c.drawText(dowLabel(dow, locale), x, 30f, head)
         }
         weekStartDates.forEachIndexed { wi, w ->
             val y = domainY + wi * (cell + gap) + cell / 2
@@ -553,12 +590,12 @@ private fun buildPunchcardDaily(
             } else {
                 "${w.monthValue}/${w.dayOfMonth}"
             }
-            c.drawText(label, leftW + 2f, y + 7f, tick)
+            c.drawText(label, domainX - 10f, y + 7f, tickRight)
         }
     } else {
         dowOrder.forEachIndexed { i, dow ->
             val y = domainY + i * (cell + gap) + cell / 2
-            c.drawText(dow.getDisplayName(TextStyle.SHORT, locale).uppercase(locale), leftW + 2f, y + 7f, tick)
+            c.drawText(dowLabel(dow, locale), domainX - 10f, y + 7f, tickRight)
         }
         weekStartDates.forEachIndexed { wi, w ->
             if (w.dayOfMonth <= 7) {
