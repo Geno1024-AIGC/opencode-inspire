@@ -640,7 +640,7 @@ private fun ExpandableProject(
 ) {
     var expanded by rememberSaveable(project.id) { mutableStateOf(project.sessions.isEmpty()) }
     val orderedSessions = remember(project.sessions, favorites, archived) {
-        project.sessions.filter { it.id !in archived && it.id !in favorites }.sortedByDescending { it.id in favorites }
+        project.sessions.filter { it.id !in archived }.sortedByDescending { it.id in favorites }
     }
     val groupedSessions = remember(orderedSessions) { groupSessionsByDay(orderedSessions) }
     Column {
