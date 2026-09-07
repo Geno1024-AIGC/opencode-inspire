@@ -426,7 +426,8 @@ private fun buildPunchcardHourly(
     val bodyW = (cell + gap) * nCols
     val bodyH = (cell + gap) * nRows
     val domainX = leftW + padLR
-    val w = (domainX + bodyW + padLR).toInt()
+    val legendPad = 160f
+    val w = (domainX + bodyW + padLR + legendPad).toInt()
     val h = (topLabelH + padLR + bodyH + legendH).toInt()
 
     val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -539,7 +540,8 @@ private fun buildPunchcardDaily(
     val bodyW = (cell + gap) * nCols
     val bodyH = (cell + gap) * nRows
     val domainX = leftW + padLR
-    val w = (domainX + bodyW + padLR).toInt()
+    val legendPad = 160f
+    val w = (domainX + bodyW + padLR + legendPad).toInt()
     val h = (topRowH + padLR + bodyH + legendH).toInt()
 
     val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
