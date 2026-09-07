@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -66,6 +67,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
@@ -497,6 +499,7 @@ private fun MonthColumnCard(
         tokenMetric = tokenMetric,
         msgMetric = msgMetric,
         modifier = modifier,
+        minColumnWidth = 34.dp,
     )
 }
 
@@ -577,6 +580,7 @@ private fun PeriodColumns(
     msgMetric: MsgMetric,
     modifier: Modifier = Modifier,
     onLabelClick: ((index: Int, key: String) -> Unit)? = null,
+    minColumnWidth: Dp = 0.dp,
 ) {
     val mono = MonoFontFamily
     val primary = MaterialTheme.colorScheme.primary
@@ -638,7 +642,9 @@ private fun PeriodColumns(
             Row(verticalAlignment = Alignment.Top) {
                 periods.forEachIndexed { index, (key, m) ->
                     Column(
-                        Modifier.padding(end = 3.dp),
+                        Modifier
+                            .padding(end = 3.dp)
+                            .widthIn(min = minColumnWidth),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         val labelModifier = if (onLabelClick != null) {
