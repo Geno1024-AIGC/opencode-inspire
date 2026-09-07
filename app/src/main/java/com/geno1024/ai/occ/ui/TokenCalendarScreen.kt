@@ -132,7 +132,7 @@ fun TokenCalendarScreen(
     var catMenu by remember { mutableStateOf(false) }
     var metricMenu by remember { mutableStateOf(false) }
     var emptyModeMenu by remember { mutableStateOf(false) }
-    var emptyModeName by rememberSaveable { mutableStateOf(EmptyPeriodMode.SHOW_ALL.name) }
+    var emptyModeName by rememberSaveable { mutableStateOf(EmptyPeriodMode.HIDE_EMPTY.name) }
     var modelMenu by remember { mutableStateOf(false) }
     var modelName by rememberSaveable { mutableStateOf("all") }
     val category = TokenCategory.valueOf(categoryName)
@@ -500,13 +500,21 @@ private fun DayColumnCard(
     modifier: Modifier = Modifier,
 ) {
     val sorted = buckets.toSortedMap()
-    val periods = sorted.keys.toList()
-    val labels = periods.map { key ->
-        runCatching { LocalDate.parse(key).format(DateTimeFormatter.ofPattern("MM-dd", locale)) }
-            .getOrDefault(key)
+    val labels: MutableList<String> = mutableListOf()
+    val periods: List<Pair<String, Map<Int, TokenDay>>> = buildList {
+        if (sorted.isNotEmpty()) {
+            var d = LocalDate.parse(sorted.firstKey())
+            val last = LocalDate.now()
+            while (!d.isAfter(last)) {
+                val key = d.toString()
+                add(key to (sorted[key] ?: emptyMap()))
+                labels.add(d.format(DateTimeFormatter.ofPattern("MM-dd", locale)))
+                d = d.plusDays(1)
+            }
+        }
     }
     PeriodColumns(
-        periods = sorted.map { it.key to it.value },
+        periods = periods,
         labels = labels,
         category = category,
         tokenMetric = tokenMetric,
@@ -527,13 +535,21 @@ private fun MonthColumnCard(
     modifier: Modifier = Modifier,
 ) {
     val sorted = buckets.toSortedMap()
-    val periods = sorted.keys.toList()
-    val labels = periods.map { key ->
-        runCatching { YearMonth.parse(key).format(DateTimeFormatter.ofPattern("yyyy-MM", locale)) }
-            .getOrDefault(key)
+    val labels: MutableList<String> = mutableListOf()
+    val periods: List<Pair<String, Map<Int, TokenDay>>> = buildList {
+        if (sorted.isNotEmpty()) {
+            var m = YearMonth.parse(sorted.firstKey())
+            val last = YearMonth.now()
+            while (!m.isAfter(last)) {
+                val key = m.toString()
+                add(key to (sorted[key] ?: emptyMap()))
+                labels.add(m.format(DateTimeFormatter.ofPattern("yyyy-MM", locale)))
+                m = m.plusMonths(1)
+            }
+        }
     }
     PeriodColumns(
-        periods = sorted.map { it.key to it.value },
+        periods = periods,
         labels = labels,
         category = category,
         tokenMetric = tokenMetric,
@@ -554,17 +570,26 @@ private fun WeekColumnCard(
     modifier: Modifier = Modifier,
 ) {
     val sorted = buckets.toSortedMap()
-    val periods = sorted.keys.toList()
     var clickedWeek by remember { mutableStateOf<LocalDate?>(null) }
-    val labels = periods.map { key ->
-        runCatching {
-            val date = LocalDate.parse(key)
-            val week = date.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
-            "%d-W%02d".format(Locale.ROOT, date.year, week)
-        }.getOrDefault(key)
+    val firstDow = WeekFields.of(locale).firstDayOfWeek.value
+    val labels: MutableList<String> = mutableListOf()
+    val periods: List<Pair<String, Map<Int, TokenDay>>> = buildList {
+        if (sorted.isNotEmpty()) {
+            var d = LocalDate.parse(sorted.firstKey())
+                .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow)))
+            val todayStart = LocalDate.now()
+                .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow)))
+            while (!d.isAfter(todayStart)) {
+                val key = d.toString()
+                add(key to (sorted[key] ?: emptyMap()))
+                val week = d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+                labels.add("%d-W%02d".format(Locale.ROOT, d.year, week))
+                d = d.plusDays(7)
+            }
+        }
     }
     PeriodColumns(
-        periods = sorted.map { it.key to it.value },
+        periods = periods,
         labels = labels,
         category = category,
         tokenMetric = tokenMetric,
