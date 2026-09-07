@@ -35,10 +35,12 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -70,6 +72,8 @@ import androidx.compose.ui.res.painterResource
 import com.geno1024.ai.occ.R
 import com.geno1024.ai.occ.data.Message
 import com.geno1024.ai.occ.data.Session
+import com.geno1024.ai.occ.data.buildChatScreenshot
+import com.geno1024.ai.occ.data.saveBitmapToDownloads
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.AlertDialog
@@ -102,9 +106,11 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 import com.geno1024.ai.occ.data.FileNode
 import com.geno1024.ai.occ.data.ModelInfo
@@ -189,6 +195,16 @@ fun ChatScreen(
     var userScrolledAway by remember { mutableStateOf(false) }
     var rawMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var previewUrl by remember { mutableStateOf<String?>(null) }
+    var selectMode by rememberSaveable { mutableStateOf(false) }
+    var selectedIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
+    var rangeAnchorId by remember { mutableStateOf<String?>(null) }
+    var rangeArmed by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = selectMode) {
+        selectMode = false
+        selectedIds = emptySet()
+        rangeAnchorId = null
+        rangeArmed = false
+    }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchActive by rememberSaveable { mutableStateOf(false) }
     var attachedFile by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -252,6 +268,56 @@ fun ChatScreen(
             }
         } else {
             now = 0L
+        }
+    }
+
+    fun selectMessage(id: String) {
+        if (!selectMode) return
+        if (rangeArmed) {
+            if (rangeAnchorId == null) {
+                rangeAnchorId = id
+                return
+            }
+            val anchor = rangeAnchorId ?: return
+            if (anchor != id) {
+                val chrono = messages.map { it.id }
+                val a = chrono.indexOf(anchor)
+                val b = chrono.indexOf(id)
+                if (a >= 0 && b >= 0) {
+                    val (lo, hi) = if (a < b) a to b else b to a
+                    selectedIds = selectedIds + chrono.slice(lo..hi).toSet()
+                }
+                rangeAnchorId = null
+                rangeArmed = false
+                return
+            }
+        }
+        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+    }
+
+    fun toggleRangeMode() {
+        rangeArmed = !rangeArmed
+        rangeAnchorId = null
+    }
+
+    fun captureSelection() {
+        // preserve chronological order of messages
+        val ordered = messages.filter { it.id in selectedIds }
+        coroutineScope.launch {
+            val bmp = withContext(Dispatchers.Default) { buildChatScreenshot(ordered) }
+            if (bmp == null) {
+                Toast.makeText(context, R.string.export_none_selected, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val ok = withContext(Dispatchers.IO) {
+                saveBitmapToDownloads(context, "opencodeclient-chat-selection.png", bmp)
+            }
+            Toast.makeText(
+                context,
+                if (ok) context.getString(R.string.export_saved, "opencodeclient-chat-selection.png")
+                else context.getString(R.string.export_failed),
+                Toast.LENGTH_LONG,
+            ).show()
         }
     }
 
@@ -332,6 +398,76 @@ fun ChatScreen(
                     singleLine = true,
                 )
             }
+            if (selectMode) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.chat_select_mode),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            stringResource(R.string.chat_selected_count, selectedIds.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = MonoFontFamily,
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = { toggleRangeMode() },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            if (rangeArmed) stringResource(R.string.chat_select_range_tip) else stringResource(R.string.chat_select_range),
+                            color = if (rangeArmed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (rangeArmed) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            selectedIds = emptySet()
+                            rangeAnchorId = null
+                            rangeArmed = false
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.chat_select_clear)) }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Button(
+                        onClick = { captureSelection() },
+                        enabled = selectedIds.isNotEmpty(),
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.chat_select_export)) }
+                    OutlinedButton(
+                        onClick = {
+                            selectMode = false
+                            selectedIds = emptySet()
+                            rangeAnchorId = null
+                            rangeArmed = false
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.drawer_close)) }
+                }
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -379,6 +515,16 @@ fun ChatScreen(
                         onShowRaw = { rawMessage = msg },
                         onRegenerate = { viewModel.regenerate() },
                         onOpenLink = { previewUrl = it },
+                        selectMode = selectMode,
+                        selected = msg.id in selectedIds,
+                        onSelect = { selectMessage(msg.id) },
+                        onEnterSelectMode = {
+                            if (!selectMode) {
+                                selectMode = true
+                                selectedIds = setOf(msg.id)
+                                rangeAnchorId = null
+                            }
+                        },
                     )
                 }
             }
@@ -1140,6 +1286,7 @@ private fun TodoRow(todo: TodoUi) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBubble(
     msg: ChatMessage,
@@ -1154,6 +1301,10 @@ private fun MessageBubble(
     onShowRaw: () -> Unit = {},
     onRegenerate: () -> Unit = {},
     onOpenLink: (String) -> Unit = {},
+    selectMode: Boolean = false,
+    selected: Boolean = false,
+    onSelect: () -> Unit = {},
+    onEnterSelectMode: () -> Unit = {},
 ) {
     if (msg.role == "system") {
         SystemNotice(msg.text)
@@ -1184,14 +1335,62 @@ private fun MessageBubble(
         bottomEnd = if (isUser) 4.dp else 16.dp,
     )
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (selectMode) {
+                    Modifier.combinedClickable(
+                        onClick = onSelect,
+                        onLongClick = onSelect,
+                    )
+                } else {
+                    Modifier.combinedClickable(
+                        onClick = {},
+                        onLongClick = onEnterSelectMode,
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                    )
+                }
+            ),
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.85f else 0.95f),
+            modifier = Modifier
+                .fillMaxWidth(if (isUser) 0.85f else 0.95f)
+                .background(
+                    if (selectMode && selected) {
+                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)
+                    } else {
+                        Color.Transparent
+                    },
+                    RoundedCornerShape(12.dp),
+                )
+                .padding(if (selectMode) 4.dp else 0.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            if (selectMode) {
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .padding(top = 12.dp)
+                        .background(
+                            if (selected) MaterialTheme.colorScheme.secondary
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                            CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selected) {
+                        Icon(
+                            Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondary,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                }
+            }
             if (!isUser && msg.parts.isNotEmpty()) {
                 Icon(
                     painterResource(R.drawable.ic_build),

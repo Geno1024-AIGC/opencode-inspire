@@ -124,6 +124,13 @@
 
     <!-- Chat -->
     <string name="chat_placeholder">Message OpenCode…</string>
+    <string name="chat_select_mode">Select messages</string>
+    <string name="chat_selected_count">%d selected</string>
+    <string name="chat_select_range">Range</string>
+    <string name="chat_select_range_tip">Range: tap two messages</string>
+    <string name="chat_select_clear">Clear</string>
+    <string name="chat_select_export">Save screenshot</string>
+    <string name="export_none_selected">No messages selected</string>
     <string name="chat_erase_title">OpenCode asks</string>
     <string name="chat_custom_answer">Custom answer</string>
     <string name="chat_submit">Submit</string>
