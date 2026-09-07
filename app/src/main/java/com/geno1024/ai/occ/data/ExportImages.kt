@@ -14,6 +14,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
+import com.geno1024.ai.occ.ui.monoAndroidTypeface
 
 private const val W = 1080
 private const val MR = 44
@@ -94,32 +95,32 @@ fun buildCalendarBitmap(
     val appPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink
         textSize = 32f
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        typeface = monoAndroidTypeface(bold = true)
         letterSpacing = 0.12f
     }
     val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink
         textSize = 46f
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        typeface = monoAndroidTypeface(bold = true)
         textAlign = Paint.Align.CENTER
     }
     val totalPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = muted
         textSize = 32f
         textAlign = Paint.Align.RIGHT
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        typeface = monoAndroidTypeface(bold = true)
     }
     val dayTokensPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = darkened(accent, 0.55f)
         textSize = 20f
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+        typeface = monoAndroidTypeface()
     }
     val weekHeaderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = muted
         textSize = 28f
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        typeface = monoAndroidTypeface(bold = true)
         letterSpacing = 0.06f
     }
     val mutedOut = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -189,7 +190,7 @@ fun buildCalendarBitmap(
                 val numPainter = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     textSize = if (inMonth) 34f else 30f
                     textAlign = Paint.Align.CENTER
-                    typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+                    typeface = monoAndroidTypeface()
                     color = when {
                         date == today -> Color.WHITE
                         inMonth && primaryVal > 0L -> darkened(accent, 0.5f)
@@ -273,43 +274,43 @@ private fun buildCalendarContinuous(
         textSize = 28f
         textAlign = Paint.Align.CENTER
         letterSpacing = 0.06f
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        typeface = monoAndroidTypeface(bold = true)
     }
     val appPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink
         textSize = 32f
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        typeface = monoAndroidTypeface(bold = true)
         letterSpacing = 0.12f
     }
     val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink
         textSize = 46f
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        typeface = monoAndroidTypeface(bold = true)
         textAlign = Paint.Align.CENTER
     }
     val totalPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = muted
         textSize = 32f
         textAlign = Paint.Align.RIGHT
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        typeface = monoAndroidTypeface(bold = true)
     }
     val dayLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ink
         textSize = 22f
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+        typeface = monoAndroidTypeface()
     }
     val dayTokensPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = darkened(accent, 0.55f)
         textSize = 20f
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+        typeface = monoAndroidTypeface()
     }
     val authorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = muted
         textSize = 26f
         textAlign = Paint.Align.RIGHT
-        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+        typeface = monoAndroidTypeface()
     }
 
     var y = 0f
@@ -464,8 +465,8 @@ private fun buildPunchcardHourly(
         }
     }
 
-    val monoBold: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-    val monoPlain: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+    val monoBold: Typeface = monoAndroidTypeface(bold = true)
+    val monoPlain: Typeface = monoAndroidTypeface()
     val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; typeface = monoPlain }
     val tickRight = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; typeface = monoPlain; textAlign = Paint.Align.RIGHT }
     val head = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -570,8 +571,8 @@ private fun buildPunchcardDaily(
         c.drawRoundRect(RectF(x, y, x + cell, y + cell), 5f, 5f, fill)
     }
 
-    val monoBold: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-    val monoPlain: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+    val monoBold: Typeface = monoAndroidTypeface(bold = true)
+    val monoPlain: Typeface = monoAndroidTypeface()
     val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 22f; typeface = monoPlain }
     val tickRight = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 22f; typeface = monoPlain; textAlign = Paint.Align.RIGHT }
     val head = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -620,7 +621,7 @@ private fun buildPunchcardDaily(
 private fun drawLegend(c: Canvas, accent: Int, muted: Int, maxV: Long, w: Int, h: Int, padLR: Float, fill: Paint) {
     fill.color = accent
     val legendY = h - 44f
-    val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL) }
+    val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 24f; typeface = monoAndroidTypeface() }
     c.drawText("LESS", padLR, legendY, tick)
     val steps = 10
     val stepW = 22f
@@ -631,7 +632,7 @@ private fun drawLegend(c: Canvas, accent: Int, muted: Int, maxV: Long, w: Int, h
     }
     c.drawText("MORE", gradX + steps * stepW + 10f, legendY + 9f, tick)
     val rightHead = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = muted; textSize = 24f; textAlign = Paint.Align.RIGHT; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        color = muted; textSize = 24f; textAlign = Paint.Align.RIGHT; typeface = monoAndroidTypeface(bold = true)
     }
     c.drawText(compactTokens(maxV) + " max", w - padLR, legendY, rightHead)
 }

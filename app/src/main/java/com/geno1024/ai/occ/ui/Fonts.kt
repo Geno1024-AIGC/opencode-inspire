@@ -1,5 +1,6 @@
 package com.geno1024.ai.occ.ui
 
+import android.graphics.Typeface
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -21,3 +22,12 @@ val MonoFontFamily: FontFamily = MonoFontCandidates
         )
     }
     ?: FontFamily.Monospace
+
+fun monoAndroidTypeface(bold: Boolean = false): Typeface {
+    val base = MonoFontCandidates.asSequence()
+        .map { File(it) }
+        .firstOrNull { it.exists() }
+        ?.let { file -> runCatching { Typeface.createFromFile(file) }.getOrNull() }
+        ?: Typeface.MONOSPACE
+    return if (bold) Typeface.create(base, Typeface.BOLD) else base
+}
