@@ -139,10 +139,9 @@ fun buildCalendarBitmap(
 
     var y = 0f
     c.drawRoundRect(RectF(48f, 66f, 72f, 90f), 8f, 8f, accentPaint)
-    c.drawText("${appName.uppercase()}  ·  USAGE CALENDAR", 96f, 88f, appPaint)
+    c.drawText("$appName, Usage Calendar", 96f, 88f, appPaint)
     y = 96f
 
-    val today = LocalDate.now()
     monthsCapped.forEach { month ->
         c.drawRoundRect(RectF(28f, y, W - 28f, y + blockH), 40f, 40f, card)
         c.drawRoundRect(RectF(28f, y, W - 28f, y + blockH), 40f, 40f, cardBorder)
@@ -174,7 +173,7 @@ fun buildCalendarBitmap(
                 val cx = MR + cell / 2f + col * (cell + cellGap)
                 val cy = gridTop + 44f + r * (cell + cellGap) + cell / 2f
                 val radius = cell / 2f - 5f
-                if (inMonth && date != today && primaryVal > 0L) {
+                if (inMonth && primaryVal > 0L) {
                     val frac = (primaryVal.toDouble() / monthMax).toFloat().coerceIn(0f, 1f)
                     c.drawCircle(
                         cx, cy, radius,
@@ -184,22 +183,18 @@ fun buildCalendarBitmap(
                         },
                     )
                 }
-                if (date == today) {
-                    c.drawCircle(cx, cy, radius, accentPaint)
-                }
                 val numPainter = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     textSize = if (inMonth) 34f else 30f
                     textAlign = Paint.Align.CENTER
                     typeface = monoAndroidTypeface()
                     color = when {
-                        date == today -> Color.WHITE
                         inMonth && primaryVal > 0L -> darkened(accent, 0.5f)
                         inMonth -> ink
                         else -> (muted and 0x00FFFFFF) or 0x40000000
                     }
                 }
                 c.drawText(date.dayOfMonth.toString(), cx, cy + 12f, numPainter)
-                if (inMonth && day != null && date != today) {
+                if (inMonth && day != null) {
                     metrics.forEachIndexed { mi, m ->
                         val v = day.metric(m)
                         if (v > 0L) {
@@ -315,7 +310,7 @@ private fun buildCalendarContinuous(
 
     var y = 0f
     c.drawRoundRect(RectF(48f, 66f, 72f, 90f), 8f, 8f, accentPaint)
-    c.drawText("${appName.uppercase()}  ·  USAGE CALENDAR", 96f, 88f, appPaint)
+    c.drawText("$appName, Usage Calendar", 96f, 88f, appPaint)
     y = 96f
 
     val primary = metrics.firstOrNull() ?: CalendarMetric.FRESH
@@ -330,15 +325,26 @@ private fun buildCalendarContinuous(
     val startLabel = startMonth.format(DateTimeFormatter.ofPattern(monthPattern, locale))
     val endLabel = endMonth.format(DateTimeFormatter.ofPattern(monthPattern, locale))
     val rangeLabel = if (startMonth == endMonth) startLabel else "$startLabel — $endLabel"
-    c.drawText(rangeLabel, W / 2f, cardTop + 52f, titlePaint)
-    c.drawText("Σ " + NumberFormat.getIntegerInstance().format(dayTotal), W - 28f - 40f, cardTop + 52f, totalPaint)
+    val totalText = "Σ " + NumberFormat.getIntegerInstance().format(dayTotal)
+    val reservedRight = totalPaint.measureText(totalText) + 56f
+    val labelRight = (W - 28f - reservedRight).coerceAtLeast(MR.toFloat() + 24f)
+    val available = labelRight - MR.toFloat()
+    var fitLabel = rangeLabel
+    if (titlePaint.measureText(fitLabel) > available) {
+        var s = rangeLabel
+        while (s.isNotEmpty() && titlePaint.measureText(s + "…") > available) {
+            s = s.dropLast(1)
+        }
+        fitLabel = if (s.isEmpty()) s else s + "…"
+    }
+    c.drawText(fitLabel, (MR.toFloat() + labelRight) / 2f, cardTop + 52f, titlePaint)
+    c.drawText(totalText, W - 28f - 40f, cardTop + 52f, totalPaint)
 
     repeat(7) { i ->
         val cx = MR + cell / 2f + i * (cell + cellGap)
         c.drawText(dowLabel(startDow.plus(i.toLong()), locale), cx, cardTop + 84f, weekHeaderPaint)
     }
     val gridTop = cardTop + 92f
-    val today = LocalDate.now()
     for (r in 0 until nRows) {
         for (col in 0 until 7) {
             val date = gridStart.plusDays((r * 7 + col).toLong())
@@ -349,7 +355,7 @@ private fun buildCalendarContinuous(
             if (inRange) {
                 val day = history[date.toString()]
                 val primaryVal = day?.metric(primary) ?: 0L
-                if (date != today && primaryVal > 0L) {
+                if (primaryVal > 0L) {
                     val frac = (primaryVal.toFloat() / dayMax).coerceIn(0f, 1f)
                     c.drawCircle(
                         cx, cy, radius,
@@ -359,12 +365,9 @@ private fun buildCalendarContinuous(
                         },
                     )
                 }
-                if (date == today) {
-                    c.drawCircle(cx, cy, radius, accentPaint)
-                }
-                val numColor = if (date == today) Color.WHITE else if (primaryVal > 0L) darkened(accent, 0.5f) else ink
+                val numColor = if (primaryVal > 0L) darkened(accent, 0.5f) else ink
                 c.drawText(date.format(DateTimeFormatter.ofPattern("MM-dd", locale)), cx, cy + 8f, dayLabelPaint.apply { color = numColor })
-                if (day != null && date != today) {
+                if (day != null) {
                     metrics.forEachIndexed { mi, m ->
                         val v = day.metric(m)
                         if (v > 0L) {
