@@ -61,7 +61,6 @@ import com.geno1024.ai.occ.data.CalendarMetric
 import com.geno1024.ai.occ.data.PunchMode
 import com.geno1024.ai.occ.data.PunchOrientation
 import com.geno1024.ai.occ.data.ShareCardData
-import com.geno1024.ai.occ.data.ShareCardModel
 import com.geno1024.ai.occ.data.TokenDay
 import com.geno1024.ai.occ.data.buildCalendarBitmap
 import com.geno1024.ai.occ.data.buildPunchcardBitmap
@@ -84,15 +83,30 @@ fun ExportScreen(
     startMonth: YearMonth,
     onBack: () -> Unit,
 ) {
-    BackHandler(onBack = onBack)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
     val hourByDay by viewModel.hourByDay.collectAsStateWithLifecycle()
-    val tokenModelStats by viewModel.tokenModelStats.collectAsStateWithLifecycle()
     val commonTransparent by viewModel.exportTransparent.collectAsStateWithLifecycle()
     val author by viewModel.exportAuthor.collectAsStateWithLifecycle()
+
+    var authorDraft by rememberSaveable { mutableStateOf("") }
+    var authorReady by remember { mutableStateOf(false) }
+    LaunchedEffect(author) {
+        if (!authorReady) {
+            authorDraft = author
+            authorReady = true
+        }
+    }
+    fun persistAuthor() {
+        if (authorDraft != author) viewModel.setExportAuthor(authorDraft.trim())
+    }
+
+    BackHandler(onBack = {
+        persistAuthor()
+        onBack()
+    })
 
     val locale = Locale.getDefault()
     val accent = MaterialTheme.colorScheme.primary.toArgb()
@@ -103,26 +117,8 @@ fun ExportScreen(
     var exportType by rememberSaveable { mutableStateOf(ExportType.IMAGE) }
 
     // ── share card options ──
-    var cardTrend by remember { mutableStateOf(false) }
-    var cardModels by remember { mutableStateOf(false) }
-    val cardData = remember(history, tokenModelStats, cardTrend, cardModels, commonTransparent, author, startMonth) {
+    val cardData = remember(history, commonTransparent, authorDraft, startMonth) {
         val total = history.values.fold(TokenDay()) { a, b -> a + b }
-        val today = LocalDate.now()
-        val days = (13 downTo 0).map { off ->
-            history[today.minusDays(off.toLong()).toString()]?.fresh ?: 0L
-        }
-        val palette = sharePalette(accent)
-        val shares = tokenModelStats.mapNotNull { (id, st) ->
-            val fresh = st.history.values.fold(TokenDay()) { a, b -> a + b }.fresh
-            if (fresh <= 0L) null else id to fresh
-        }.sortedByDescending { it.second }.take(8)
-        val models = shares.mapIndexed { i, (id, fresh) ->
-            ShareCardModel(
-                name = id,
-                share = if (total.fresh > 0) fresh.toDouble() / total.fresh.toDouble() else 0.0,
-                color = palette[i % palette.size],
-            )
-        }
         ShareCardData(
             appName = context.getString(R.string.app_name),
             monthLabel = startMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)),
@@ -134,16 +130,12 @@ fun ExportScreen(
             cacheRead = total.cacheRead,
             messages = total.msgs,
             cost = total.cost,
-            days = days,
-            models = models,
             accent = accent,
             ink = ink,
             muted = muted,
-            footer = today.toString(),
-            includeTrend = cardTrend,
-            includeModelChart = cardModels,
+            footer = LocalDate.now().toString(),
             background = if (commonTransparent) null else 0xFFFAFBFC.toInt(),
-            author = author.trim().ifBlank { null },
+            author = authorDraft.trim().ifBlank { null },
         )
     }
     var cardBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -186,7 +178,7 @@ fun ExportScreen(
         sorted.sorted()
     }
     var calBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(history, calMonths, commonTransparent, author, calMonthFormat, calContinuous, calMetrics) {
+    LaunchedEffect(history, calMonths, commonTransparent, authorDraft, calMonthFormat, calContinuous, calMetrics) {
         calBitmap = withContext(Dispatchers.Default) {
             buildCalendarBitmap(
                 history = history,
@@ -197,7 +189,7 @@ fun ExportScreen(
                 muted = muted,
                 transparent = commonTransparent,
                 appName = context.getString(R.string.app_name),
-                author = author.trim().ifBlank { null },
+                author = authorDraft.trim().ifBlank { null },
                 monthPattern = calMonthFormat,
                 continuous = calContinuous,
                 metrics = calMetrics,
@@ -209,7 +201,7 @@ fun ExportScreen(
     var punchMode by remember { mutableStateOf(PunchMode.HOURLY) }
     var punchOrientation by remember { mutableStateOf(PunchOrientation.HORIZONTAL) }
     var punchBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(history, hourByDay, punchMode, punchOrientation, commonTransparent, author) {
+    LaunchedEffect(history, hourByDay, punchMode, punchOrientation, commonTransparent, authorDraft) {
         punchBitmap = withContext(Dispatchers.Default) {
             buildPunchcardBitmap(
                 history = history,
@@ -221,12 +213,13 @@ fun ExportScreen(
                 muted = muted,
                 transparent = commonTransparent,
                 locale = locale,
-                author = author.trim().ifBlank { null },
+                author = authorDraft.trim().ifBlank { null },
             )
         }
     }
 
     fun save(name: String, bmp: Bitmap?) {
+        persistAuthor()
         scope.launch {
             val ok = bmp != null && withContext(Dispatchers.IO) {
                 saveBitmapToDownloads(context, name, bmp!!)
@@ -245,7 +238,10 @@ fun ExportScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.export_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.drawer_close)) }
+                    IconButton(onClick = {
+                        persistAuthor()
+                        onBack()
+                    }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.drawer_close)) }
                 },
             )
         },
@@ -284,8 +280,8 @@ fun ExportScreen(
                     Section(stringResource(R.string.export_section_common)) {
                         OptionSwitch(stringResource(R.string.export_opt_transparent), commonTransparent) { viewModel.setExportTransparent(it) }
                         OutlinedTextField(
-                            value = author,
-                            onValueChange = { viewModel.setExportAuthor(it) },
+                            value = authorDraft,
+                            onValueChange = { authorDraft = it },
                             label = { Text(stringResource(R.string.export_opt_author)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -294,8 +290,6 @@ fun ExportScreen(
 
                     // Share card
                     Section(stringResource(R.string.export_section_card)) {
-                        OptionSwitch(stringResource(R.string.export_opt_trend), cardTrend) { cardTrend = it }
-                        OptionSwitch(stringResource(R.string.export_opt_models), cardModels) { cardModels = it }
                         Preview(cardBitmap, commonTransparent, cardData.background)
                         Button(onClick = { save("opencodeclient-usage-card.png", cardBitmap) }, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.export_save))
@@ -511,17 +505,6 @@ private fun Preview(
                 .fillMaxWidth()
                 .height(if (horizontalLong) 160.dp else 340.dp),
         )
-    }
-}
-
-private fun sharePalette(accentArgb: Int): List<Int> {
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV(accentArgb, hsv)
-    val h = hsv[0]
-    val s = hsv[1].coerceAtLeast(0.35f)
-    val v = hsv[2].coerceAtLeast(0.6f)
-    return listOf(0, 60, 120, 180, 240, 300).map { deg ->
-        android.graphics.Color.HSVToColor(floatArrayOf((h + deg) % 360f, s, v))
     }
 }
 

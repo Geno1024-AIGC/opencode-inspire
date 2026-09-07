@@ -63,8 +63,6 @@
     <string name="export_section_card">分享卡</string>
     <string name="export_section_calendar">日历</string>
     <string name="export_section_punch">时间热力图</string>
-    <string name="export_opt_trend">包含 14 天趋势</string>
-    <string name="export_opt_models">包含模型用量</string>
     <string name="export_opt_transparent">透明背景</string>
     <string name="export_range_1">当月</string>
     <string name="export_range_3">三个月</string>

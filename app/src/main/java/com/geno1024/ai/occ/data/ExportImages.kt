@@ -407,7 +407,7 @@ fun buildPunchcardBitmap(
     if (mode == PunchMode.HOURLY) {
         return buildPunchcardHourly(hourByDay, orientation, accent, ink, muted, transparent, locale, author, cell, gap, padLR, topLabelH, legendH)
     }
-    return buildPunchcardDaily(history, orientation, accent, ink, muted, transparent, locale, author, cell, gap, padLR, topLabelH, legendH)
+    return buildPunchcardDaily(history, orientation, accent, ink, muted, transparent, locale, author, padLR = padLR, legendH = legendH)
 }
 
 private fun buildPunchcardHourly(
@@ -515,7 +515,7 @@ private fun buildPunchcardDaily(
     orientation: PunchOrientation,
     accent: Int, ink: Int, muted: Int, transparent: Boolean, locale: Locale,
     author: String?,
-    cell: Float, gap: Float, padLR: Float, topLabelH: Float, legendH: Float,
+    cell: Float = 38f, gap: Float = 7f, padLR: Float, topLabelH: Float = 56f, legendH: Float,
 ): Bitmap {
     val today = LocalDate.now()
     val dates = history.keys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
@@ -534,8 +534,8 @@ private fun buildPunchcardDaily(
     val weeks = weekStartDates.size
     val nCols = if (orientation == PunchOrientation.HORIZONTAL) 7 else weeks
     val nRows = if (orientation == PunchOrientation.HORIZONTAL) weeks else 7
-    val leftW = if (orientation == PunchOrientation.HORIZONTAL) 62f else 120f
-    val topRowH = if (orientation == PunchOrientation.HORIZONTAL) 44f else topLabelH
+    val leftW = if (orientation == PunchOrientation.HORIZONTAL) 100f else 150f
+    val topRowH = if (orientation == PunchOrientation.HORIZONTAL) 56f else topLabelH
     val bodyW = (cell + gap) * nCols
     val bodyH = (cell + gap) * nRows
     val domainX = leftW + padLR
@@ -573,10 +573,10 @@ private fun buildPunchcardDaily(
 
     val monoBold: Typeface = monoAndroidTypeface(bold = true)
     val monoPlain: Typeface = monoAndroidTypeface()
-    val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 22f; typeface = monoPlain }
-    val tickRight = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 22f; typeface = monoPlain; textAlign = Paint.Align.RIGHT }
+    val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 30f; typeface = monoPlain }
+    val tickRight = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted; textSize = 30f; typeface = monoPlain; textAlign = Paint.Align.RIGHT }
     val head = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ink; textSize = 24f; typeface = monoBold; textAlign = Paint.Align.CENTER
+        color = ink; textSize = 32f; typeface = monoBold; textAlign = Paint.Align.CENTER
     }
 
     if (orientation == PunchOrientation.HORIZONTAL) {
