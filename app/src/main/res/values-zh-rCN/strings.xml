@@ -236,6 +236,9 @@
     <string name="calendar_token_crd">crd</string>
     <string name="calendar_token_cwr">cwr</string>
     <string name="calendar_msgs_total">total</string>
+    <string name="calendar_period_mode_label">周期</string>
+    <string name="calendar_period_show_all">显示全部</string>
+    <string name="calendar_period_hide_empty">隐藏空数据</string>
     <string name="stats_tab_msgs">消息</string>
     <string name="chart_model_usage">模型用量</string>
     <string name="chart_trend_title">趋势 · 最近 14 天</string>

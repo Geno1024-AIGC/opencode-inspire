@@ -102,6 +102,11 @@ private enum class MsgMetric(val labelRes: Int) {
     ASSISTANT(R.string.calendar_msgs_assistant),
 }
 
+private enum class EmptyPeriodMode(val labelRes: Int) {
+    SHOW_ALL(R.string.calendar_period_show_all),
+    HIDE_EMPTY(R.string.calendar_period_hide_empty),
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TokenCalendarScreen(
@@ -126,6 +131,8 @@ fun TokenCalendarScreen(
     var msgMetricName by rememberSaveable { mutableStateOf(MsgMetric.TOTAL.name) }
     var catMenu by remember { mutableStateOf(false) }
     var metricMenu by remember { mutableStateOf(false) }
+    var emptyModeMenu by remember { mutableStateOf(false) }
+    var emptyModeName by rememberSaveable { mutableStateOf(EmptyPeriodMode.SHOW_ALL.name) }
     var modelMenu by remember { mutableStateOf(false) }
     var modelName by rememberSaveable { mutableStateOf("all") }
     val category = TokenCategory.valueOf(categoryName)
@@ -255,7 +262,10 @@ fun TokenCalendarScreen(
                     )
                 }
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -319,6 +329,34 @@ fun TokenCalendarScreen(
                             }
                         }
                     }
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.calendar_period_mode_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        Text(
+                            stringResource(EmptyPeriodMode.valueOf(emptyModeName).labelRes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { emptyModeMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = emptyModeMenu, onDismissRequest = { emptyModeMenu = false }) {
+                            EmptyPeriodMode.entries.forEach { m ->
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(m.labelRes), fontFamily = MonoFontFamily) },
+                                    onClick = { emptyModeName = m.name; emptyModeMenu = false },
+                                )
+                            }
+                        }
+                    }
                 }
                 PrimaryTabRow(selectedTabIndex = tab) {
                     Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_calendar)) })
@@ -347,10 +385,11 @@ fun TokenCalendarScreen(
                         category = category,
                         tokenMetric = tokenMetric,
                         msgMetric = msgMetric,
+                        hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY,
                         modifier = Modifier.fillMaxWidth().height(viewportH),
                     )
-                    2 -> WeekColumnCard(buckets = viewHourByWeek, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
-                    3 -> MonthColumnCard(buckets = viewHourByMonth, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    2 -> WeekColumnCard(buckets = viewHourByWeek, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    3 -> MonthColumnCard(buckets = viewHourByMonth, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY, modifier = Modifier.fillMaxWidth().height(viewportH))
                 }
                 Spacer(Modifier.height(12.dp))
             }
@@ -457,6 +496,7 @@ private fun DayColumnCard(
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
+    hideEmpty: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val sorted = buckets.toSortedMap()
@@ -471,6 +511,7 @@ private fun DayColumnCard(
         category = category,
         tokenMetric = tokenMetric,
         msgMetric = msgMetric,
+        hideEmpty = hideEmpty,
         modifier = modifier,
     )
 }
@@ -482,6 +523,7 @@ private fun MonthColumnCard(
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
+    hideEmpty: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val sorted = buckets.toSortedMap()
@@ -496,6 +538,7 @@ private fun MonthColumnCard(
         category = category,
         tokenMetric = tokenMetric,
         msgMetric = msgMetric,
+        hideEmpty = hideEmpty,
         modifier = modifier,
     )
 }
@@ -507,6 +550,7 @@ private fun WeekColumnCard(
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
+    hideEmpty: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val sorted = buckets.toSortedMap()
@@ -525,6 +569,7 @@ private fun WeekColumnCard(
         category = category,
         tokenMetric = tokenMetric,
         msgMetric = msgMetric,
+        hideEmpty = hideEmpty,
         modifier = modifier,
         onLabelClick = { _, key ->
             runCatching { clickedWeek = LocalDate.parse(key) }
@@ -575,6 +620,7 @@ private fun PeriodColumns(
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
+    hideEmpty: Boolean = false,
     modifier: Modifier = Modifier,
     onLabelClick: ((index: Int, key: String) -> Unit)? = null,
 ) {
@@ -637,6 +683,7 @@ private fun PeriodColumns(
         Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.Top) {
                 periods.forEachIndexed { index, (key, m) ->
+                    if (hideEmpty && columnTotals[index] == 0L) return@forEachIndexed
                     Column(
                         Modifier.padding(end = 3.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -702,10 +749,16 @@ private fun PeriodColumns(
         }
         }
     }
+    val shownTotals = if (hideEmpty) {
+        columnTotals.toList().mapIndexedNotNull { i, v -> if (v == 0L) null else v }
+    } else columnTotals.toList()
+    val shownLabels = if (hideEmpty) {
+        labels.mapIndexedNotNull { i, l -> if (columnTotals[i] == 0L) null else l }
+    } else labels
     if (showChart) {
         TokenChartDialog(
-            values = columnTotals.toList(),
-            labels = labels,
+            values = shownTotals,
+            labels = shownLabels,
             onDismiss = { showChart = false },
         )
     }
