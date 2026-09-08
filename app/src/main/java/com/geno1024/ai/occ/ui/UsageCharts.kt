@@ -186,8 +186,34 @@ fun DailyTrendChart(
             }
             val barW = (size.width - 12f) / data.size
             val mmdd = DateTimeFormatter.ofPattern("MM-dd")
-            val probe = measurer.measure("00-00", labelStyle)
-            val horizontal = probe.size.width + 4.dp.toPx() <= barW
+            val probe = measurer.measure("09-09", labelStyle)
+            val labelW = probe.size.width.toFloat()
+            val labelH = probe.size.height.toFloat()
+            val labelPad = 4.dp.toPx()
+            val dateTiers: List<Set<Int>?> = listOf(null, setOf(1, 8, 15, 22), setOf(1, 15), setOf(1))
+            var shownLabels: List<Pair<Int, String>> = emptyList()
+            var horizontal = false
+            for (tier in dateTiers) {
+                val shown = data.mapIndexedNotNull { index, item ->
+                    if (tier == null || item.first.dayOfMonth in tier) index to item.first.format(mmdd) else null
+                }
+                if (shown.isEmpty()) continue
+                val slotW = (size.width - 12f) / shown.size
+                if (slotW >= labelW + labelPad) {
+                    shownLabels = shown
+                    horizontal = true
+                    break
+                } else if (slotW >= labelH * 0.85f) {
+                    shownLabels = shown
+                    horizontal = false
+                    break
+                }
+            }
+            if (shownLabels.isEmpty()) {
+                shownLabels = data.mapIndexedNotNull { index, item ->
+                    if (item.first.dayOfMonth == 1) index to item.first.format(mmdd) else null
+                }
+            }
             val labelTop = plotH + 4.dp.toPx()
             for ((index, item) in data.withIndex()) {
                 val v = if (showMsgs) item.third else item.second
@@ -201,7 +227,9 @@ fun DailyTrendChart(
                         cornerRadius = CornerRadius(2.dp.toPx()),
                     )
                 }
-                val layout = measurer.measure(item.first.format(mmdd), labelStyle)
+            }
+            for ((index, label) in shownLabels) {
+                val layout = measurer.measure(label, labelStyle)
                 val centerX = 6f + index * barW + barW / 2f
                 if (horizontal) {
                     val lx = (centerX - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width)
