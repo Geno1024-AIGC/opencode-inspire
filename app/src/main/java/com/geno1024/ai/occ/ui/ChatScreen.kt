@@ -2439,7 +2439,7 @@ private fun TokenStatsBar(
     val fresh = input + output + reasoning
     val rawTotal = tokens?.total ?: 0L
     val total = if (rawTotal > 0L) rawTotal else fresh + cacheRead + cacheWrite
-    val ctx = if (promptTokens > 0) promptTokens else fresh
+    val ctx = if (promptTokens > 0) promptTokens else input
     val ratio = if (contextWindow > 0) (ctx.toFloat() / contextWindow).coerceIn(0f, 1f) else 0f
     Column(
         modifier = Modifier
