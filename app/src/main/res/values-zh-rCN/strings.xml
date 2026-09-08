@@ -88,8 +88,6 @@
     <string name="session_group_yesterday">昨天</string>
     <string name="session_group_earlier">更早</string>
     <string name="drawer_servers">服务器</string>
-    <string name="drawer_server_connected">已连接</string>
-    <string name="drawer_server_error">未连接</string>
     <string name="drawer_projects">项目</string>
     <string name="drawer_refresh">刷新</string>
     <string name="drawer_add_project">添加项目</string>

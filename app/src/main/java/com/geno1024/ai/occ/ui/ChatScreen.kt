@@ -9,6 +9,11 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -148,6 +153,7 @@ fun ChatScreen(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val sending by viewModel.sending.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
+    val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
     val sessionDrafts by viewModel.sessionDrafts.collectAsStateWithLifecycle()
     val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
     val sessionCost by viewModel.sessionCost.collectAsStateWithLifecycle()
@@ -449,11 +455,15 @@ fun ChatScreen(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 if (activeSession != null && models.isNotEmpty()) {
-                                    ModelSwitcher(
-                                        models = models,
-                                        currentModelId = currentModelId,
-                                        onSelect = { model -> viewModel.switchModel(model.providerId ?: "opencode", model.id ?: "") },
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        StatusDot(connected = connectionState !is UiState.Error, sending = sending)
+                                        Spacer(Modifier.width(6.dp))
+                                        ModelSwitcher(
+                                            models = models,
+                                            currentModelId = currentModelId,
+                                            onSelect = { model -> viewModel.switchModel(model.providerId ?: "opencode", model.id ?: "") },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2553,6 +2563,30 @@ private fun TokenStatLine(label: String, value: Long, format: TokenFormat) {
             fontFamily = MonoFontFamily,
         )
     }
+}
+
+@Composable
+private fun StatusDot(connected: Boolean, sending: Boolean) {
+    val color = if (connected) Color(0xFF4CAF50) else Color(0xFFE53935)
+    var alpha = 1f
+    if (connected && sending) {
+        val transition = rememberInfiniteTransition(label = "statusDot")
+        alpha = transition.animateFloat(
+            initialValue = 1f,
+            targetValue = 0.15f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(500),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "statusDotAlpha",
+        ).value
+    }
+    Box(
+        modifier = Modifier
+            .size(9.dp)
+            .clip(CircleShape)
+            .background(color.copy(alpha = alpha)),
+    )
 }
 
 @Composable
