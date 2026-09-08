@@ -183,7 +183,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val titleRefreshPending = mutableSetOf<String>()
     private val _sessionDrafts = MutableStateFlow<Map<String, String>>(emptyMap())
     val sessionDrafts: StateFlow<Map<String, String>> = _sessionDrafts.asStateFlow()
-    private val draftFlushJobs = mutableMapOf<String, Job>()
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
@@ -2010,17 +2009,15 @@ text = e.message ?: getAppString(R.string.send_failed),
         } else {
             _sessionDrafts.value + (sid to text)
         }
-        draftFlushJobs[sid]?.cancel()
-        draftFlushJobs[sid] = viewModelScope.launch {
-            delay(500)
-            settings.setDrafts(_sessionDrafts.value)
-        }
+    }
+
+    fun flushDraft(sid: String) {
+        if (sid.isEmpty()) return
+        viewModelScope.launch { settings.setDrafts(_sessionDrafts.value) }
     }
 
     fun clearDraft(sid: String) {
         if (sid.isEmpty()) return
-        draftFlushJobs[sid]?.cancel()
-        draftFlushJobs.remove(sid)
         if (sid in _sessionDrafts.value) {
             _sessionDrafts.value = _sessionDrafts.value - sid
             viewModelScope.launch { settings.setDrafts(_sessionDrafts.value) }

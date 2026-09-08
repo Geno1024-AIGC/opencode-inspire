@@ -91,11 +91,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -103,6 +105,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -119,6 +123,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -208,6 +215,37 @@ fun ChatScreen(
         if (d != draftLoaded) {
             input = d
             draftLoaded = d
+        }
+    }
+    val currentSid = rememberUpdatedState(activeId)
+    fun flushDraftNow() {
+        currentSid.value?.let { viewModel.flushDraft(it) }
+    }
+    var lastSid by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(activeId) {
+        val old = lastSid
+        if (old != null && old != activeId) viewModel.flushDraft(old)
+        lastSid = activeId
+    }
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    val imeWasUp = remember { mutableStateOf(false) }
+    LaunchedEffect(imeBottom) {
+        if (imeWasUp.value && imeBottom <= 0) {
+            imeWasUp.value = false
+            flushDraftNow()
+        } else if (imeBottom > 0) {
+            imeWasUp.value = true
+        }
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) flushDraftNow()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            flushDraftNow()
         }
     }
     var commandMenuOpen by remember { mutableStateOf(false) }
