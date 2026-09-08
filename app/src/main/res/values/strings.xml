@@ -88,6 +88,8 @@
     <string name="session_group_yesterday">Yesterday</string>
     <string name="session_group_earlier">Earlier</string>
     <string name="drawer_servers">Servers</string>
+    <string name="drawer_server_connected">Connected</string>
+    <string name="drawer_server_error">Disconnected</string>
     <string name="drawer_projects">Projects</string>
     <string name="drawer_refresh">Refresh</string>
     <string name="drawer_add_project">Add project</string>
@@ -130,6 +132,9 @@
     <string name="chat_select_range_tip">Range: tap two messages</string>
     <string name="chat_select_clear">Clear</string>
     <string name="chat_select_export">Save screenshot</string>
+    <string name="chat_select_share">Share image</string>
+    <string name="chat_select_range_down">Select messages below</string>
+    <string name="chat_select_range_up">Select messages above</string>
     <string name="export_none_selected">No messages selected</string>
     <string name="chat_erase_title">OpenCode asks</string>
     <string name="chat_custom_answer">Custom answer</string>

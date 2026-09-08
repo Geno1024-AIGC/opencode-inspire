@@ -2,6 +2,7 @@ package com.geno1024.ai.occ.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -63,6 +65,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
@@ -467,6 +470,8 @@ private fun DrawerContent(
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val workspaceState by viewModel.workspaceState.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
+    val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
+    val serverVersion by viewModel.serverVersion.collectAsStateWithLifecycle()
     val activeSessionTotalElapsed by viewModel.sessionTotalElapsed.collectAsStateWithLifecycle()
     val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
     val storedStats by viewModel.storedStats.collectAsStateWithLifecycle()
@@ -511,6 +516,28 @@ private fun DrawerContent(
                 Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 serverUrl?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                val connected = connectionState !is UiState.Error
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 6.dp)
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (connected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.error
+                            ),
+                    )
+                    Text(
+                        if (serverVersion != null) serverVersion!! else stringResource(
+                            if (connected) R.string.drawer_server_connected else R.string.drawer_server_error
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
             IconButton(onClick = onClose) { Icon(Icons.Filled.Close, stringResource(R.string.drawer_close)) }
