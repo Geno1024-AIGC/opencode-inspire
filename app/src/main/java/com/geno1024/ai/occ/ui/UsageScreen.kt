@@ -16,6 +16,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -23,7 +25,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,7 +44,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.occ.R
 import com.geno1024.ai.occ.data.TokenDay
 import com.geno1024.ai.occ.data.TokenFormat
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
 private data class UsageRow(val model: String, val day: TokenDay)
@@ -53,18 +59,36 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     val tokenModelStats by viewModel.tokenModelStats.collectAsStateWithLifecycle()
     val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
 
-    var periodDays by rememberSaveable { mutableStateOf<Int?>(7) }
+    var periodMode by rememberSaveable { mutableStateOf("7") }
+    var customStart by rememberSaveable { mutableStateOf<Long?>(null) }
+    var customEnd by rememberSaveable { mutableStateOf<Long?>(null) }
     var expandedModel by rememberSaveable { mutableStateOf<String?>(null) }
     val today = remember { LocalDate.now() }
 
-    val periodKeys = remember(tokenHistory, periodDays, today) {
-        val start = today.minusDays(((periodDays ?: 1) - 1).toLong())
-        tokenHistory.keys.filter { k ->
-            runCatching {
-                val d = LocalDate.parse(k)
-                periodDays == null || (!d.isBefore(start) && !d.isAfter(today))
-            }.getOrDefault(false)
-        }.toSet()
+    val periodKeys = remember(tokenHistory, periodMode, customStart, customEnd, today) {
+        when {
+            periodMode == "all" -> tokenHistory.keys.toSet()
+            periodMode == "custom" -> {
+                val startLd = customStart?.toLocalDateUtc() ?: LocalDate.MIN
+                val endLd = customEnd?.toLocalDateUtc() ?: today
+                tokenHistory.keys.filter { k ->
+                    runCatching {
+                        val d = LocalDate.parse(k)
+                        !d.isBefore(startLd) && !d.isAfter(endLd)
+                    }.getOrDefault(false)
+                }.toSet()
+            }
+            else -> {
+                val span = periodMode.toIntOrNull() ?: 7
+                val start = today.minusDays((span - 1).toLong())
+                tokenHistory.keys.filter { k ->
+                    runCatching {
+                        val d = LocalDate.parse(k)
+                        !d.isBefore(start) && !d.isAfter(today)
+                    }.getOrDefault(false)
+                }.toSet()
+            }
+        }
     }
     val periodTotal = remember(periodKeys, tokenHistory) {
         periodKeys.mapNotNull { tokenHistory[it] }.fold(TokenDay()) { a, b -> a + b }
@@ -81,11 +105,21 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     val trendByModel = remember(periodKeys, tokenModelStats) {
         tokenModelStats.mapValues { (_, st) -> st.history.filterKeys { it in periodKeys } }
     }
-    val periodDaySpan: Int = remember(periodKeys, periodDays, today) {
-        if (periodDays == null) {
+    val periodDaySpan: Int = remember(periodKeys, periodMode, customStart, customEnd, today) {
+        if (periodMode == "custom") {
+            val startLd = customStart?.toLocalDateUtc()
+            val endLd = customEnd?.toLocalDateUtc()
+            when {
+                startLd != null && endLd != null -> maxOf(1, ChronoUnit.DAYS.between(startLd, endLd).toInt() + 1)
+                else -> {
+                    val min = periodKeys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }.minOrNull()
+                    min?.let { ChronoUnit.DAYS.between(it, today).toInt() + 1 } ?: 1
+                }
+            }
+        } else if (periodMode == "all") {
             val min = periodKeys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }.minOrNull()
             min?.let { ChronoUnit.DAYS.between(it, today).toInt() + 1 } ?: 1
-        } else periodDays!!
+        } else periodMode.toIntOrNull() ?: 7
     }
 
     Scaffold(
@@ -118,18 +152,19 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf<Int?>(7, 30, 90, null).forEach { d ->
+                listOf("7", "30", "90", "all", "custom").forEach { m ->
                     FilterChip(
-                        selected = periodDays == d,
-                        onClick = { periodDays = d },
+                        selected = periodMode == m,
+                        onClick = { periodMode = m },
                         label = {
                             Text(
-                                when (d) {
-                                    null -> stringResource(R.string.usage_period_all)
+                                when (m) {
+                                    "all" -> stringResource(R.string.usage_period_all)
+                                    "custom" -> stringResource(R.string.usage_period_custom)
                                     else -> stringResource(
-                                        when (d) {
-                                            7 -> R.string.usage_period_7d
-                                            30 -> R.string.usage_period_30d
+                                        when (m) {
+                                            "7" -> R.string.usage_period_7d
+                                            "30" -> R.string.usage_period_30d
                                             else -> R.string.usage_period_90d
                                         }
                                     )
@@ -139,6 +174,15 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                         },
                     )
                 }
+            }
+
+            if (periodMode == "custom") {
+                CustomRangePickers(
+                    start = customStart,
+                    end = customEnd,
+                    onStartChange = { customStart = it },
+                    onEndChange = { customEnd = it },
+                )
             }
 
             if (periodTotal.total <= 0L && periodTotal.cost <= 0.0) {
@@ -320,4 +364,88 @@ private fun inLine(day: TokenDay, format: TokenFormat): String {
     return "${formatTokens(day.input, format)} in · ${formatTokens(day.output, format)} out · " +
         "${formatTokens(day.reasoning, format)} infer · ${formatTokens(day.cacheRead, format)} crd · " +
         "${formatTokens(day.cacheWrite, format)} cwr"
+}
+
+private fun Long.toLocalDateUtc(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
+
+private fun LocalDate.toEpochMillisUtc(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CustomRangePickers(
+    start: Long?,
+    end: Long?,
+    onStartChange: (Long?) -> Unit,
+    onEndChange: (Long?) -> Unit,
+) {
+    var picker by rememberSaveable { mutableStateOf<String?>(null) }
+    val today = LocalDate.now()
+
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            RangePickerRow(
+                label = stringResource(R.string.usage_custom_start),
+                value = start?.toLocalDateUtc(),
+                onClick = { picker = "start" },
+            )
+            RangePickerRow(
+                label = stringResource(R.string.usage_custom_end),
+                value = end?.toLocalDateUtc(),
+                onClick = { picker = "end" },
+            )
+        }
+    }
+
+    picker?.let { which ->
+        val initial = (if (which == "start") start else end)?.toLocalDateUtc()
+        val state = rememberDatePickerState(
+            initialSelectedDateMillis = initial?.toEpochMillisUtc() ?: today.toEpochMillisUtc(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { picker = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    val picked = state.selectedDateMillis
+                    if (which == "start") onStartChange(picked) else onEndChange(picked)
+                    picker = null
+                }) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { picker = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        ) {
+            DatePicker(state = state)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RangePickerRow(label: String, value: LocalDate?, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                value?.toString() ?: stringResource(R.string.usage_custom_unset),
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
+            )
+        }
+    }
 }
