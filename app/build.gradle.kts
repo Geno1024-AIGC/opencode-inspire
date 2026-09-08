@@ -122,6 +122,8 @@ dependencies {
 
     implementation("androidx.datastore:datastore-preferences:1.2.1")
 
-    implementation("com.mikepenz:multiplatform-markdown-renderer:0.45.0")
-    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.45.0")
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+    implementation("io.noties.markwon:ext-latex:4.6.2")
+    implementation("io.noties.markwon:inline-parser:4.6.2")
 }

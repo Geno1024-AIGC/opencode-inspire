@@ -42,10 +42,28 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.annotation.SuppressLint
+import android.os.Handler
+import android.os.Looper
+import android.text.method.LinkMovementMethod
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.TextView
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.viewinterop.AndroidView
+import io.noties.markwon.AbstractMarkwonPlugin
+import io.noties.markwon.Markwon
+import io.noties.markwon.core.MarkwonTheme
+import io.noties.markwon.ext.latex.JLatexMathPlugin
+import io.noties.markwon.ext.tables.TablePlugin
+import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import kotlinx.coroutines.delay
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.m3.markdownTypography
-import com.mikepenz.markdown.model.rememberMarkdownState
 import kotlinx.coroutines.launch
 
 private data class MdSpan(val start: Int, val end: Int, val style: SpanStyle?)
@@ -470,18 +488,165 @@ private fun parseMarkdown(text: String): List<Any> {
     return result
 }
 
+private data class MdSegment(val kind: String, val text: String)
+
+private fun splitMermaidBlocks(content: String): List<MdSegment> {
+    val regex = Regex("(?<![`])```\\s*mermaid\\s*\\n(.*?)```\\s*\\n?", RegexOption.DOT_MATCHES_ALL)
+    val segments = mutableListOf<MdSegment>()
+    var cursor = 0
+    for (m in regex.findAll(content)) {
+        if (m.range.first > cursor) segments += MdSegment("md", content.substring(cursor, m.range.first))
+        segments += MdSegment("mermaid", m.groupValues[1].trim())
+        cursor = m.range.last + 1
+    }
+    if (cursor < content.length) segments += MdSegment("md", content.substring(cursor))
+    return segments.ifEmpty { listOf(MdSegment("md", content)) }
+}
+
+@Composable
+private fun rememberMarkwon(textColor: Int): Markwon {
+    val context = LocalContext.current
+    val textSizePx = with(LocalDensity.current) { 14.sp.toPx() }
+    return remember(textColor) {
+        Markwon.builder(context)
+            .usePlugin(
+                object : AbstractMarkwonPlugin() {
+                    override fun configureTheme(builder: MarkwonTheme.Builder) {
+                        builder
+                            .codeTypeface(monoAndroidTypeface())
+                            .codeBlockTypeface(monoAndroidTypeface())
+                    }
+                },
+            )
+            .usePlugin(MarkwonInlineParserPlugin.create())
+            .usePlugin(
+                JLatexMathPlugin.create(
+                    textSizePx,
+                    object : JLatexMathPlugin.BuilderConfigure {
+                        override fun configureBuilder(builder: JLatexMathPlugin.Builder) {
+                            builder.inlinesEnabled(true)
+                            builder.theme().textColor(textColor)
+                        }
+                    },
+                ),
+            )
+            .usePlugin(TablePlugin.create(context))
+            .build()
+    }
+}
+
+@Composable
+private fun MarkwonText(content: String) {
+    val textColor = LocalContentColor.current.toArgb()
+    val markwon = rememberMarkwon(textColor)
+    val spanned = remember(content, textColor) { markwon.toMarkdown(content) }
+    AndroidView(
+        factory = { ctx ->
+            TextView(ctx).apply {
+                textSize = 14f
+                setTextColor(textColor)
+                movementMethod = LinkMovementMethod.getInstance()
+                setTextIsSelectable(true)
+                text = spanned
+            }
+        },
+        update = { tv ->
+            tv.setTextColor(textColor)
+            tv.text = spanned
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+private fun mermaidHtml(source: String, theme: String): String {
+    val escaped = source
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "")
+    return """
+        <!DOCTYPE html>
+        <html><head>
+        <meta charset="utf-8">
+        <script src="file:///android_asset/mermaid/mermaid.min.js"></script>
+        <style>
+          html, body { margin:0; padding:0; background:transparent; }
+          #c { display:inline-block; padding:8px; }
+          #e { color:#999; font-family:sans-serif; white-space:pre-wrap; }
+        </style>
+        </head><body>
+        <div id="c"></div><div id="e"></div>
+        <script>
+          mermaid.initialize({ startOnLoad:false, theme:"$theme", fontFamily:"sans-serif", securityLevel:"loose" });
+          var src = "$escaped";
+          mermaid.render("mermaidSvg", src).then(function(res){
+            document.getElementById("c").innerHTML = res.svg;
+            if (window.MermaidTo) window.MermaidTo.onResize(document.body.scrollWidth, document.body.scrollHeight);
+          }).catch(function(e){
+            document.getElementById("e").textContent = src;
+            if (window.MermaidTo) window.MermaidTo.onResize(document.body.scrollWidth, document.body.scrollHeight);
+          });
+        </script>
+        </body></html>
+    """.trimIndent()
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun MermaidBlock(source: String) {
+    val density = LocalDensity.current
+    val isLight = LocalContentColor.current.luminance() > 0.5f
+    val themeName = if (isLight) "default" else "dark"
+    val size = remember(source) { mutableStateOf(IntSize.Zero) }
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    val html = remember(source, themeName) { mermaidHtml(source, themeName) }
+    AndroidView(
+        factory = { ctx ->
+            WebView(ctx).apply {
+                settings.javaScriptEnabled = true
+                setBackgroundColor(0x00000000)
+                isVerticalScrollBarEnabled = false
+                isHorizontalScrollBarEnabled = false
+                addJavascriptInterface(
+                    object {
+                        @SuppressLint("JavascriptInterface")
+                        @JavascriptInterface
+                        fun onResize(w: Int, h: Int) {
+                            mainHandler.post { size.value = IntSize(w, h) }
+                        }
+                    },
+                    "MermaidTo",
+                )
+                webViewClient = WebViewClient()
+                loadDataWithBaseURL("file:///android_asset/mermaid/", html, "text/html", "utf-8", null)
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .then(
+                if (size.value.height > 0) {
+                    Modifier.height(with(density) { size.value.height.toDp() })
+                } else {
+                    Modifier
+                        .height(140.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                },
+            ),
+    )
+}
+
 @Composable
 fun MarkdownMessage(content: String) {
-    val markdownState = rememberMarkdownState(content, retainState = true)
-    SelectionContainer {
-        Markdown(
-            markdownState = markdownState,
-            typography = markdownTypography(
-                code = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
-                inlineCode = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        )
+    val segments = remember(content) { splitMermaidBlocks(content) }
+    Column(Modifier.fillMaxWidth()) {
+        segments.forEach { segment ->
+            if (segment.kind == "mermaid") {
+                MermaidBlock(segment.text)
+            } else {
+                MarkwonText(segment.text)
+            }
+        }
     }
 }
 
