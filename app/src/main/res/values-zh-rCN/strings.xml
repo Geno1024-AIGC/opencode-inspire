@@ -277,6 +277,7 @@
     <string name="settings_token_history">使用日历</string>
     <string name="settings_token_history_sub">每日 Token 用量与耗时</string>
     <string name="settings_open_calendar">查看</string>
+    <string name="settings_usage_sub">按模型统计的用量排行</string>
 
     <!-- Updates -->
     <string name="settings_updates">更新</string>

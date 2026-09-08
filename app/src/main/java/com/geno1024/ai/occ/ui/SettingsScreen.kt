@@ -96,6 +96,7 @@ fun SettingsScreen(
     viewModel: MainViewModel,
     onBack: () -> Unit,
     onOpenCalendar: () -> Unit = {},
+    onOpenUsage: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
@@ -370,6 +371,27 @@ fun SettingsScreen(
                             Text(stringResource(R.string.settings_token_history), style = MaterialTheme.typography.bodyLarge)
                             Text(
                                 stringResource(R.string.settings_token_history_sub),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.settings_open_calendar),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onOpenUsage)
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.usage_leaderboard_title), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(R.string.settings_usage_sub),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
