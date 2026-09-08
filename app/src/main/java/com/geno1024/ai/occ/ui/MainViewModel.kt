@@ -24,6 +24,7 @@ import com.geno1024.ai.occ.data.Command
 import com.geno1024.ai.occ.data.FeatureStatus
 import com.geno1024.ai.occ.data.Message
 import com.geno1024.ai.occ.data.ModelInfo
+import com.geno1024.ai.occ.data.AgentClient
 import com.geno1024.ai.occ.data.OpenCodeClient
 import com.geno1024.ai.occ.data.Part
 import com.geno1024.ai.occ.data.PermissionRequest
@@ -157,7 +158,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return localized.getString(resId)
     }
 
-    var client: OpenCodeClient? = null
+    var client: AgentClient? = null
         private set
 
     private val _serverUrl = MutableStateFlow<String?>(null)
@@ -968,7 +969,7 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch { settings.removeServer(url) }
     }
 
-    private fun probeCapabilities(cli: OpenCodeClient) {
+    private fun probeCapabilities(cli: AgentClient) {
         viewModelScope.launch {
             _capabilitiesDetecting.value = true
             try {
@@ -1394,7 +1395,7 @@ private fun sessionTitle(sid: String): String {
         }
     }
 
-    private suspend fun rollSessionStats(c: OpenCodeClient, id: String) {
+    private suspend fun rollSessionStats(c: AgentClient, id: String) {
         try {
             val detail = withContext(Dispatchers.IO) { c.sessionDetail(id) }
             if (detail != null) {

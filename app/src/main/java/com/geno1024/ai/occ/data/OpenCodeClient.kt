@@ -39,7 +39,7 @@ class OpenCodeClient(
     serverUrl: String,
     private val username: String? = null,
     private val password: String? = null,
-) {
+) : AgentClient {
     private val base = serverUrl.trim().trimEnd('/')
     private val json = Json {
         ignoreUnknownKeys = true
@@ -106,22 +106,22 @@ class OpenCodeClient(
         })
     }
 
-    suspend fun health(): HealthResponse =
+    override suspend fun health(): HealthResponse =
         execute("GET", "/global/health") { json.decodeFromString(HealthResponse.serializer(), it) }
 
-    suspend fun projects(): List<Project> =
+    override suspend fun projects(): List<Project> =
         execute("GET", "/project") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ListSerializer(Project.serializer()), text)
         }
 
-    suspend fun currentProject(): Project? =
+    override suspend fun currentProject(): Project? =
         execute("GET", "/project/current") { text ->
             if (text.isBlank() || text == "{}") null
             else json.decodeFromString(Project.serializer(), text)
         }
 
-    suspend fun listDirectory(locationDir: String? = null, path: String? = null): List<FileNode> =
+    override suspend fun listDirectory(locationDir: String?, path: String?): List<FileNode> =
         if (fsListV2) listDirectoryV2(locationDir, path) else listDirectoryLegacy(locationDir, path)
 
     private suspend fun listDirectoryV2(locationDir: String? = null, path: String? = null): List<FileNode> =
@@ -173,7 +173,7 @@ class OpenCodeClient(
             }
         }
 
-    suspend fun readFileContent(locationDir: String?, path: String): String? =
+    override suspend fun readFileContent(locationDir: String?, path: String): String? =
         execute(
             "GET",
             "/file/content${queryOf(mapOf("directory" to locationDir, "path" to path))}",
@@ -184,7 +184,7 @@ class OpenCodeClient(
             else json.parseToJsonElement(text).jsonObject["content"]?.jsonPrimitive?.contentOrNull
         }
 
-    suspend fun createSession(directory: String? = null, parentId: String? = null, title: String? = null): Session =
+    override suspend fun createSession(directory: String?, parentId: String?, title: String?): Session =
         execute(
             "POST",
             "/session${queryOf(mapOf("directory" to directory))}",
@@ -194,7 +194,7 @@ class OpenCodeClient(
             }.toString(),
         ) { json.decodeFromString(Session.serializer(), it) }
 
-    suspend fun runShell(sessionId: String, command: String, agent: String = "general"): ShellResult =
+    override suspend fun runShell(sessionId: String, command: String, agent: String): ShellResult =
         execute(
             "POST",
             "/session/$sessionId/shell",
@@ -214,7 +214,7 @@ class OpenCodeClient(
             }.getOrElse { ShellResult("completed", text) }
         }
 
-    suspend fun sessions(): List<Session> =
+    override suspend fun sessions(): List<Session> =
         execute("GET", "/api/session?limit=1000&order=desc") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(SessionsV2Response.serializer(), text).data.map { v2 ->
@@ -231,13 +231,13 @@ class OpenCodeClient(
             }
         }
 
-    suspend fun models(): List<ModelInfo> =
+    override suspend fun models(): List<ModelInfo> =
         execute("GET", "/api/model") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ModelsV2Response.serializer(), text).data
         }
 
-    suspend fun sessionDetail(id: String): SessionV2Info? =
+    override suspend fun sessionDetail(id: String): SessionV2Info? =
         execute("GET", "/api/session/$id") { text ->
             if (text.isBlank()) null
             else runCatching {
@@ -246,19 +246,19 @@ class OpenCodeClient(
             }.getOrNull()
         }
 
-    suspend fun contextWindow(modelId: String?): Long {
+    override suspend fun contextWindow(modelId: String?): Long {
         val models = models()
         val m = models.firstOrNull { it.id == modelId } ?: models.firstOrNull()
         return m?.limit?.context ?: 0L
     }
 
-    suspend fun pendingQuestions(directory: String? = null): List<QuestionRequest> =
+    override suspend fun pendingQuestions(directory: String?): List<QuestionRequest> =
         execute("GET", "/question${queryOf(mapOf("directory" to directory))}") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ListSerializer(QuestionRequest.serializer()), text)
         }
 
-    suspend fun replyQuestion(requestId: String, answers: List<List<String>>, directory: String? = null) {
+    override suspend fun replyQuestion(requestId: String, answers: List<List<String>>, directory: String?) {
         execute("POST", "/question/$requestId/reply${queryOf(mapOf("directory" to directory))}", buildJsonObject {
             put("answers", buildJsonArray {
                 answers.forEach { labels ->
@@ -268,21 +268,21 @@ class OpenCodeClient(
         }.toString()) { it }
     }
 
-    suspend fun rejectQuestion(requestId: String, directory: String? = null) {
+    override suspend fun rejectQuestion(requestId: String, directory: String?) {
         execute("POST", "/question/$requestId/reject${queryOf(mapOf("directory" to directory))}", "{}".toString()) { it }
     }
 
-    suspend fun session(id: String): Session =
+    override suspend fun session(id: String): Session =
         execute("GET", "/session/$id") { json.decodeFromString(Session.serializer(), it) }
 
-    suspend fun sessionMessages(sessionId: String, limit: Int = 50): List<Pair<Message, List<Part>>> =
+    override suspend fun sessionMessages(sessionId: String, limit: Int): List<Pair<Message, List<Part>>> =
         execute("GET", "/session/$sessionId/message?limit=$limit") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ListSerializer(SessionInfo.serializer()), text)
                 .map { it.info to it.parts }
         }
 
-    suspend fun sessionMessagesPage(
+    override suspend fun sessionMessagesPage(
         sessionId: String,
         limit: Int,
         before: String?,
@@ -298,9 +298,9 @@ class OpenCodeClient(
         return page to next
     }
 
-    suspend fun sessionMessagesAll(
+    override suspend fun sessionMessagesAll(
         sessionId: String,
-        onProgress: (fetched: Int, lastTimestamp: Long) -> Unit = { _, _ -> },
+        onProgress: (fetched: Int, lastTimestamp: Long) -> Unit,
     ): List<Pair<Message, List<Part>>> {
         val all = mutableListOf<Pair<Message, List<Part>>>()
         var before: String? = null
@@ -320,10 +320,10 @@ class OpenCodeClient(
         return all.sortedBy { it.first.time?.created ?: Long.MIN_VALUE }
     }
 
-    suspend fun sessionMessagesSince(
+    override suspend fun sessionMessagesSince(
         sessionId: String,
         sinceMs: Long,
-        onProgress: (fetched: Int, earliestSeen: Long) -> Unit = { _, _ -> },
+        onProgress: (fetched: Int, earliestSeen: Long) -> Unit,
     ): List<Pair<Message, List<Part>>> {
         val result = mutableListOf<Pair<Message, List<Part>>>()
         var before: String? = null
@@ -388,13 +388,13 @@ class OpenCodeClient(
             })
         }
 
-    suspend fun commands(directory: String? = null): List<Command> =
+    override suspend fun commands(directory: String?): List<Command> =
         execute("GET", "/command${queryOf(mapOf("directory" to directory))}") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ListSerializer(Command.serializer()), text)
         }
 
-    suspend fun executeCommand(sessionId: String, command: String, arguments: String = "") {
+    override suspend fun executeCommand(sessionId: String, command: String, arguments: String) {
         execute(
             "POST",
             "/session/$sessionId/command${queryOf(mapOf("directory" to null))}",
@@ -405,13 +405,13 @@ class OpenCodeClient(
         ) {}
     }
 
-    suspend fun pendingPermissions(directory: String? = null): List<PermissionRequest> =
+    override suspend fun pendingPermissions(directory: String?): List<PermissionRequest> =
         execute("GET", "/permission${queryOf(mapOf("directory" to directory))}") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ListSerializer(PermissionRequest.serializer()), text)
         }
 
-    suspend fun replyPermission(requestId: String, reply: String, message: String? = null, directory: String? = null) {
+    override suspend fun replyPermission(requestId: String, reply: String, message: String?, directory: String?) {
         execute(
             "POST",
             "/permission/$requestId/reply${queryOf(mapOf("directory" to directory))}",
@@ -422,7 +422,7 @@ class OpenCodeClient(
         ) {}
     }
 
-    suspend fun switchModel(sessionId: String, providerId: String, modelId: String) {
+    override suspend fun switchModel(sessionId: String, providerId: String, modelId: String) {
         execute(
             "POST",
             "/api/session/$sessionId/model",
@@ -435,7 +435,7 @@ class OpenCodeClient(
         ) {}
     }
 
-    suspend fun renameSession(sessionId: String, title: String) {
+    override suspend fun renameSession(sessionId: String, title: String) {
         execute(
             "PATCH",
             "/session/$sessionId",
@@ -443,10 +443,10 @@ class OpenCodeClient(
         ) {}
     }
 
-    suspend fun deleteSession(sessionId: String): Boolean =
+    override suspend fun deleteSession(sessionId: String): Boolean =
         execute("DELETE", "/session/$sessionId") { it == "true" }
 
-    suspend fun sessionTodos(sessionId: String): List<TodoInfo> =
+    override suspend fun sessionTodos(sessionId: String): List<TodoInfo> =
         execute("GET", "/session/$sessionId/todo") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ListSerializer(TodoInfo.serializer()), text)
@@ -461,19 +461,19 @@ class OpenCodeClient(
         })
     }.toString()
 
-    suspend fun sendPromptAsync(sessionId: String, text: String) {
+    override suspend fun sendPromptAsync(sessionId: String, text: String) {
         execute("POST", "/session/$sessionId/prompt_async", body = promptBody(text)) {}
     }
 
-    suspend fun sendPrompt(sessionId: String, text: String): Pair<Message, List<Part>> =
+    override suspend fun sendPrompt(sessionId: String, text: String): Pair<Message, List<Part>> =
         execute("POST", "/session/$sessionId/message", body = promptBody(text)) {
             json.decodeFromString(SessionInfo.serializer(), it).let { it.info to it.parts }
         }
 
-    suspend fun abortSession(sessionId: String): Boolean =
+    override suspend fun abortSession(sessionId: String): Boolean =
         execute("POST", "/session/$sessionId/abort") { it == "true" }
 
-    suspend fun summarizeSession(sessionId: String, providerId: String, modelId: String) {
+    override suspend fun summarizeSession(sessionId: String, providerId: String, modelId: String) {
         execute(
             "POST",
             "/session/$sessionId/summarize",
@@ -485,7 +485,7 @@ class OpenCodeClient(
         ) {}
     }
 
-    fun eventStream(): Flow<String> = flow {
+    override fun eventStream(): Flow<String> = flow {
         val req = Request.Builder().url("$base/global/event")
         authHeader?.let { req.header("Authorization", it) }
         val call = client.newCall(req.build())
@@ -513,7 +513,7 @@ class OpenCodeClient(
         }
     }.flowOn(Dispatchers.IO)
 
-    suspend fun searchFiles(query: String, limit: Int = 50): List<String> =
+    override suspend fun searchFiles(query: String, limit: Int): List<String> =
         execute("GET", "/find/file${queryOf(mapOf("query" to query, "limit" to limit.toString()))}") { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString<List<String>>(text)
@@ -566,7 +566,7 @@ class OpenCodeClient(
         })
     }
 
-    suspend fun probeCapabilities(): CapabilityReport {
+    override suspend fun probeCapabilities(): CapabilityReport {
         var version: String? = null
         try {
             version = health().version
@@ -599,7 +599,7 @@ class OpenCodeClient(
         }
     }
 
-    fun applyCapabilities(report: CapabilityReport) {
+    override fun applyCapabilities(report: CapabilityReport) {
         fsListV2 = report.fsListV2
     }
 
