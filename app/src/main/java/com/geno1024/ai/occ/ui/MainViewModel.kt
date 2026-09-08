@@ -2438,11 +2438,20 @@ text = e.message ?: getAppString(R.string.send_failed),
         refreshPendingQuestions()
         val c = client ?: return
         val dir = _activeSession.value?.directory
-        val fetched = runCatching {
-            withContext(Dispatchers.IO) { c.pendingPermissions(dir) }
-        }.getOrNull() ?: return
+        var fetched: List<PermissionRequest>? = null
+        if (!dir.isNullOrBlank()) {
+            fetched = runCatching {
+                withContext(Dispatchers.IO) { c.pendingPermissions(dir) }
+            }.getOrNull()
+        }
+        if (fetched == null) {
+            fetched = runCatching {
+                withContext(Dispatchers.IO) { c.pendingPermissions(null) }
+            }.getOrNull()
+        }
+        val list = fetched ?: return
         val ignored = _ignoredPermissions.value
-        val (silent, keep) = fetched.partition { permissionIgnoreKey(it) in ignored }
+        val (silent, keep) = list.partition { permissionIgnoreKey(it) in ignored }
         if (silent.isNotEmpty()) {
             withContext(Dispatchers.IO) { silent.forEach { runCatching { c.replyPermission(it.id, "reject", null, dir) } } }
         }
@@ -2481,21 +2490,18 @@ text = e.message ?: getAppString(R.string.send_failed),
                 }
             }
             "permission.asked" -> {
-                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
-                if (sid == active) {
-                    runCatching {
-                        val p = json.decodeFromString(PermissionRequest.serializer(), props.toString())
-                        if (permissionIgnoreKey(p) in _ignoredPermissions.value) {
-                            val dir = _activeSession.value?.directory
-                            client?.let { cc ->
-                                viewModelScope.launch {
-                                    runCatching { withContext(Dispatchers.IO) { cc.replyPermission(p.id, "reject", null, dir) } }
-                                }
+                runCatching {
+                    val p = json.decodeFromString(PermissionRequest.serializer(), props.toString())
+                    if (permissionIgnoreKey(p) in _ignoredPermissions.value) {
+                        val dir = _activeSession.value?.directory
+                        client?.let { cc ->
+                            viewModelScope.launch {
+                                runCatching { withContext(Dispatchers.IO) { cc.replyPermission(p.id, "reject", null, dir) } }
                             }
-                            return@runCatching
                         }
-                        _pendingPermissions.value = _pendingPermissions.value.filterNot { it.id == p.id } + p
+                        return@runCatching
                     }
+                    _pendingPermissions.value = _pendingPermissions.value.filterNot { it.id == p.id } + p
                 }
             }
             "permission.replied" -> {

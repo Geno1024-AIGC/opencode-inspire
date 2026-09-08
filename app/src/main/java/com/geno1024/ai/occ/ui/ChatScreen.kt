@@ -868,14 +868,16 @@ fun ChatScreen(
         )
     }
 
-     pendingPermissions.firstOrNull()?.let { permission ->
-         PermissionDialog(
-             permission = permission,
-             directory = activeSession?.directory,
-             onReply = { reply -> viewModel.replyPermission(permission, reply) },
-             onNeverAsk = { viewModel.ignorePermission(permission) },
-         )
-     }
+     val activePermission = pendingPermissions.firstOrNull { it.sessionId == activeSession?.id }
+        ?: pendingPermissions.firstOrNull()
+    activePermission?.let { permission ->
+        PermissionDialog(
+            permission = permission,
+            directory = activeSession?.directory,
+            onReply = { reply -> viewModel.replyPermission(permission, reply) },
+            onNeverAsk = { viewModel.ignorePermission(permission) },
+        )
+    }
 
     rawMessage?.let { msg ->
         RawMessageDialog(msg = msg, onDismiss = { rawMessage = null })

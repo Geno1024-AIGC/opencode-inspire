@@ -406,7 +406,12 @@ class OpenCodeClient(
     }
 
     override suspend fun pendingPermissions(directory: String?): List<PermissionRequest> =
-        execute("GET", "/permission${queryOf(mapOf("directory" to directory))}") { text ->
+        execute(
+            "GET",
+            "/permission${queryOf(mapOf("directory" to directory))}",
+            headers = if (directory.isNullOrBlank()) emptyMap()
+            else mapOf("x-opencode-directory" to directory),
+        ) { text ->
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ListSerializer(PermissionRequest.serializer()), text)
         }
@@ -415,6 +420,8 @@ class OpenCodeClient(
         execute(
             "POST",
             "/permission/$requestId/reply${queryOf(mapOf("directory" to directory))}",
+            headers = if (directory.isNullOrBlank()) emptyMap()
+            else mapOf("x-opencode-directory" to directory),
             body = buildJsonObject {
                 put("reply", JsonPrimitive(reply))
                 if (!message.isNullOrBlank()) put("message", JsonPrimitive(message))

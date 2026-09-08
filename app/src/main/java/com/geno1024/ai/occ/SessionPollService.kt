@@ -74,6 +74,7 @@ class SessionPollService : Service() {
         var newMessageTime = 0L
         var sessionTitle = ""
         var questions = 0
+        var permissions = 0
         runCatching {
             val active = withContext(Dispatchers.IO) { client.sessions() }.firstOrNull()
             if (active != null) {
@@ -82,9 +83,20 @@ class SessionPollService : Service() {
                 newMessageTime = page.first.firstOrNull()?.first?.time?.created?.let { serverToMillis(it) } ?: 0L
             }
             questions = withContext(Dispatchers.IO) { client.pendingQuestions(active?.directory) }.size
+            val permDir = active?.directory
+            permissions = if (permDir.isNullOrBlank()) {
+                withContext(Dispatchers.IO) { client.pendingPermissions(null) }.size
+            } else {
+                runCatching {
+                    withContext(Dispatchers.IO) { client.pendingPermissions(permDir) }.size
+                }.getOrElse {
+                    withContext(Dispatchers.IO) { client.pendingPermissions(null) }.size
+                }
+            }
             val lastSession = prefs.getString(KEY_LAST_SESSION, null)
             val lastTime = prefs.getLong(KEY_LAST_TIME, 0L)
             val lastQuestions = prefs.getInt(KEY_LAST_QUESTIONS, 0)
+            val lastPermissions = prefs.getInt(KEY_LAST_PERMISSIONS, 0)
 
             if (newMessageTime > 0L && (lastSession != active?.id || newMessageTime != lastTime)) {
                 postNewMessages(sessionTitle)
@@ -92,11 +104,15 @@ class SessionPollService : Service() {
             if (questions > 0 && (lastQuestions < questions)) {
                 postQuestions(questions, sessionTitle)
             }
+            if (permissions > 0 && (lastPermissions < permissions)) {
+                postPermissionRequests(permissions, sessionTitle)
+            }
 
             prefs.edit()
                 .putString(KEY_LAST_SESSION, active?.id)
                 .putLong(KEY_LAST_TIME, newMessageTime)
                 .putInt(KEY_LAST_QUESTIONS, questions)
+                .putInt(KEY_LAST_PERMISSIONS, permissions)
                 .putLong(KEY_LAST_CHECK, System.currentTimeMillis())
                 .apply()
         }
@@ -143,6 +159,18 @@ class SessionPollService : Service() {
         runCatching { nm.notify(QUESTIONS_NOTIF_ID, notification) }
     }
 
+    private fun postPermissionRequests(count: Int, title: String) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        val notification = android.app.Notification.Builder(this, POLL_CHANNEL)
+            .setSmallIcon(android.R.drawable.stat_notify_error)
+            .setContentTitle(getString(R.string.notify_permissions_title, title.ifBlank { "OpenCode" }))
+            .setContentText(resources.getQuantityString(R.plurals.notify_permissions, count, count))
+            .setContentIntent(openAppPendingIntent())
+            .setAutoCancel(true)
+            .build()
+        runCatching { nm.notify(PERMS_NOTIF_ID, notification) }
+    }
+
     private fun openAppPendingIntent(): PendingIntent {
         val intent = Intent(this, MainActivity::class.java)
         return PendingIntent.getActivity(
@@ -160,10 +188,12 @@ class SessionPollService : Service() {
         private const val POLL_NOTIF_ID = 2000
         private const val NEW_MSG_NOTIF_ID = 2001
         private const val QUESTIONS_NOTIF_ID = 2002
+        private const val PERMS_NOTIF_ID = 2003
         private const val PREFS_NAME = "poll_state"
         private const val KEY_LAST_SESSION = "last_session_id"
         private const val KEY_LAST_TIME = "last_msg_time"
         private const val KEY_LAST_QUESTIONS = "last_questions"
+        private const val KEY_LAST_PERMISSIONS = "last_permissions"
         private const val KEY_LAST_CHECK = "last_check"
         private const val POLL_INTERVAL_MS = 60_000L
     }

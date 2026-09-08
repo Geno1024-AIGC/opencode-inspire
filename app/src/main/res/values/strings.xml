@@ -483,6 +483,11 @@
         <item quantity="one">%1$d question awaiting your answer</item>
         <item quantity="other">%1$d questions awaiting your answer</item>
     </plurals>
+    <string name="notify_permissions_title">%1$s</string>
+    <plurals name="notify_permissions">
+        <item quantity="one">%1$d permission awaiting your approval</item>
+        <item quantity="other">%1$d permissions awaiting your approval</item>
+    </plurals>
     <string name="permission_never_ask">Never ask again</string>
     <string name="settings_ignored_title">Ignored requests</string>
     <string name="settings_ignored_sub">Permissions and questions you will not be asked again</string>

@@ -481,6 +481,10 @@
     <plurals name="notify_questions">
         <item quantity="other">有 %1$d 个提问等待你处理</item>
     </plurals>
+    <string name="notify_permissions_title">%1$s</string>
+    <plurals name="notify_permissions">
+        <item quantity="other">有 %1$d 个权限等待你批准</item>
+    </plurals>
     <string name="permission_never_ask">永不询问</string>
     <string name="settings_ignored_title">已忽略的请求</string>
     <string name="settings_ignored_sub">将不再询问的问题与权限</string>
