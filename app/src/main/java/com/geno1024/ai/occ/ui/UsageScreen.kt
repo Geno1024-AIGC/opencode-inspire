@@ -26,7 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,6 +41,7 @@ import com.geno1024.ai.occ.R
 import com.geno1024.ai.occ.data.TokenDay
 import com.geno1024.ai.occ.data.TokenFormat
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 private data class UsageRow(val model: String, val day: TokenDay)
 
@@ -53,15 +53,17 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     val tokenModelStats by viewModel.tokenModelStats.collectAsStateWithLifecycle()
     val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
 
-    var periodDays by rememberSaveable { mutableIntStateOf(7) }
+    var periodDays by rememberSaveable { mutableStateOf<Int?>(7) }
     var expandedModel by rememberSaveable { mutableStateOf<String?>(null) }
     val today = remember { LocalDate.now() }
 
     val periodKeys = remember(tokenHistory, periodDays, today) {
-        val start = today.minusDays((periodDays - 1).toLong())
+        val start = today.minusDays(((periodDays ?: 1) - 1).toLong())
         tokenHistory.keys.filter { k ->
-            runCatching { val d = LocalDate.parse(k); !d.isBefore(start) && !d.isAfter(today) }
-                .getOrDefault(false)
+            runCatching {
+                val d = LocalDate.parse(k)
+                periodDays == null || (!d.isBefore(start) && !d.isAfter(today))
+            }.getOrDefault(false)
         }.toSet()
     }
     val periodTotal = remember(periodKeys, tokenHistory) {
@@ -78,6 +80,12 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     }
     val trendByModel = remember(periodKeys, tokenModelStats) {
         tokenModelStats.mapValues { (_, st) -> st.history.filterKeys { it in periodKeys } }
+    }
+    val periodDaySpan: Int = remember(periodKeys, periodDays, today) {
+        if (periodDays == null) {
+            val min = periodKeys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }.minOrNull()
+            min?.let { ChronoUnit.DAYS.between(it, today).toInt() + 1 } ?: 1
+        } else periodDays!!
     }
 
     Scaffold(
@@ -110,19 +118,22 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(7, 30, 90).forEach { d ->
+                listOf<Int?>(7, 30, 90, null).forEach { d ->
                     FilterChip(
                         selected = periodDays == d,
                         onClick = { periodDays = d },
                         label = {
                             Text(
-                                stringResource(
-                                    when (d) {
-                                        7 -> R.string.usage_period_7d
-                                        30 -> R.string.usage_period_30d
-                                        else -> R.string.usage_period_90d
-                                    }
-                                ),
+                                when (d) {
+                                    null -> stringResource(R.string.usage_period_all)
+                                    else -> stringResource(
+                                        when (d) {
+                                            7 -> R.string.usage_period_7d
+                                            30 -> R.string.usage_period_30d
+                                            else -> R.string.usage_period_90d
+                                        }
+                                    )
+                                },
                                 fontFamily = MonoFontFamily,
                             )
                         },
@@ -140,7 +151,7 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 UsageSummaryCard(
                     total = periodTotal,
                     elapsed = periodElapsed,
-                    days = periodDays,
+                    days = periodDaySpan,
                     format = tokenFormat,
                 )
             }
@@ -156,7 +167,7 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     row = row,
                     total = periodTotal,
                     trendHistory = trendByModel[row.model] ?: emptyMap(),
-                    trendDays = periodDays,
+                    trendDays = periodDaySpan,
                     expanded = expandedModel == row.model,
                     format = tokenFormat,
                     onClick = { expandedModel = if (expandedModel == row.model) null else row.model },
