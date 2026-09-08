@@ -36,6 +36,7 @@ data class Session(
     val time: SessionTime? = null,
     val tokens: Tokens? = null,
     val model: ModelV2Ref? = null,
+    val agent: String? = null,
 )
 
 @Serializable
@@ -61,6 +62,7 @@ data class SessionV2Info(
     val tokens: Tokens? = null,
     val cost: Double = 0.0,
     val model: ModelV2Ref? = null,
+    val agent: String? = null,
 )
 
 @Serializable
@@ -88,6 +90,57 @@ data class ModelLimit(
 data class ModelsV2Response(
     val location: LocationRef? = null,
     val data: List<ModelInfo> = emptyList(),
+)
+
+@Serializable
+data class AgentInfo(
+    val id: String = "",
+    val name: String? = null,
+    val description: String? = null,
+    val mode: String? = null,
+    val hidden: Boolean = false,
+) {
+    val displayName: String
+        get() = name?.takeIf { it.isNotBlank() } ?: id
+}
+
+@Serializable
+data class AgentsV2Response(
+    val location: LocationRef? = null,
+    val data: List<AgentInfo> = emptyList(),
+)
+
+@Serializable
+data class IntegrationMethod(
+    val type: String = "",
+    val names: List<String> = emptyList(),
+)
+
+@Serializable
+data class IntegrationConnection(
+    val type: String? = null,
+    val id: String? = null,
+    val label: String? = null,
+    val value: String? = null,
+)
+
+@Serializable
+data class IntegrationInfo(
+    val id: String = "",
+    val name: String? = null,
+    val methods: List<IntegrationMethod> = emptyList(),
+    val connections: List<IntegrationConnection> = emptyList(),
+) {
+    val displayName: String
+        get() = name?.takeIf { it.isNotBlank() } ?: id
+    val supportsKey: Boolean
+        get() = methods.any { it.type == "key" }
+}
+
+@Serializable
+data class IntegrationsV2Response(
+    val location: LocationRef? = null,
+    val data: List<IntegrationInfo> = emptyList(),
 )
 
 @Serializable

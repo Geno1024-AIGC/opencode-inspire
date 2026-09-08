@@ -103,6 +103,7 @@ sealed class Screen {
     data object Export : Screen()
     data object About : Screen()
     data object Usage : Screen()
+    data object Providers : Screen()
 
     val key: String
         get() = when (this) {
@@ -113,6 +114,7 @@ sealed class Screen {
             Export -> "export"
             About -> "about"
             Usage -> "usage"
+            Providers -> "providers"
         }
 
     companion object {
@@ -123,6 +125,7 @@ sealed class Screen {
             "export" -> Export
             "about" -> About
             "usage" -> Usage
+            "providers" -> Providers
             else -> Connect
         }
     }
@@ -160,6 +163,13 @@ fun OpenCodeApp(viewModel: MainViewModel) {
                 onOpenSettings = { screenKey = Screen.Settings.key },
                 onOpenCalendar = { screenKey = Screen.Calendar.key },
                 onOpenAbout = { screenKey = Screen.About.key },
+                onOpenProviders = { screenKey = Screen.Providers.key },
+            )
+        }
+        is Screen.Providers -> saveableStateHolder.SaveableStateProvider(Screen.Providers.key) {
+            ProvidersScreen(
+                viewModel = viewModel,
+                onBack = { screenKey = Screen.Main.key },
             )
         }
         is Screen.Settings -> saveableStateHolder.SaveableStateProvider(Screen.Settings.key) {
@@ -210,6 +220,7 @@ private fun MainScreen(
     onOpenSettings: () -> Unit,
     onOpenCalendar: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenProviders: () -> Unit,
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -232,6 +243,10 @@ private fun MainScreen(
                 onCapabilities = { showCapabilities = true },
                 onQuickCommand = { showQuickCommand = true },
                 onDisconnect = onDisconnect,
+                onProviders = {
+                    scope.launch { drawerState.close() }
+                    onOpenProviders()
+                },
             )
         },
     ) {
@@ -474,6 +489,7 @@ private fun DrawerContent(
     onCapabilities: () -> Unit,
     onQuickCommand: () -> Unit,
     onDisconnect: () -> Unit,
+    onProviders: () -> Unit,
 ) {
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val workspaceState by viewModel.workspaceState.collectAsStateWithLifecycle()
@@ -628,6 +644,14 @@ private fun DrawerContent(
                 .fillMaxWidth()
                 .clickable { onSettings() }
                 .padding(16.dp),
+        )
+        Text(
+            stringResource(R.string.drawer_providers),
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onProviders() }
+                .padding(horizontal = 16.dp, vertical = 4.dp),
         )
         }
     }

@@ -28,6 +28,14 @@ interface AgentClient {
 
     suspend fun models(): List<ModelInfo>
 
+    suspend fun agents(directory: String? = null): List<AgentInfo>
+
+    suspend fun switchAgent(sessionId: String, agent: String)
+
+    suspend fun integrations(directory: String? = null): List<IntegrationInfo>
+
+    suspend fun connectIntegration(integrationId: String, key: String, label: String? = null, directory: String? = null)
+
     suspend fun sessionDetail(id: String): SessionV2Info?
 
     suspend fun contextWindow(modelId: String?): Long

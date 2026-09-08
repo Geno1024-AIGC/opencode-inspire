@@ -129,6 +129,7 @@ import kotlinx.coroutines.withContext
 
 import com.geno1024.ai.occ.data.FileNode
 import com.geno1024.ai.occ.data.ModelInfo
+import com.geno1024.ai.occ.data.AgentInfo
 import com.geno1024.ai.occ.data.QuestionRequest
 import com.geno1024.ai.occ.data.StoredHistoryStats
 import com.geno1024.ai.occ.data.TokenDay
@@ -177,6 +178,8 @@ fun ChatScreen(
     val commands by viewModel.commands.collectAsStateWithLifecycle()
     val models by viewModel.models.collectAsStateWithLifecycle()
     val currentModelId by viewModel.currentModelId.collectAsStateWithLifecycle()
+    val agents by viewModel.agents.collectAsStateWithLifecycle()
+    val currentAgent by viewModel.currentAgent.collectAsStateWithLifecycle()
     val pendingPermissions by viewModel.pendingPermissions.collectAsStateWithLifecycle()
     val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
@@ -454,15 +457,25 @@ fun ChatScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                if (activeSession != null && models.isNotEmpty()) {
+                                if (activeSession != null) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         StatusDot(connected = connectionState !is UiState.Error, sending = sending)
-                                        Spacer(Modifier.width(6.dp))
-                                        ModelSwitcher(
-                                            models = models,
-                                            currentModelId = currentModelId,
-                                            onSelect = { model -> viewModel.switchModel(model.providerId ?: "opencode", model.id ?: "") },
-                                        )
+                                        if (agents.isNotEmpty()) {
+                                            Spacer(Modifier.width(6.dp))
+                                            AgentSwitcher(
+                                                agents = agents,
+                                                currentAgentId = currentAgent,
+                                                onSelect = { agent -> viewModel.switchAgent(agent.id) },
+                                            )
+                                        }
+                                        if (models.isNotEmpty()) {
+                                            Spacer(Modifier.width(6.dp))
+                                            ModelSwitcher(
+                                                models = models,
+                                                currentModelId = currentModelId,
+                                                onSelect = { model -> viewModel.switchModel(model.providerId ?: "opencode", model.id ?: "") },
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -2587,6 +2600,58 @@ private fun StatusDot(connected: Boolean, sending: Boolean) {
             .clip(CircleShape)
             .background(color.copy(alpha = alpha)),
     )
+}
+
+@Composable
+private fun AgentSwitcher(
+    agents: List<AgentInfo>,
+    currentAgentId: String?,
+    onSelect: (AgentInfo) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val visible = agents.filter { !it.hidden }
+    val current = visible.firstOrNull { it.id == currentAgentId }
+        ?: visible.firstOrNull { it.id == "build" }
+        ?: visible.firstOrNull()
+    Box {
+        Text(
+            text = current?.id ?: stringResource(R.string.agent_label),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .clickable { expanded = true }
+                .padding(vertical = 2.dp),
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            visible.forEach { agent ->
+                val selected = agent.id == currentAgentId
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(
+                                agent.id,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            )
+                            agent.description?.let { desc ->
+                                Text(
+                                    desc,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelect(agent)
+                    },
+                )
+            }
+        }
+    }
 }
 
 @Composable

@@ -227,6 +227,7 @@ class OpenCodeClient(
                     time = v2.time,
                     tokens = v2.tokens,
                     model = v2.model,
+                    agent = v2.agent,
                 )
             }
         }
@@ -236,6 +237,39 @@ class OpenCodeClient(
             if (text.isBlank()) emptyList()
             else json.decodeFromString(ModelsV2Response.serializer(), text).data
         }
+
+    override suspend fun agents(directory: String?): List<AgentInfo> =
+        execute("GET", "/api/agent${queryOf(mapOf("directory" to directory))}") { text ->
+            if (text.isBlank()) emptyList()
+            else json.decodeFromString(AgentsV2Response.serializer(), text).data
+        }
+
+    override suspend fun switchAgent(sessionId: String, agent: String) {
+        execute(
+            "POST",
+            "/api/session/$sessionId/agent",
+            body = buildJsonObject {
+                put("agent", JsonPrimitive(agent))
+            }.toString(),
+        ) {}
+    }
+
+    override suspend fun integrations(directory: String?): List<IntegrationInfo> =
+        execute("GET", "/api/integration${queryOf(mapOf("directory" to directory))}") { text ->
+            if (text.isBlank()) emptyList()
+            else json.decodeFromString(IntegrationsV2Response.serializer(), text).data
+        }
+
+    override suspend fun connectIntegration(integrationId: String, key: String, label: String?, directory: String?) {
+        execute(
+            "POST",
+            "/api/integration/$integrationId/connect/key${queryOf(mapOf("location" to directory))}",
+            body = buildJsonObject {
+                put("key", JsonPrimitive(key))
+                if (!label.isNullOrBlank()) put("label", JsonPrimitive(label))
+            }.toString(),
+        ) {}
+    }
 
     override suspend fun sessionDetail(id: String): SessionV2Info? =
         execute("GET", "/api/session/$id") { text ->

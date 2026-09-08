@@ -89,6 +89,7 @@
     <string name="session_group_earlier">Earlier</string>
     <string name="drawer_servers">Servers</string>
     <string name="drawer_projects">Projects</string>
+    <string name="drawer_providers">Providers</string>
     <string name="drawer_refresh">Refresh</string>
     <string name="drawer_add_project">Add project</string>
     <string name="new_chat">New chat</string>
@@ -147,6 +148,19 @@
     <string name="chat_abort">Abort</string>
     <string name="chat_refresh">Refresh</string>
     <string name="chat_agent">agent</string>
+    <string name="agent_label">agent</string>
+    <string name="providers_hint">Connect AI providers with an API key here. Custom providers configured via opencode.json on the server already appear in the model picker.</string>
+    <string name="providers_empty">No providers available. The server may not support this endpoint.</string>
+    <string name="providers_no_key">OAuth only — please connect on the server</string>
+    <string name="providers_key_hint">Enter an API key for %1$s</string>
+    <string name="providers_key_label">API Key</string>
+    <string name="providers_label_label">Label (optional)</string>
+    <string name="providers_connect">Connect</string>
+    <string name="providers_connect_fail">Failed to connect</string>
+    <string name="providers_refreshed">Refreshed</string>
+    <string name="providers_connected">Connected</string>
+    <string name="providers_method_key">API Key</string>
+    <string name="providers_method_oauth">OAuth</string>
     <string name="message_collapse_toggle">Collapse/expand message</string>
     <string name="message_collapsed">Message collapsed</string>
     <string name="message_raw">View raw message</string>

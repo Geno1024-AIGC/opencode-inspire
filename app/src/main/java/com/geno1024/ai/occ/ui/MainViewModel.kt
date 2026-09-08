@@ -24,6 +24,8 @@ import com.geno1024.ai.occ.data.Command
 import com.geno1024.ai.occ.data.FeatureStatus
 import com.geno1024.ai.occ.data.Message
 import com.geno1024.ai.occ.data.ModelInfo
+import com.geno1024.ai.occ.data.AgentInfo
+import com.geno1024.ai.occ.data.IntegrationInfo
 import com.geno1024.ai.occ.data.AgentClient
 import com.geno1024.ai.occ.data.OpenCodeClient
 import com.geno1024.ai.occ.data.Part
@@ -332,6 +334,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _currentModelId = MutableStateFlow<String?>(null)
     val currentModelId: StateFlow<String?> = _currentModelId.asStateFlow()
+
+    private val _agents = MutableStateFlow<List<AgentInfo>>(emptyList())
+    val agents: StateFlow<List<AgentInfo>> = _agents.asStateFlow()
+
+    private val _currentAgent = MutableStateFlow<String?>(null)
+    val currentAgent: StateFlow<String?> = _currentAgent.asStateFlow()
+
+    private val _integrations = MutableStateFlow<List<IntegrationInfo>>(emptyList())
+    val integrations: StateFlow<List<IntegrationInfo>> = _integrations.asStateFlow()
 
     private val _pendingPermissions = MutableStateFlow<List<PermissionRequest>>(emptyList())
     val pendingPermissions: StateFlow<List<PermissionRequest>> = _pendingPermissions.asStateFlow()
@@ -939,6 +950,9 @@ private fun sessionTitle(sid: String): String {
                 _contextWindow.value = 0L
                 _promptTokens.value = 0L
                 _cumulativeTokens.value = 0L
+                _currentAgent.value = null
+                _agents.value = emptyList()
+                _integrations.value = emptyList()
                 lastUserSendTime = null
                 _sessionElapsed.value = null
                 _sessionTotalElapsed.value = null
@@ -1222,6 +1236,12 @@ private fun sessionTitle(sid: String): String {
             }
         }
         runCatching {
+            _agents.value = withContext(Dispatchers.IO) {
+                c.agents(_activeSession.value?.directory)
+            }
+        }
+        refreshIntegrations()
+        runCatching {
             _pendingPermissions.value = withContext(Dispatchers.IO) {
                 c.pendingPermissions(_activeSession.value?.directory)
             }.filter { it.sessionId == _activeSession.value?.id }
@@ -1403,6 +1423,7 @@ private fun sessionTitle(sid: String): String {
                 _sessionCost.value = detail.cost
                 val modelId = detail.model?.id
                 _contextWindow.value = withContext(Dispatchers.IO) { c.contextWindow(modelId) }
+                if (!detail.agent.isNullOrBlank()) _currentAgent.value = detail.agent
                 recomputeCumulativeTokens()
             }
         } catch (_: Exception) {
@@ -1437,6 +1458,7 @@ private fun sessionTitle(sid: String): String {
     private suspend fun activateSession(s: Session) {
         _activeSession.value = s
         _currentModelId.value = s.model?.id
+        _currentAgent.value = s.agent
         _sessionTokens.value = null
         _contextWindow.value = 0L
         _promptTokens.value = 0L
@@ -1874,6 +1896,47 @@ text = e.message ?: getAppString(R.string.send_failed),
                 .onFailure { e ->
                     _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.send_failed))
                 }
+        }
+    }
+
+    fun switchAgent(agentId: String) {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { c.switchAgent(sid, agentId) } }
+                .onSuccess {
+                    _currentAgent.value = agentId
+                    _activeSession.value = _activeSession.value?.copy(agent = agentId)
+                    _projects.value = _projects.value.map { p ->
+                        p.copy(sessions = p.sessions.map { if (it.id == sid) it.copy(agent = agentId) else it })
+                    }
+                }
+                .onFailure { e ->
+                    _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.send_failed))
+                }
+        }
+    }
+
+    fun refreshIntegrations() {
+        val c = client ?: return
+        viewModelScope.launch {
+            runCatching {
+                _integrations.value = withContext(Dispatchers.IO) {
+                    c.integrations(_activeSession.value?.directory)
+                }
+            }
+        }
+    }
+
+    fun connectIntegration(integrationId: String, key: String, label: String?, onResult: (Boolean) -> Unit) {
+        val c = client ?: return
+        val dir = _activeSession.value?.directory
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { c.connectIntegration(integrationId, key, label, dir) }
+            }
+            .onSuccess { onResult(true); refreshIntegrations() }
+            .onFailure { e -> onResult(false); _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.send_failed)) }
         }
     }
 

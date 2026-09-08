@@ -89,6 +89,7 @@
     <string name="session_group_earlier">更早</string>
     <string name="drawer_servers">服务器</string>
     <string name="drawer_projects">项目</string>
+    <string name="drawer_providers">模型与密钥</string>
     <string name="drawer_refresh">刷新</string>
     <string name="drawer_add_project">添加项目</string>
     <string name="new_chat">新建对话</string>
@@ -147,6 +148,19 @@
     <string name="chat_abort">中止</string>
     <string name="chat_refresh">刷新</string>
     <string name="chat_agent">代理</string>
+    <string name="agent_label">智能体</string>
+    <string name="providers_hint">在此为 AI 提供商填入 API 密钥进行连接。服务器端通过 opencode.json 配置的自定义提供商已会出现在模型选择器中。</string>
+    <string name="providers_empty">暂无可用提供商。服务器可能不支持该接口。</string>
+    <string name="providers_no_key">仅支持 OAuth——请在服务器端连接</string>
+    <string name="providers_key_hint">请输入 %1$s 的 API 密钥</string>
+    <string name="providers_key_label">API 密钥</string>
+    <string name="providers_label_label">备注（可选）</string>
+    <string name="providers_connect">连接</string>
+    <string name="providers_connect_fail">连接失败</string>
+    <string name="providers_refreshed">已刷新</string>
+    <string name="providers_connected">已连接</string>
+    <string name="providers_method_key">API 密钥</string>
+    <string name="providers_method_oauth">OAuth</string>
     <string name="message_collapse_toggle">折叠/展开消息</string>
     <string name="message_collapsed">消息已折叠</string>
     <string name="message_raw">查看原始消息</string>
