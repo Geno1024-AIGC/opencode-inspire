@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownTypography
 import com.mikepenz.markdown.model.rememberMarkdownState
 import kotlinx.coroutines.launch
 
@@ -475,6 +476,10 @@ fun MarkdownMessage(content: String) {
     SelectionContainer {
         Markdown(
             markdownState = markdownState,
+            typography = markdownTypography(
+                code = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
+                inlineCode = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
+            ),
             modifier = Modifier.fillMaxWidth(),
         )
     }
