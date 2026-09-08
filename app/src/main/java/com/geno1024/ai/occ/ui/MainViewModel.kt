@@ -1651,24 +1651,12 @@ private fun sessionTitle(sid: String): String {
     }
 
     private fun recomputeCumulativeTokens() {
-        val total = _sessionTokens.value?.total ?: 0L
-        val msgs = _messages.value
-        if (total > 0L) {
-            var remaining = total
-            _messages.value = msgs.reversed().map { m ->
-                val bb = (m.tokens?.total ?: 0L).coerceAtLeast(0L)
-                val cum = remaining
-                remaining = (remaining - bb).coerceAtLeast(0L)
-                m.copy(cumulativeTokens = cum)
-            }.reversed()
-        } else {
-            var cum = 0L
-            _messages.value = msgs.map { m ->
-                val bb = (m.tokens?.total ?: 0L).coerceAtLeast(0L)
-                if (bb > 0) cum += bb
-                m.copy(cumulativeTokens = cum)
-            }
+        var cum = 0L
+        _messages.value = _messages.value.map { m ->
+            cum += (m.tokens?.total ?: 0L).coerceAtLeast(0L)
+            m.copy(cumulativeTokens = cum)
         }
+        _cumulativeTokens.value = cum
     }
 
     private fun recomputeSessionElapsed() {
