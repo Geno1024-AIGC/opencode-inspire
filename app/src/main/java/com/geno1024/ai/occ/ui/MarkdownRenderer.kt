@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.model.rememberMarkdownState
 import kotlinx.coroutines.launch
 
 private data class MdSpan(val start: Int, val end: Int, val style: SpanStyle?)
@@ -469,6 +471,15 @@ private fun parseMarkdown(text: String): List<Any> {
 
 @Composable
 fun MarkdownMessage(content: String) {
+    val markdownState = rememberMarkdownState(content, retainState = true)
+    Markdown(
+        markdownState = markdownState,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+fun MarkdownMessageCustom(content: String) {
     val items = remember(content) { parseMarkdown(content) }
 
     SelectionContainer {

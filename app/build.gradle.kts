@@ -121,4 +121,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
     implementation("androidx.datastore:datastore-preferences:1.2.1")
+
+    implementation("com.mikepenz:multiplatform-markdown-renderer:0.45.0")
+    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.45.0")
 }
