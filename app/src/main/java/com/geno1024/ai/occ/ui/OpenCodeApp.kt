@@ -135,7 +135,6 @@ sealed class Screen {
 fun OpenCodeApp(viewModel: MainViewModel) {
     var screenKey by rememberSaveable { mutableStateOf(Screen.Connect.key) }
     val screen = Screen.fromKey(screenKey)
-    var usageBack by rememberSaveable { mutableStateOf(Screen.Calendar.key) }
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     var exportStartMonth by remember { mutableStateOf(java.time.YearMonth.now()) }
 
@@ -171,10 +170,7 @@ fun OpenCodeApp(viewModel: MainViewModel) {
                 viewModel = viewModel,
                 onBack = { screenKey = Screen.Main.key },
                 onOpenCalendar = { screenKey = Screen.Calendar.key },
-                onOpenUsage = {
-                    usageBack = Screen.Settings.key
-                    screenKey = Screen.Usage.key
-                },
+                onOpenUsage = { screenKey = Screen.Usage.key },
                 onOpenAbout = { screenKey = Screen.About.key },
             )
         }
@@ -186,16 +182,12 @@ fun OpenCodeApp(viewModel: MainViewModel) {
                     exportStartMonth = m
                     screenKey = Screen.Export.key
                 },
-                onOpenUsage = {
-                    usageBack = Screen.Calendar.key
-                    screenKey = Screen.Usage.key
-                },
             )
         }
         is Screen.Usage -> saveableStateHolder.SaveableStateProvider(Screen.Usage.key) {
             UsageScreen(
                 viewModel = viewModel,
-                onBack = { screenKey = usageBack },
+                onBack = { screenKey = Screen.Settings.key },
             )
         }
         is Screen.Export -> saveableStateHolder.SaveableStateProvider(Screen.Export.key) {

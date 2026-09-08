@@ -1,5 +1,6 @@
 package com.geno1024.ai.occ.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.DatePicker
@@ -122,6 +122,8 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
         } else periodMode.toIntOrNull() ?: 7
     }
 
+    BackHandler(onBack = onBack)
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -131,14 +133,6 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.drawer_close))
                     }
-                },
-                actions = {
-                    Icon(
-                        Icons.Filled.Star,
-                        stringResource(R.string.usage_leaderboard_title),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
                 },
             )
         },

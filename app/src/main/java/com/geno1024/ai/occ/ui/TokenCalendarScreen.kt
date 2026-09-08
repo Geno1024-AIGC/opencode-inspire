@@ -30,7 +30,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -115,7 +114,6 @@ fun TokenCalendarScreen(
     viewModel: MainViewModel,
     onBack: () -> Unit,
     onOpenExport: (YearMonth) -> Unit = {},
-    onOpenUsage: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
@@ -182,9 +180,6 @@ fun TokenCalendarScreen(
                         }
                         IconButton(onClick = { onOpenExport(shownMonth) }) {
                             Icon(Icons.Filled.Share, stringResource(R.string.calendar_export))
-                        }
-                        IconButton(onClick = onOpenUsage) {
-                            Icon(Icons.Filled.Star, stringResource(R.string.usage_leaderboard_title))
                         }
                     }
                 },
