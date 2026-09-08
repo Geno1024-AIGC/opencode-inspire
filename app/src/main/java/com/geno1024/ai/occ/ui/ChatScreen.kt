@@ -731,12 +731,13 @@ fun ChatScreen(
         }
     }
 
-    if (pendingQuestions.isNotEmpty()) {
+    val activeQuestions = pendingQuestions.filter { it.sessionId == activeSession?.id }
+    if (activeQuestions.isNotEmpty()) {
         PendingQuestionsSheet(
-            requests = pendingQuestions,
+            requests = activeQuestions,
             onReply = { q, answers -> viewModel.replyQuestions(q, answers) },
             onReject = { viewModel.rejectQuestion(it) },
-            onDismissAll = { pendingQuestions.forEach(viewModel::rejectQuestion) },
+            onDismissAll = { activeQuestions.forEach(viewModel::rejectQuestion) },
         )
     }
 
@@ -2031,7 +2032,7 @@ private fun TokenStatsBar(
     messageCount: Long? = null,
     cost: Double = 0.0,
 ) {
-    if (tokens == null && contextWindow <= 0) return
+    if (tokens == null) return
     val input = tokens?.input ?: 0L
     val output = tokens?.output ?: 0L
     val reasoning = tokens?.reasoning ?: 0L
@@ -2087,28 +2088,31 @@ private fun TokenStatsBar(
                     )
                 }
             }
-            if (contextWindow > 0 && (fresh > 0 || promptTokens > 0)) {
+            if (fresh > 0 || promptTokens > 0) {
                 Column(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     Text(
-                        "${formatTokens(ctx, tokenFormat)} / ${formatTokens(contextWindow, tokenFormat)}",
+                        if (contextWindow > 0) "${formatTokens(ctx, tokenFormat)} / ${formatTokens(contextWindow, tokenFormat)}"
+                        else "${formatTokens(ctx, tokenFormat)} / -",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = MonoFontFamily,
                         maxLines = 1,
                     )
-                    Text(
-                        "${(ratio * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontFamily = MonoFontFamily,
-                    )
+                    if (contextWindow > 0) {
+                        Text(
+                            "${(ratio * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                        )
+                    }
                 }
             }
         }
-        if (contextWindow > 0 && fresh > 0) {
+        if (contextWindow > 0 && fresh > 0 && total > 0) {
             LinearProgressIndicator(
                 progress = { ratio },
                 modifier = Modifier

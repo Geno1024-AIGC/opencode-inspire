@@ -1084,11 +1084,7 @@ private fun sessionTitle(sid: String): String {
         if (_selectedProjectId.value == null && _projects.value.isNotEmpty()) {
             _selectedProjectId.value = _projects.value.first().id
         }
-        runCatching {
-            _pendingQuestions.value = withContext(Dispatchers.IO) {
-                c.pendingQuestions(_activeSession.value?.directory)
-            }.filter { it.sessionId == _activeSession.value?.id }
-        }
+        runCatching { refreshPendingQuestions() }
         runCatching {
             _commands.value = withContext(Dispatchers.IO) {
                 c.commands(_activeSession.value?.directory)
@@ -1273,6 +1269,7 @@ private fun sessionTitle(sid: String): String {
                 _sessionCost.value = detail.cost
                 val modelId = detail.model?.id
                 _contextWindow.value = withContext(Dispatchers.IO) { c.contextWindow(modelId) }
+                recomputeCumulativeTokens()
             }
         } catch (_: Exception) {
             // ignore stats failure
@@ -1306,8 +1303,12 @@ private fun sessionTitle(sid: String): String {
     private suspend fun activateSession(s: Session) {
         _activeSession.value = s
         _currentModelId.value = s.model?.id
+        _sessionTokens.value = null
+        _contextWindow.value = 0L
+        _cumulativeTokens.value = 0L
         settings.setLastSessionId(s.id)
         loadMessages()
+        refreshPendingQuestions()
     }
 
     fun toggleMessageCollapsed(id: String?) {
@@ -1335,11 +1336,8 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch {
             try {
                 val pairs = withContext(Dispatchers.IO) { c.sessionMessages(sid, 100) }
-                var cum = 0L
                 _messages.value = pairs.map { (msg, parts) ->
                     val tokens = msg.tokens
-                    val tokenTotal = tokens?.total ?: 0L
-                    if (tokenTotal > 0) cum += tokenTotal
                     ChatMessage(
                         id = msg.id,
                         role = msg.role ?: "unknown",
@@ -1361,7 +1359,7 @@ private fun sessionTitle(sid: String): String {
                         model = msg.modelID ?: msg.model?.id,
                         tokens = tokens,
                         time = serverTimeToMillis(msg.time?.created),
-                        cumulativeTokens = cum,
+                        cumulativeTokens = 0L,
                     )
                 }
                 runCatching {
@@ -1371,6 +1369,7 @@ private fun sessionTitle(sid: String): String {
                         else TodoUi(t.id, t.content, t.status)
                     }
                 }
+                recomputeCumulativeTokens()
                 recomputeSessionElapsed()
                 recomputeSessionTotalElapsed()
             } catch (_: Exception) {
@@ -1385,6 +1384,28 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch {
             loadMessages()
             rollSessionStats(c, sid)
+            refreshPendingQuestions()
+        }
+    }
+
+    private fun recomputeCumulativeTokens() {
+        val total = _sessionTokens.value?.total ?: 0L
+        val msgs = _messages.value
+        if (total > 0L) {
+            var remaining = total
+            _messages.value = msgs.reversed().map { m ->
+                val bb = (m.tokens?.total ?: 0L).coerceAtLeast(0L)
+                val cum = remaining
+                remaining = (remaining - bb).coerceAtLeast(0L)
+                m.copy(cumulativeTokens = cum)
+            }.reversed()
+        } else {
+            var cum = 0L
+            _messages.value = msgs.map { m ->
+                val bb = (m.tokens?.total ?: 0L).coerceAtLeast(0L)
+                if (bb > 0) cum += bb
+                m.copy(cumulativeTokens = cum)
+            }
         }
     }
 
@@ -2148,7 +2169,17 @@ text = e.message ?: getAppString(R.string.send_failed),
         }
     }
 
+    private suspend fun refreshPendingQuestions() {
+        val c = client ?: return
+        val dir = _activeSession.value?.directory
+        val fetched = runCatching {
+            withContext(Dispatchers.IO) { c.pendingQuestions(dir) }
+        }.getOrNull() ?: return
+        _pendingQuestions.value = (_pendingQuestions.value + fetched).distinctBy { it.id }
+    }
+
     private suspend fun refreshPendingPermissions() {
+        refreshPendingQuestions()
         val c = client ?: return
         val dir = _activeSession.value?.directory
         val fetched = runCatching {
@@ -2165,16 +2196,12 @@ text = e.message ?: getAppString(R.string.send_failed),
         val type = payload["type"]?.jsonPrimitive?.contentOrNull ?: return
         val props = payload["properties"]?.jsonObject
         val active = _activeSession.value?.id
-        if (active == null) return
 
         when (type) {
             "question.asked" -> {
-                val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull
-                if (sid == active) {
-                    runCatching {
-                        val q = json.decodeFromString(QuestionRequest.serializer(), props.toString())
-                        _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id } + q
-                    }
+                runCatching {
+                    val q = json.decodeFromString(QuestionRequest.serializer(), props.toString())
+                    _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id } + q
                 }
             }
             "question.replied", "question.rejected" -> {
