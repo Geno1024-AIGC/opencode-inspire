@@ -42,6 +42,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Info
@@ -59,6 +62,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -91,8 +95,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -118,6 +126,7 @@ import com.geno1024.ai.occ.data.QuestionRequest
 import com.geno1024.ai.occ.data.StoredHistoryStats
 import com.geno1024.ai.occ.data.TokenDay
 import com.geno1024.ai.occ.data.Tokens
+import android.graphics.Bitmap
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -199,14 +208,116 @@ fun ChatScreen(
     var selectedIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
     var rangeAnchorId by remember { mutableStateOf<String?>(null) }
     var rangeArmed by rememberSaveable { mutableStateOf(false) }
-    BackHandler(enabled = selectMode) {
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var searchActive by rememberSaveable { mutableStateOf(false) }
+
+    val reversedMessages = messages.asReversed()
+    val filteredMessages = if (searchActive && searchQuery.isNotBlank()) {
+        reversedMessages.filter { msg ->
+            msg.text.contains(searchQuery, ignoreCase = true) ||
+            msg.reasoning?.contains(searchQuery, ignoreCase = true) == true ||
+            msg.parts.any { it.toolOutput?.contains(searchQuery, ignoreCase = true) == true }
+        }
+    } else {
+        reversedMessages
+    }
+
+    val listDensity = with(LocalDensity.current) { 22.dp.roundToPx() }
+
+    fun selectMessage(id: String) {
+        if (!selectMode) return
+        if (rangeArmed) {
+            if (rangeAnchorId == null) {
+                rangeAnchorId = id
+                return
+            }
+            val anchor = rangeAnchorId ?: return
+            if (anchor != id) {
+                val chrono = messages.map { it.id }
+                val a = chrono.indexOf(anchor)
+                val b = chrono.indexOf(id)
+                if (a >= 0 && b >= 0) {
+                    val (lo, hi) = if (a < b) a to b else b to a
+                    selectedIds = selectedIds + chrono.slice(lo..hi).toSet()
+                }
+                rangeAnchorId = null
+                rangeArmed = false
+                return
+            }
+        }
+        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+    }
+
+    fun toggleRangeMode() {
+        rangeArmed = !rangeArmed
+        rangeAnchorId = null
+    }
+
+    fun exitSelectMode() {
         selectMode = false
         selectedIds = emptySet()
         rangeAnchorId = null
         rangeArmed = false
     }
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-    var searchActive by rememberSaveable { mutableStateOf(false) }
+
+    fun rangeFill(boundaryId: String): Set<String> {
+        val chrono = messages.map { it.id }
+        val selIdx = selectedIds.mapNotNull { chrono.indexOf(it) }.sorted()
+        if (selIdx.isEmpty()) return selectedIds
+        val b = chrono.indexOf(boundaryId)
+        if (b < 0) return selectedIds
+        return when {
+            b < selIdx.first() -> selectedIds + chrono.slice(b..selIdx.first()).toSet()
+            b > selIdx.last() -> selectedIds + chrono.slice(selIdx.last()..b).toSet()
+            else -> selectedIds + chrono.slice(selIdx.first()..selIdx.last()).toSet()
+        }
+    }
+
+    fun boundaryMessageId(top: Boolean): String? {
+        val info = listState.layoutInfo
+        val target = if (top) {
+            info.viewportStartOffset + listDensity
+        } else {
+            info.viewportEndOffset - listDensity
+        }
+        val item = info.visibleItemsInfo.firstOrNull { it.offset <= target && target < it.offset + it.size }
+            ?: if (top) info.visibleItemsInfo.minByOrNull { it.offset }
+            else info.visibleItemsInfo.maxByOrNull { it.offset + it.size }
+        val idx = item?.index ?: return null
+        return filteredMessages.getOrNull(idx)?.id
+    }
+
+    fun shareSelection() {
+        if (selectedIds.isEmpty()) {
+            Toast.makeText(context, R.string.export_none_selected, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val ordered = messages.filter { it.id in selectedIds }
+        coroutineScope.launch {
+            val bmp = withContext(Dispatchers.Default) { buildChatScreenshot(ordered) }
+            if (bmp == null) {
+                Toast.makeText(context, R.string.export_none_selected, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val fileName = "opencodeclient-chat-selection.png"
+            val uri = withContext(Dispatchers.IO) {
+                saveBitmapToDownloads(context, fileName, bmp)
+                val file = java.io.File(context.cacheDir, fileName)
+                file.outputStream().use { out -> bmp.compress(Bitmap.CompressFormat.PNG, 100, out) }
+                androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            }
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, context.getString(R.string.chat_select_share)))
+        }
+    }
+
+    BackHandler(enabled = selectMode) {
+        exitSelectMode()
+    }
     var attachedFile by remember { mutableStateOf<android.net.Uri?>(null) }
     var showSessionDetails by remember { mutableStateOf(false) }
     val attachLauncher = rememberLauncherForActivityResult(
@@ -271,102 +382,80 @@ fun ChatScreen(
         }
     }
 
-    fun selectMessage(id: String) {
-        if (!selectMode) return
-        if (rangeArmed) {
-            if (rangeAnchorId == null) {
-                rangeAnchorId = id
-                return
-            }
-            val anchor = rangeAnchorId ?: return
-            if (anchor != id) {
-                val chrono = messages.map { it.id }
-                val a = chrono.indexOf(anchor)
-                val b = chrono.indexOf(id)
-                if (a >= 0 && b >= 0) {
-                    val (lo, hi) = if (a < b) a to b else b to a
-                    selectedIds = selectedIds + chrono.slice(lo..hi).toSet()
-                }
-                rangeAnchorId = null
-                rangeArmed = false
-                return
-            }
-        }
-        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
-    }
-
-    fun toggleRangeMode() {
-        rangeArmed = !rangeArmed
-        rangeAnchorId = null
-    }
-
-    fun captureSelection() {
-        // preserve chronological order of messages
-        val ordered = messages.filter { it.id in selectedIds }
-        coroutineScope.launch {
-            val bmp = withContext(Dispatchers.Default) { buildChatScreenshot(ordered) }
-            if (bmp == null) {
-                Toast.makeText(context, R.string.export_none_selected, Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            val ok = withContext(Dispatchers.IO) {
-                saveBitmapToDownloads(context, "opencodeclient-chat-selection.png", bmp)
-            }
-            Toast.makeText(
-                context,
-                if (ok) context.getString(R.string.export_saved, "opencodeclient-chat-selection.png")
-                else context.getString(R.string.export_failed),
-                Toast.LENGTH_LONG,
-            ).show()
-        }
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.statusBarsPadding(),
             topBar = {
                 TopAppBar(
                     title = {
-                        Column(
-                            modifier = if (activeSession != null) {
-                                Modifier.clickable { showSessionDetails = true }
-                            } else {
-                                Modifier
-                            },
-                        ) {
+                        if (selectMode) {
                             Text(
-                                activeSession?.title?.ifBlank { stringResource(R.string.app_name) } ?: stringResource(R.string.app_name),
+                                stringResource(R.string.chat_selected_count, selectedIds.size),
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            if (activeSession != null && models.isNotEmpty()) {
-                                ModelSwitcher(
-                                    models = models,
-                                    currentModelId = currentModelId,
-                                    onSelect = { model -> viewModel.switchModel(model.providerId ?: "opencode", model.id ?: "") },
+                        } else {
+                            Column(
+                                modifier = if (activeSession != null) {
+                                    Modifier.clickable { showSessionDetails = true }
+                                } else {
+                                    Modifier
+                                },
+                            ) {
+                                Text(
+                                    activeSession?.title?.ifBlank { stringResource(R.string.app_name) } ?: stringResource(R.string.app_name),
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
+                                if (activeSession != null && models.isNotEmpty()) {
+                                    ModelSwitcher(
+                                        models = models,
+                                        currentModelId = currentModelId,
+                                        onSelect = { model -> viewModel.switchModel(model.providerId ?: "opencode", model.id ?: "") },
+                                    )
+                                }
                             }
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = onMenu) { Icon(Icons.Filled.Menu, stringResource(R.string.drawer_settings)) }
+                        if (selectMode) {
+                            IconButton(onClick = { exitSelectMode() }) {
+                                Icon(Icons.Filled.Close, stringResource(R.string.drawer_close))
+                            }
+                        } else {
+                            IconButton(onClick = onMenu) { Icon(Icons.Filled.Menu, stringResource(R.string.drawer_settings)) }
+                        }
                     },
                     actions = {
-                        if (activeSession != null) {
-                            IconButton(onClick = { searchActive = !searchActive }) {
-                                Icon(Icons.Filled.Search, stringResource(R.string.search))
+                        if (selectMode) {
+                            IconButton(onClick = { toggleRangeMode() }) {
+                                Icon(
+                                    Icons.Filled.List,
+                                    if (rangeArmed) stringResource(R.string.chat_select_range_tip) else stringResource(R.string.chat_select_range),
+                                    tint = if (rangeArmed) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                                )
                             }
-                            IconButton(onClick = { showFiles = true }) {
-                                Icon(painterResource(R.drawable.ic_folder), stringResource(R.string.files_title))
+                            IconButton(onClick = { shareSelection() }, enabled = selectedIds.isNotEmpty()) {
+                                Icon(Icons.Filled.Share, stringResource(R.string.chat_select_share))
                             }
-                        }
-                        IconButton(onClick = { viewModel.refreshSession() }) {
-                            Icon(Icons.Filled.Refresh, stringResource(R.string.chat_refresh))
-                        }
-                        if (sending) {
-                            IconButton(onClick = { viewModel.abort() }) {
-                                Icon(painterResource(R.drawable.ic_stop), stringResource(R.string.chat_abort))
+                        } else {
+                            if (activeSession != null) {
+                                IconButton(onClick = { searchActive = !searchActive }) {
+                                    Icon(Icons.Filled.Search, stringResource(R.string.search))
+                                }
+                                IconButton(onClick = { showFiles = true }) {
+                                    Icon(painterResource(R.drawable.ic_folder), stringResource(R.string.files_title))
+                                }
+                            }
+                            IconButton(onClick = { viewModel.refreshSession() }) {
+                                Icon(Icons.Filled.Refresh, stringResource(R.string.chat_refresh))
+                            }
+                            if (sending) {
+                                IconButton(onClick = { viewModel.abort() }) {
+                                    Icon(painterResource(R.drawable.ic_stop), stringResource(R.string.chat_abort))
+                                }
                             }
                         }
                     },
@@ -386,7 +475,9 @@ fun ChatScreen(
                 .padding(padding)
                 .imePadding(),
         ) {
-            TokenStatsBar(tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens, totalElapsed = effectiveTotalElapsed, messageCount = activeSession?.let { storedStats[it.id]?.messageCount }, cost = sessionCost)
+            if (!selectMode) {
+                TokenStatsBar(tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens, totalElapsed = effectiveTotalElapsed, messageCount = activeSession?.let { storedStats[it.id]?.messageCount }, cost = sessionCost)
+            }
             if (searchActive) {
                 OutlinedTextField(
                     value = searchQuery,
@@ -398,99 +489,22 @@ fun ChatScreen(
                     singleLine = true,
                 )
             }
-            if (selectMode) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            stringResource(R.string.chat_select_mode),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            stringResource(R.string.chat_selected_count, selectedIds.size),
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = MonoFontFamily,
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = { toggleRangeMode() },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(
-                            if (rangeArmed) stringResource(R.string.chat_select_range_tip) else stringResource(R.string.chat_select_range),
-                            color = if (rangeArmed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            fontWeight = if (rangeArmed) FontWeight.Bold else FontWeight.Normal,
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            selectedIds = emptySet()
-                            rangeAnchorId = null
-                            rangeArmed = false
-                        },
-                        modifier = Modifier.weight(1f),
-                    ) { Text(stringResource(R.string.chat_select_clear)) }
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Button(
-                        onClick = { captureSelection() },
-                        enabled = selectedIds.isNotEmpty(),
-                        modifier = Modifier.weight(1f),
-                    ) { Text(stringResource(R.string.chat_select_export)) }
-                    OutlinedButton(
-                        onClick = {
-                            selectMode = false
-                            selectedIds = emptySet()
-                            rangeAnchorId = null
-                            rangeArmed = false
-                        },
-                        modifier = Modifier.weight(1f),
-                    ) { Text(stringResource(R.string.drawer_close)) }
-                }
-            }
-            LazyColumn(
-                state = listState,
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                reverseLayout = true,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (sending) {
-                    item(key = "sending") { SendingIndicator() }
-                }
-                val reversedMessages = messages.asReversed()
-                val filteredMessages = if (searchActive && searchQuery.isNotBlank()) {
-                    reversedMessages.filter { msg ->
-                        msg.text.contains(searchQuery, ignoreCase = true) ||
-                        msg.reasoning?.contains(searchQuery, ignoreCase = true) == true ||
-                        msg.parts.any { it.toolOutput?.contains(searchQuery, ignoreCase = true) == true }
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    reverseLayout = true,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (sending) {
+                        item(key = "sending") { SendingIndicator() }
                     }
-                } else {
-                    reversedMessages
-                }
-                itemsIndexed(filteredMessages, key = { idx, item -> item.id }) { index, msg ->
+                    itemsIndexed(filteredMessages, key = { idx, item -> item.id }) { index, msg ->
                     val prevCumulative = if (index + 1 < reversedMessages.size) reversedMessages[index + 1].cumulativeTokens else null
                     val responseTime = if (sending && index == 0 && msg.role == "assistant" && lastUserTime > 0L) {
                         (now - lastUserTime).coerceAtLeast(0L)
@@ -524,6 +538,23 @@ fun ChatScreen(
                                 selectedIds = setOf(msg.id)
                                 rangeAnchorId = null
                             }
+                        },
+                    )
+                }
+                }
+                if (selectMode && rangeArmed) {
+                    RangeBoundaryBar(
+                        label = stringResource(R.string.chat_select_range_down),
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        onClick = {
+                            boundaryMessageId(top = true)?.let { selectedIds = rangeFill(it) }
+                        },
+                    )
+                    RangeBoundaryBar(
+                        label = stringResource(R.string.chat_select_range_up),
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                        onClick = {
+                            boundaryMessageId(top = false)?.let { selectedIds = rangeFill(it) }
                         },
                     )
                 }
@@ -777,6 +808,59 @@ fun ChatScreen(
             onBack = { showSessionDetails = false },
         )
     }
+    }
+}
+
+@Composable
+private fun RangeBoundaryBar(
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val lineColor = MaterialTheme.colorScheme.primary
+    val dashPathEffect = remember { PathEffect.dashPathEffect(floatArrayOf(12f, 8f)) }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Canvas(
+            modifier = Modifier
+                .weight(1f)
+                .height(2.dp),
+        ) {
+            drawLine(
+                color = lineColor,
+                start = Offset(0f, size.height / 2f),
+                end = Offset(size.width, size.height / 2f),
+                strokeWidth = 2f,
+                pathEffect = dashPathEffect,
+            )
+        }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = lineColor,
+            modifier = Modifier.padding(horizontal = 10.dp),
+        )
+        Canvas(
+            modifier = Modifier
+                .weight(1f)
+                .height(2.dp),
+        ) {
+            drawLine(
+                color = lineColor,
+                start = Offset(0f, size.height / 2f),
+                end = Offset(size.width, size.height / 2f),
+                strokeWidth = 2f,
+                pathEffect = dashPathEffect,
+            )
+        }
     }
 }
 
