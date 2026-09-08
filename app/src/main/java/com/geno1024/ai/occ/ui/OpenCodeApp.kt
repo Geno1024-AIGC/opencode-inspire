@@ -92,6 +92,7 @@ import com.geno1024.ai.occ.data.FeatureStatus
 import com.geno1024.ai.occ.data.ServerProfile
 import com.geno1024.ai.occ.data.Session
 import com.geno1024.ai.occ.data.StoredHistoryStats
+import com.geno1024.ai.occ.data.TokenFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -473,7 +474,7 @@ private fun DrawerContent(
     val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
     val serverVersion by viewModel.serverVersion.collectAsStateWithLifecycle()
     val activeSessionTotalElapsed by viewModel.sessionTotalElapsed.collectAsStateWithLifecycle()
-    val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
+    val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
     val storedStats by viewModel.storedStats.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val archived by viewModel.archived.collectAsStateWithLifecycle()
@@ -596,7 +597,7 @@ private fun DrawerContent(
                         activeSessionId = activeSession?.id,
                         activeSessionTotalElapsed = activeSessionTotalElapsed,
                         storedStats = storedStats,
-                        shortTokens = shortTokens,
+                        tokenFormat = tokenFormat,
                         archived = archived,
                         sessionCosts = sessionCosts,
                         onOpenSession = { viewModel.openSession(it) },
@@ -610,7 +611,7 @@ private fun DrawerContent(
                         activeSessionId = activeSession?.id,
                         activeSessionTotalElapsed = activeSessionTotalElapsed,
                         storedStats = storedStats,
-                        shortTokens = shortTokens,
+                        tokenFormat = tokenFormat,
                         favorites = favorites,
                         archived = archived,
                         sessionCosts = sessionCosts,
@@ -629,7 +630,7 @@ private fun DrawerContent(
                 activeSessionId = activeSession?.id,
                 activeSessionTotalElapsed = activeSessionTotalElapsed,
                 storedStats = storedStats,
-                shortTokens = shortTokens,
+                tokenFormat = tokenFormat,
                 sessionCosts = sessionCosts,
                 onOpenSession = { viewModel.openSession(it) },
                 onToggleArchived = { viewModel.toggleArchived(it) },
@@ -655,7 +656,7 @@ private fun ExpandableProject(
     activeSessionId: String?,
     activeSessionTotalElapsed: Long? = null,
     storedStats: Map<String, StoredHistoryStats> = emptyMap(),
-    shortTokens: Boolean = true,
+    tokenFormat: TokenFormat = TokenFormat.DEFAULT,
     favorites: Set<String> = emptySet(),
     archived: Set<String> = emptySet(),
     sessionCosts: Map<String, Double> = emptyMap(),
@@ -699,7 +700,7 @@ private fun ExpandableProject(
                 }
                 if (summary != null && (summary.fresh + summary.msgs > 0L || summary.cost > 0.0)) {
                     Text(
-                        "${formatTokens(summary.fresh, shortTokens)}, ${formatTokens(summary.msgs, shortTokens)}, ${formatCost(summary.cost)}",
+                        "${formatTokens(summary.fresh, tokenFormat)}, ${formatTokens(summary.msgs, tokenFormat)}, ${formatCost(summary.cost)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                         fontFamily = MonoFontFamily,
@@ -732,7 +733,7 @@ private fun ExpandableProject(
                         isArchived = s.id in archived,
                         totalElapsed = storedStats[s.id]?.totalElapsed,
                         cost = sessionCosts[s.id] ?: 0.0,
-                        shortTokens = shortTokens,
+                        tokenFormat = tokenFormat,
                         onClick = { onOpenSession(s.id) },
                         onToggleFavorite = { onToggleFavorite(s.id) },
                         onToggleArchived = { onToggleArchived(s.id) },
@@ -766,7 +767,7 @@ private fun SessionRow(
     isArchived: Boolean = false,
     totalElapsed: Long? = null,
     cost: Double = 0.0,
-    shortTokens: Boolean = true,
+    tokenFormat: TokenFormat = TokenFormat.DEFAULT,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit = {},
     onToggleArchived: () -> Unit = {},
@@ -803,7 +804,7 @@ private fun SessionRow(
             val fresh = s.tokens?.let { it.input + it.output + it.reasoning } ?: 0L
             val elapsedStr = totalElapsed?.let { formatElapsed(it).ifBlank { "0s" } } ?: "-"
             Text(
-                "${formatTokens(fresh, shortTokens)}, $elapsedStr, ${formatCost(cost)}",
+                "${formatTokens(fresh, tokenFormat)}, $elapsedStr, ${formatCost(cost)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 fontFamily = MonoFontFamily,
@@ -881,7 +882,7 @@ private fun PinnedSection(
     activeSessionId: String?,
     activeSessionTotalElapsed: Long? = null,
     storedStats: Map<String, StoredHistoryStats> = emptyMap(),
-    shortTokens: Boolean = true,
+    tokenFormat: TokenFormat = TokenFormat.DEFAULT,
     archived: Set<String> = emptySet(),
     sessionCosts: Map<String, Double> = emptyMap(),
     onOpenSession: (String) -> Unit,
@@ -921,7 +922,7 @@ private fun PinnedSection(
                     isArchived = s.id in archived,
                     totalElapsed = storedStats[s.id]?.totalElapsed,
                     cost = sessionCosts[s.id] ?: 0.0,
-                    shortTokens = shortTokens,
+                    tokenFormat = tokenFormat,
                     onClick = { onOpenSession(s.id) },
                     onToggleFavorite = { onToggleFavorite(s.id) },
                     onToggleArchived = { onToggleArchived(s.id) },
@@ -937,7 +938,7 @@ private fun ArchivedSection(
     activeSessionId: String?,
     activeSessionTotalElapsed: Long? = null,
     storedStats: Map<String, StoredHistoryStats> = emptyMap(),
-    shortTokens: Boolean = true,
+    tokenFormat: TokenFormat = TokenFormat.DEFAULT,
     sessionCosts: Map<String, Double> = emptyMap(),
     onOpenSession: (String) -> Unit,
     onToggleArchived: (String) -> Unit,
@@ -969,7 +970,7 @@ private fun ArchivedSection(
                     isArchived = true,
                     totalElapsed = storedStats[s.id]?.totalElapsed,
                     cost = sessionCosts[s.id] ?: 0.0,
-                    shortTokens = shortTokens,
+                    tokenFormat = tokenFormat,
                     onClick = { onOpenSession(s.id) },
                     onToggleArchived = { onToggleArchived(s.id) },
                 )
@@ -985,12 +986,8 @@ fun formatElapsed(ms: Long): String = when {
     else -> "${ms / 3_600_000}h ${(ms % 3_600_000) / 60_000}m"
 }
 
-fun formatTokens(count: Long, short: Boolean = true): String = when {
-    !short -> count.toString()
-    count >= 1_000_000 -> "%.1fM".format(count / 1_000_000.0)
-    count >= 1_000 -> "%.1fk".format(count / 1_000.0)
-    else -> count.toString()
-}
+fun formatTokens(count: Long, format: TokenFormat = TokenFormat.DEFAULT): String =
+    format.format(count)
 
 fun formatCost(cost: Double): String = if (cost >= 1.0)
     "$%.2f".format(cost) else "$%.4f".format(cost)

@@ -162,8 +162,8 @@
     <string name="lang_system">跟随系统</string>
     <string name="lang_english">English</string>
     <string name="lang_chinese">中文</string>
-    <string name="settings_compact_tokens">紧凑 token 计数</string>
-    <string name="settings_compact_tokens_sub">以 2.0M / 12.5k 形式显示 token 数而非完整数字</string>
+    <string name="settings_token_format">Token 数字格式</string>
+    <string name="settings_token_format_sub">token 数的显示样式：原样、SI 词头（k/M/G/T/P/E/Z/Y/R/Q）或数字分组</string>
     <string name="settings_theme">主题</string>
     <string name="settings_theme_preset">主题预设</string>
     <string name="theme_preset_default">默认</string>

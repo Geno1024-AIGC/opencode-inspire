@@ -32,6 +32,7 @@ import com.geno1024.ai.occ.data.SessionV2Info
 import com.geno1024.ai.occ.data.SettingsRepository
 import com.geno1024.ai.occ.data.StoredHistoryStats
 import com.geno1024.ai.occ.data.TokenDay
+import com.geno1024.ai.occ.data.TokenFormat
 import com.geno1024.ai.occ.data.TokenModelStats
 import com.geno1024.ai.occ.data.Tokens
 import com.geno1024.ai.occ.data.Updater
@@ -291,8 +292,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _pendingPermissions = MutableStateFlow<List<PermissionRequest>>(emptyList())
     val pendingPermissions: StateFlow<List<PermissionRequest>> = _pendingPermissions.asStateFlow()
 
-    private val _shortTokens = MutableStateFlow(true)
-    val shortTokens: StateFlow<Boolean> = _shortTokens.asStateFlow()
+    private val _tokenFormat = MutableStateFlow(TokenFormat.DEFAULT)
+    val tokenFormat: StateFlow<TokenFormat> = _tokenFormat.asStateFlow()
     private val _tableTimeFormat = MutableStateFlow(0)
     val tableTimeFormat: StateFlow<Int> = _tableTimeFormat.asStateFlow()
     private val _exportTransparent = MutableStateFlow(true)
@@ -368,7 +369,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settings.servers.collect { _servers.value = it }
         }
         viewModelScope.launch {
-            settings.shortTokens.collect { _shortTokens.value = it }
+            settings.tokenFormat.collect { _tokenFormat.value = it }
         }
         viewModelScope.launch {
             settings.tableTimeFormat.collect { _tableTimeFormat.value = it }
@@ -963,8 +964,8 @@ private fun sessionTitle(sid: String): String {
         }
     }
 
-    fun setShortTokens(enabled: Boolean) {
-        viewModelScope.launch { settings.setShortTokens(enabled) }
+    fun setTokenFormat(format: TokenFormat) {
+        viewModelScope.launch { settings.setTokenFormat(format) }
     }
 
     fun cycleTableTimeFormat() {

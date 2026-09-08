@@ -72,6 +72,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.occ.R
 import com.geno1024.ai.occ.data.TokenDay
+import com.geno1024.ai.occ.data.TokenFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -123,7 +124,7 @@ fun TokenCalendarScreen(
     val tokenModelStats by viewModel.tokenModelStats.collectAsStateWithLifecycle()
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
-    val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
+    val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
     val timeFormat by viewModel.tableTimeFormat.collectAsStateWithLifecycle()
     var hiddenSyncAt by remember { mutableStateOf(false) }
     var categoryName by rememberSaveable { mutableStateOf(TokenCategory.TOKEN.name) }
@@ -239,7 +240,7 @@ fun TokenCalendarScreen(
                     total = totalDay,
                     monthElapsed = monthElapsed,
                     totalElapsed = totalElapsed,
-                    short = shortTokens,
+                    format = tokenFormat,
                     timeFormat = timeFormat,
                     onCycleTime = { viewModel.cycleTableTimeFormat() },
                 )
@@ -371,7 +372,7 @@ fun TokenCalendarScreen(
                         shownMonth = shownMonth,
                         selected = selected,
                         locale = locale,
-                        shortTokens = shortTokens,
+                        tokenFormat = tokenFormat,
                         category = category,
                         tokenMetric = tokenMetric,
                         msgMetric = msgMetric,
@@ -404,7 +405,7 @@ private fun DailyCalendarTab(
     shownMonth: YearMonth,
     selected: LocalDate?,
     locale: Locale,
-    shortTokens: Boolean,
+    tokenFormat: TokenFormat,
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
@@ -465,16 +466,16 @@ private fun DailyCalendarTab(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    stringResource(R.string.calendar_day_detail_tokens, fmtTokens(selectMetric(selDay, category, tokenMetric, msgMetric), shortTokens)),
+                    stringResource(R.string.calendar_day_detail_tokens, fmtTokens(selectMetric(selDay, category, tokenMetric, msgMetric), tokenFormat)),
                     style = MaterialTheme.typography.bodyMedium,
                     fontFamily = MonoFontFamily,
                 )
                 Text(
-                    "${stringResource(R.string.calendar_day_detail_in, fmtTokens(selDay.input, shortTokens))} · " +
-                        "${stringResource(R.string.calendar_day_detail_out, fmtTokens(selDay.output, shortTokens))} · " +
-                        "${stringResource(R.string.calendar_day_detail_reasoning, fmtTokens(selDay.reasoning, shortTokens))} · " +
-                        "${stringResource(R.string.calendar_day_detail_cache_read, fmtTokens(selDay.cacheRead, shortTokens))} · " +
-                        "${stringResource(R.string.calendar_day_detail_cache_write, fmtTokens(selDay.cacheWrite, shortTokens))}",
+                    "${stringResource(R.string.calendar_day_detail_in, fmtTokens(selDay.input, tokenFormat))} · " +
+                        "${stringResource(R.string.calendar_day_detail_out, fmtTokens(selDay.output, tokenFormat))} · " +
+                        "${stringResource(R.string.calendar_day_detail_reasoning, fmtTokens(selDay.reasoning, tokenFormat))} · " +
+                        "${stringResource(R.string.calendar_day_detail_cache_read, fmtTokens(selDay.cacheRead, tokenFormat))} · " +
+                        "${stringResource(R.string.calendar_day_detail_cache_write, fmtTokens(selDay.cacheWrite, tokenFormat))}",
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = MonoFontFamily,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -889,7 +890,7 @@ private fun HourCircle(
 }
 
 @Composable
-private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, short: Boolean, timeFormat: Int = 0, onCycleTime: (() -> Unit)? = null) {
+private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, format: TokenFormat, timeFormat: Int = 0, onCycleTime: (() -> Unit)? = null) {
     val mono = MonoFontFamily
     val onSurface = MaterialTheme.colorScheme.onSurface
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -971,15 +972,15 @@ private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, t
                     .clickable { cycleTime() },
             )
         }
-        SummaryRow(labelWidth, labels[1], fmtTokens(month.msgs, short), fmtTokens(total.msgs, short), mono, labelColor, topLine = 2.dp)
-        SummaryRow(labelWidth, labels[2], fmtTokens(month.msgsSent, short), fmtTokens(total.msgsSent, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[3], fmtTokens(month.msgsReceived, short), fmtTokens(total.msgsReceived, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[4], fmtTokens(month.total, short), fmtTokens(total.total, short), mono, labelColor, topLine = 1.dp)
-        SummaryRow(labelWidth, labels[5], fmtTokens(month.input, short), fmtTokens(total.input, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[6], fmtTokens(month.output, short), fmtTokens(total.output, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[7], fmtTokens(month.reasoning, short), fmtTokens(total.reasoning, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[8], fmtTokens(month.cacheRead, short), fmtTokens(total.cacheRead, short), mono, labelColor)
-        SummaryRow(labelWidth, labels[9], fmtTokens(month.cacheWrite, short), fmtTokens(total.cacheWrite, short), mono, labelColor)
+        SummaryRow(labelWidth, labels[1], fmtTokens(month.msgs, format), fmtTokens(total.msgs, format), mono, labelColor, topLine = 2.dp)
+        SummaryRow(labelWidth, labels[2], fmtTokens(month.msgsSent, format), fmtTokens(total.msgsSent, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[3], fmtTokens(month.msgsReceived, format), fmtTokens(total.msgsReceived, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[4], fmtTokens(month.total, format), fmtTokens(total.total, format), mono, labelColor, topLine = 1.dp)
+        SummaryRow(labelWidth, labels[5], fmtTokens(month.input, format), fmtTokens(total.input, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[6], fmtTokens(month.output, format), fmtTokens(total.output, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[7], fmtTokens(month.reasoning, format), fmtTokens(total.reasoning, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[8], fmtTokens(month.cacheRead, format), fmtTokens(total.cacheRead, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[9], fmtTokens(month.cacheWrite, format), fmtTokens(total.cacheWrite, format), mono, labelColor)
         Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
             Text(
                 labels[10],
@@ -1207,8 +1208,7 @@ private fun selectMetric(d: TokenDay, cat: TokenCategory, token: TokenMetric, ms
     }
 }
 
-private fun fmtTokens(n: Long, short: Boolean): String =
-    if (short) formatTokensCompact(n) else n.toString()
+private fun fmtTokens(n: Long, format: TokenFormat): String = format.format(n)
 
 private fun formatTokensCompact(n: Long): String = when {
     n >= 1_000_000_000_000L -> trim1(n / 1_000_000_000_000f) + "T"

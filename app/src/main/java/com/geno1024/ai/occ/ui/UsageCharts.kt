@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import com.geno1024.ai.occ.R
 import com.geno1024.ai.occ.data.TokenDay
+import com.geno1024.ai.occ.data.TokenFormat
 import com.geno1024.ai.occ.data.TokenModelStats
 import java.time.LocalDate
 import kotlin.math.max
@@ -44,7 +45,7 @@ private val chartGap = 6.dp
 @Composable
 fun ModelUsageChart(
     modelStats: Map<String, TokenModelStats>,
-    short: Boolean,
+    format: TokenFormat,
 ) {
     val models = remember(modelStats) {
         modelStats.entries.map { (id, st) ->
@@ -74,7 +75,7 @@ fun ModelUsageChart(
                         fontSize = 11.sp,
                     )
                     Text(
-                        "${formatTokens(fresh, short)} · ${formatTokens(day.cacheRead, short)} crd",
+                        "${formatTokens(fresh, format)} · ${formatTokens(day.cacheRead, format)} crd",
                         style = MaterialTheme.typography.labelSmall.copy(fontFamily = MonoFontFamily),
                         color = textColor,
                     )
@@ -136,7 +137,7 @@ private fun ChartLegend(color: Color, label: String) {
 fun DailyTrendChart(
     history: Map<String, TokenDay>,
     days: Int = 14,
-    short: Boolean,
+    format: TokenFormat,
 ) {
     val measurer = rememberTextMeasurer()
     val today = LocalDate.now()
@@ -167,7 +168,7 @@ fun DailyTrendChart(
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                formatTokens(data.sumOf { if (showMsgs) it.third else it.second }, short) + " · " + formatTokens(maxVal, short) + " max",
+                formatTokens(data.sumOf { if (showMsgs) it.third else it.second }, format) + " · " + formatTokens(maxVal, format) + " max",
                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = MonoFontFamily),
                 color = textColor,
             )

@@ -33,7 +33,7 @@ data class SettingsBackup(
     val serverUrl: String? = null,
     val projectPath: String? = null,
     val lastSessionId: String? = null,
-    val shortTokens: Boolean = true,
+    val tokenFormat: String = TokenFormat.DEFAULT.id,
     val theme: String = "system",
     val themePreset: String = "default",
     val customThemeColors: String = "{}",
@@ -62,6 +62,7 @@ class SettingsRepository(private val context: Context) {
         val AUTH_PASSWORD = stringPreferencesKey("auth_password")
         val SERVERS = stringPreferencesKey("servers")
         val SHORT_TOKENS = booleanPreferencesKey("short_tokens")
+        val TOKEN_FORMAT = stringPreferencesKey("token_format")
         val THEME = stringPreferencesKey("theme")
         val THEME_PRESET = stringPreferencesKey("theme_preset")
         val CUSTOM_THEME_COLORS = stringPreferencesKey("custom_theme_colors")
@@ -107,7 +108,11 @@ class SettingsRepository(private val context: Context) {
         } ?: emptyList()
     }
 
-    val shortTokens: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHORT_TOKENS] ?: true }
+    val tokenFormat: Flow<TokenFormat> = context.dataStore.data.map { p ->
+        p[Keys.TOKEN_FORMAT]?.let { TokenFormat.fromId(it) }
+            ?: p[Keys.SHORT_TOKENS]?.let { if (it) TokenFormat.DEFAULT else TokenFormat.RAW }
+            ?: TokenFormat.DEFAULT
+    }
     val theme: Flow<String> = context.dataStore.data.map { it[Keys.THEME] ?: "system" }
     val themePreset: Flow<String> = context.dataStore.data.map { it[Keys.THEME_PRESET] ?: "default" }
     val customThemeColors: Flow<String> = context.dataStore.data.map { it[Keys.CUSTOM_THEME_COLORS] ?: "{}" }
@@ -203,8 +208,8 @@ class SettingsRepository(private val context: Context) {
         } ?: emptyMap()
     }
 
-    suspend fun setShortTokens(enabled: Boolean) {
-        context.dataStore.edit { it[Keys.SHORT_TOKENS] = enabled }
+    suspend fun setTokenFormat(format: TokenFormat) {
+        context.dataStore.edit { it[Keys.TOKEN_FORMAT] = format.id }
     }
 
     suspend fun setTheme(value: String) {
@@ -397,7 +402,9 @@ class SettingsRepository(private val context: Context) {
             serverUrl = p[Keys.SERVER_URL],
             projectPath = p[Keys.PROJECT_PATH],
             lastSessionId = p[Keys.LAST_SESSION],
-            shortTokens = p[Keys.SHORT_TOKENS] ?: true,
+            tokenFormat = p[Keys.TOKEN_FORMAT]
+                ?: p[Keys.SHORT_TOKENS]?.let { if (it) TokenFormat.DEFAULT.id else TokenFormat.RAW.id }
+                ?: TokenFormat.DEFAULT.id,
             theme = p[Keys.THEME] ?: "system",
             themePreset = p[Keys.THEME_PRESET] ?: "default",
             customThemeColors = p[Keys.CUSTOM_THEME_COLORS] ?: "{}",
@@ -429,7 +436,7 @@ class SettingsRepository(private val context: Context) {
             setOrRemove(Keys.SERVER_URL, b.serverUrl)
             setOrRemove(Keys.PROJECT_PATH, b.projectPath)
             setOrRemove(Keys.LAST_SESSION, b.lastSessionId)
-            p[Keys.SHORT_TOKENS] = b.shortTokens
+            p[Keys.TOKEN_FORMAT] = b.tokenFormat
             p[Keys.THEME] = b.theme
             p[Keys.THEME_PRESET] = b.themePreset
             p[Keys.CUSTOM_THEME_COLORS] = b.customThemeColors

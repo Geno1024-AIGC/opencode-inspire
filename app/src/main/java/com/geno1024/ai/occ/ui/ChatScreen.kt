@@ -125,6 +125,7 @@ import com.geno1024.ai.occ.data.ModelInfo
 import com.geno1024.ai.occ.data.QuestionRequest
 import com.geno1024.ai.occ.data.StoredHistoryStats
 import com.geno1024.ai.occ.data.TokenDay
+import com.geno1024.ai.occ.data.TokenFormat
 import com.geno1024.ai.occ.data.Tokens
 import android.graphics.Bitmap
 import kotlinx.serialization.json.Json
@@ -169,7 +170,7 @@ fun ChatScreen(
     val models by viewModel.models.collectAsStateWithLifecycle()
     val currentModelId by viewModel.currentModelId.collectAsStateWithLifecycle()
     val pendingPermissions by viewModel.pendingPermissions.collectAsStateWithLifecycle()
-    val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
+    val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
     val collapsedMessageIds by viewModel.collapsedMessageIds.collectAsStateWithLifecycle()
@@ -476,7 +477,7 @@ fun ChatScreen(
                 .imePadding(),
         ) {
             if (!selectMode) {
-                TokenStatsBar(tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, shortTokens = shortTokens, totalElapsed = effectiveTotalElapsed, messageCount = activeSession?.let { storedStats[it.id]?.messageCount }, cost = sessionCost)
+                TokenStatsBar(tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, tokenFormat = tokenFormat, totalElapsed = effectiveTotalElapsed, messageCount = activeSession?.let { storedStats[it.id]?.messageCount }, cost = sessionCost)
             }
             if (searchActive) {
                 OutlinedTextField(
@@ -804,7 +805,7 @@ fun ChatScreen(
             historyStats = historyStats,
             storedStats = storedStats[session.id],
             autoTiming = autoTiming,
-            shortTokens = shortTokens,
+            tokenFormat = tokenFormat,
             onBack = { showSessionDetails = false },
         )
     }
@@ -2025,7 +2026,7 @@ private fun TokenStatsBar(
     tokens: Tokens?,
     promptTokens: Long,
     contextWindow: Long,
-    shortTokens: Boolean,
+    tokenFormat: TokenFormat,
     totalElapsed: Long? = null,
     messageCount: Long? = null,
     cost: Double = 0.0,
@@ -2060,25 +2061,25 @@ private fun TokenStatsBar(
                     horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
-                    TokenStatLine(label = "in", value = input, short = shortTokens)
-                    TokenStatLine(label = "out", value = output, short = shortTokens)
-                    TokenStatLine(label = "infer", value = reasoning, short = shortTokens)
-                    TokenStatLine(label = "crd", value = cacheRead, short = shortTokens)
-                    TokenStatLine(label = "cwr", value = cacheWrite, short = shortTokens)
+                    TokenStatLine(label = "in", value = input, format = tokenFormat)
+                    TokenStatLine(label = "out", value = output, format = tokenFormat)
+                    TokenStatLine(label = "infer", value = reasoning, format = tokenFormat)
+                    TokenStatLine(label = "crd", value = cacheRead, format = tokenFormat)
+                    TokenStatLine(label = "cwr", value = cacheWrite, format = tokenFormat)
                 }
                 Column(
                     horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     Text(
-                        "fresh ${formatTokens(fresh, shortTokens)}",
+                        "fresh ${formatTokens(fresh, tokenFormat)}",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                         fontFamily = MonoFontFamily,
                     )
                     Text(
-                        "total ${formatTokens(total, shortTokens)}",
+                        "total ${formatTokens(total, tokenFormat)}",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -2092,7 +2093,7 @@ private fun TokenStatsBar(
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     Text(
-                        "${formatTokens(ctx, shortTokens)} / ${formatTokens(contextWindow, shortTokens)}",
+                        "${formatTokens(ctx, tokenFormat)} / ${formatTokens(contextWindow, tokenFormat)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = MonoFontFamily,
@@ -2130,7 +2131,7 @@ private fun TokenStatsBar(
 }
 
 @Composable
-private fun TokenStatLine(label: String, value: Long, short: Boolean) {
+private fun TokenStatLine(label: String, value: Long, format: TokenFormat) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -2142,7 +2143,7 @@ private fun TokenStatLine(label: String, value: Long, short: Boolean) {
             fontFamily = MonoFontFamily,
         )
         Text(
-            formatTokens(value, short),
+            formatTokens(value, format),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = MonoFontFamily,
@@ -2210,7 +2211,7 @@ private fun SessionDetailsScreen(
     historyStats: HistoryStats?,
     storedStats: StoredHistoryStats?,
     autoTiming: Boolean,
-    shortTokens: Boolean = true,
+    tokenFormat: TokenFormat = TokenFormat.DEFAULT,
     onBack: () -> Unit,
 ) {
     var showRename by remember { mutableStateOf(false) }
@@ -2322,18 +2323,18 @@ private fun SessionDetailsScreen(
                     Text(
                         buildString {
                             val day = selDay
-                            append(stringResource(R.string.session_details_tokens_in, formatTokens(day?.input ?: tokens?.input ?: 0L, shortTokens)))
+                            append(stringResource(R.string.session_details_tokens_in, formatTokens(day?.input ?: tokens?.input ?: 0L, tokenFormat)))
                             appendLine()
-                            append(stringResource(R.string.session_details_tokens_out, formatTokens(day?.output ?: tokens?.output ?: 0L, shortTokens)))
+                            append(stringResource(R.string.session_details_tokens_out, formatTokens(day?.output ?: tokens?.output ?: 0L, tokenFormat)))
                             if ((day?.reasoning ?: tokens?.reasoning ?: 0L) > 0) {
                                 appendLine()
-                                append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(day?.reasoning ?: tokens?.reasoning ?: 0L, shortTokens)))
+                                append(stringResource(R.string.session_details_tokens_reasoning, formatTokens(day?.reasoning ?: tokens?.reasoning ?: 0L, tokenFormat)))
                             }
                             appendLine()
-                            append(stringResource(R.string.session_details_tokens_cache_read, formatTokens(day?.cacheRead ?: tokens?.cache?.read ?: 0L, shortTokens)))
+                            append(stringResource(R.string.session_details_tokens_cache_read, formatTokens(day?.cacheRead ?: tokens?.cache?.read ?: 0L, tokenFormat)))
                             if ((day?.cacheWrite ?: tokens?.cache?.write ?: 0L) > 0) {
                                 appendLine()
-                                append(stringResource(R.string.session_details_tokens_cache_write, formatTokens(day?.cacheWrite ?: tokens?.cache?.write ?: 0L, shortTokens)))
+                                append(stringResource(R.string.session_details_tokens_cache_write, formatTokens(day?.cacheWrite ?: tokens?.cache?.write ?: 0L, tokenFormat)))
                             }
                         },
                         style = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),

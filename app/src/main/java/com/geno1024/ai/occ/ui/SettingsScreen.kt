@@ -43,7 +43,6 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -68,6 +67,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import com.geno1024.ai.occ.data.TokenFormat
 import com.geno1024.ai.occ.ui.theme.ThemePreset
 import com.geno1024.ai.occ.ui.theme.PresetDarkSchemes
 import kotlinx.coroutines.launch
@@ -91,7 +91,7 @@ fun SettingsScreen(
 ) {
     BackHandler(onBack = onBack)
 
-    val shortTokens by viewModel.shortTokens.collectAsStateWithLifecycle()
+    val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val themePreset by viewModel.themePreset.collectAsStateWithLifecycle()
     val customThemeColorsJson by viewModel.customThemeColors.collectAsStateWithLifecycle()
@@ -131,11 +131,16 @@ fun SettingsScreen(
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionLabel(R.string.settings_general)
-                    SettingSwitchRow(
-                        title = stringResource(R.string.settings_compact_tokens),
-                        subtitle = stringResource(R.string.settings_compact_tokens_sub),
-                        checked = shortTokens,
-                        onCheckedChange = viewModel::setShortTokens,
+                    DropdownSetting(
+                        title = stringResource(R.string.settings_token_format),
+                        options = TokenFormat.ALL.map { it.id to it.example },
+                        selected = tokenFormat.id,
+                        onSelect = { viewModel.setTokenFormat(TokenFormat.fromId(it)) },
+                    )
+                    Text(
+                        stringResource(R.string.settings_token_format_sub),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     SectionLabel(R.string.settings_language, small = true)
                     DropdownSetting(
@@ -561,29 +566,6 @@ private fun DropdownSetting(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun SettingSwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
