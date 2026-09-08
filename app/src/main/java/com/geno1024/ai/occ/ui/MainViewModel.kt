@@ -28,6 +28,8 @@ import com.geno1024.ai.occ.data.Project
 import com.geno1024.ai.occ.data.QuestionRequest
 import com.geno1024.ai.occ.data.ServerProfile
 import com.geno1024.ai.occ.data.Session
+import com.geno1024.ai.occ.data.SessionCache
+import com.geno1024.ai.occ.data.SessionInfo
 import com.geno1024.ai.occ.data.SessionV2Info
 import com.geno1024.ai.occ.data.SettingsRepository
 import com.geno1024.ai.occ.data.StoredHistoryStats
@@ -137,6 +139,7 @@ sealed interface UiState {
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = SettingsRepository(application)
+    private val sessionCache = SessionCache(application)
 
     private fun getAppString(resId: Int): String {
         val ctx = getApplication<Application>()
@@ -228,6 +231,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _ignoredQuestions = MutableStateFlow<Set<String>>(emptySet())
     val ignoredQuestions: StateFlow<Set<String>> = _ignoredQuestions.asStateFlow()
+
+    private val _offlineCacheAt = MutableStateFlow<Long?>(null)
+    val offlineCacheAt: StateFlow<Long?> = _offlineCacheAt.asStateFlow()
 
     private val _tokenHistory = MutableStateFlow<Map<String, TokenDay>>(emptyMap())
     val tokenHistory: StateFlow<Map<String, TokenDay>> = _tokenHistory.asStateFlow()
@@ -1401,6 +1407,7 @@ private fun sessionTitle(sid: String): String {
         _olderCursor.value = null
         _loadingOlder.value = false
         _searchResults.value = emptyList()
+        _offlineCacheAt.value = null
         settings.setLastSessionId(s.id)
         loadMessages()
         refreshPendingQuestions()
@@ -1431,6 +1438,12 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch {
             try {
                 val (pairs, next) = withContext(Dispatchers.IO) { c.sessionMessagesPage(sid, 100, null) }
+                _offlineCacheAt.value = null
+                _activeSession.value?.let { s ->
+                    runCatching {
+                        withContext(Dispatchers.IO) { sessionCache.save(s, pairs.map { (m, p) -> SessionInfo(m, p) }) }
+                    }
+                }
                 _messages.value = pairs.map { toChatMessage(it.first, it.second) }
                 _olderCursor.value = next
                 runCatching {
@@ -1444,7 +1457,12 @@ private fun sessionTitle(sid: String): String {
                 recomputeSessionElapsed()
                 recomputeSessionTotalElapsed()
             } catch (_: Exception) {
-                // ignore, keep current
+                val cached = withContext(Dispatchers.IO) { sessionCache.load(sid) }
+                if (cached != null && _messages.value.isEmpty()) {
+                    _messages.value = cached.messages.map { toChatMessage(it.info, it.parts) }
+                    _olderCursor.value = null
+                    _offlineCacheAt.value = cached.savedAt
+                }
             }
         }
     }
@@ -1849,6 +1867,7 @@ text = e.message ?: getAppString(R.string.send_failed),
         viewModelScope.launch {
             runCatching { withContext(Dispatchers.IO) { c.deleteSession(sid) } }
                 .onSuccess {
+                    withContext(Dispatchers.IO) { sessionCache.clear(sid) }
                     _projects.value = _projects.value.map { p ->
                         p.copy(sessions = p.sessions.filterNot { it.id == sid })
                     }

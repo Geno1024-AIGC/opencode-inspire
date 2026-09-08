@@ -219,6 +219,7 @@ fun ChatScreen(
     val searchError by viewModel.searchError.collectAsStateWithLifecycle()
     val loadingOlder by viewModel.loadingOlder.collectAsStateWithLifecycle()
     val hasOlderHistory by viewModel.hasOlderHistory.collectAsStateWithLifecycle()
+    val offlineCacheAt by viewModel.offlineCacheAt.collectAsStateWithLifecycle()
     var showSearchResults by rememberSaveable { mutableStateOf(false) }
     var highlightedId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(highlightedId) {
@@ -515,6 +516,27 @@ fun ChatScreen(
         ) {
             if (!selectMode) {
                 TokenStatsBar(tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, tokenFormat = tokenFormat, totalElapsed = effectiveTotalElapsed, messageCount = activeSession?.let { storedStats[it.id]?.messageCount }, cost = sessionCost)
+            }
+            offlineCacheAt?.let { at ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Filled.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(R.string.offline_cached, formatMillis(at)),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             if (searchActive) {
                 Row(

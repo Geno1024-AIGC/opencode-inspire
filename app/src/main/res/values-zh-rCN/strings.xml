@@ -447,6 +447,7 @@
     <string name="loading_older">加载中…</string>
     <string name="role_user">你</string>
     <string name="role_assistant">AI</string>
+    <string name="offline_cached">离线 · 显示缓存消息（%1$s）</string>
     <string name="regenerate">重新生成</string>
     <string name="message_actions">消息操作</string>
     <string name="message_copy_text">复制文本</string>
