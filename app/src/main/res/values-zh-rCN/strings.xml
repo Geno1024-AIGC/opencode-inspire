@@ -157,6 +157,8 @@
     <!-- Settings -->
     <string name="settings_title">设置</string>
     <string name="settings_general">通用</string>
+    <string name="settings_background_notify">后台通知</string>
+    <string name="settings_background_notify_sub">保持后台服务运行，应用关闭时也能收到新消息或提问通知</string>
     <string name="settings_appearance">外观</string>
     <string name="settings_language">语言</string>
     <string name="lang_system">跟随系统</string>
@@ -458,6 +460,16 @@
     <string name="rename_placeholder">新标题</string>
     <string name="save">保存</string>
     <string name="close">关闭</string>
+    <string name="notify_poll_title">OpenCode</string>
+    <string name="notify_poll_channel">会话通知</string>
+    <string name="notify_poll_starting">已开启后台通知</string>
+    <string name="notify_poll_running">检查更新中 · 上次检查 %1$s</string>
+    <string name="notify_new_messages_title">%1$s</string>
+    <string name="notify_new_messages">当前会话有新的消息</string>
+    <string name="notify_questions_title">%1$s</string>
+    <plurals name="notify_questions">
+        <item quantity="other">有 %1$d 个提问等待你处理</item>
+    </plurals>
     <string name="permission_never_ask">永不询问</string>
     <string name="settings_ignored_title">已忽略的请求</string>
     <string name="settings_ignored_sub">将不再询问的问题与权限</string>

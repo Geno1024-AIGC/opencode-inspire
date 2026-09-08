@@ -157,6 +157,8 @@
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_general">General</string>
+    <string name="settings_background_notify">Background notifications</string>
+    <string name="settings_background_notify_sub">Keep a service running to notify when new messages or questions arrive while the app is closed</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_language">Language</string>
     <string name="lang_system">Follow system</string>
@@ -458,6 +460,17 @@
     <string name="rename_placeholder">New title</string>
     <string name="save">Save</string>
     <string name="close">Close</string>
+    <string name="notify_poll_title">OpenCode</string>
+    <string name="notify_poll_channel">Session notifications</string>
+    <string name="notify_poll_starting">Background notifications on</string>
+    <string name="notify_poll_running">Checking for updates · last check %1$s</string>
+    <string name="notify_new_messages_title">%1$s</string>
+    <string name="notify_new_messages">New messages in active session</string>
+    <string name="notify_questions_title">%1$s</string>
+    <plurals name="notify_questions">
+        <item quantity="one">%1$d question awaiting your answer</item>
+        <item quantity="other">%1$d questions awaiting your answer</item>
+    </plurals>
     <string name="permission_never_ask">Never ask again</string>
     <string name="settings_ignored_title">Ignored requests</string>
     <string name="settings_ignored_sub">Permissions and questions you will not be asked again</string>

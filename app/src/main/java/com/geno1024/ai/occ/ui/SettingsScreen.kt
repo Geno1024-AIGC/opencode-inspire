@@ -1,5 +1,9 @@
 package com.geno1024.ai.occ.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import com.geno1024.ai.occ.BuildConfig
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -46,6 +51,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -157,6 +163,34 @@ fun SettingsScreen(
                         ),
                         selected = language,
                         onSelect = viewModel::setLanguage,
+                    )
+                    val backgroundNotify by viewModel.backgroundNotify.collectAsStateWithLifecycle()
+                    val notifContext = LocalContext.current
+                    val notificationLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission(),
+                    ) { granted ->
+                        if (granted) viewModel.setBackgroundNotify(true)
+                    }
+                    SettingSwitchRow(
+                        title = stringResource(R.string.settings_background_notify),
+                        subtitle = stringResource(R.string.settings_background_notify_sub),
+                        checked = backgroundNotify,
+                        onToggle = {
+                            val checked = !backgroundNotify
+                            if (checked && Build.VERSION.SDK_INT >= 33) {
+                                val granted = ContextCompat.checkSelfPermission(
+                                    notifContext,
+                                    Manifest.permission.POST_NOTIFICATIONS,
+                                ) == PackageManager.PERMISSION_GRANTED
+                                if (granted) {
+                                    viewModel.setBackgroundNotify(true)
+                                } else {
+                                    notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            } else {
+                                viewModel.setBackgroundNotify(checked)
+                            }
+                        },
                     )
                 }
             }
@@ -597,6 +631,33 @@ private fun SectionLabel(resId: Int, small: Boolean = false) {
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(top = if (small) 4.dp else 8.dp),
     )
+}
+
+@Composable
+private fun SettingSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Switch(checked = checked, onCheckedChange = { onToggle() })
+    }
 }
 
 @Composable

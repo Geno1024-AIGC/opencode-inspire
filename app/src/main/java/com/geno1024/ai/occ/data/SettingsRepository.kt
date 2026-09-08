@@ -73,6 +73,7 @@ class SettingsRepository(private val context: Context) {
         val ASSIST_BUBBLE_COLOR = longPreferencesKey("assistant_bubble_color")
         val AUTO_UPDATE_TIMING = booleanPreferencesKey("auto_update_timing")
         val TABLE_TIME_FORMAT = intPreferencesKey("table_time_format")
+        val BACKGROUND_NOTIFY = booleanPreferencesKey("background_notify")
         val EXPORT_TRANSPARENT = booleanPreferencesKey("export_transparent")
         val EXPORT_AUTHOR = stringPreferencesKey("export_author")
         val FAVORITES = stringPreferencesKey("favorites")
@@ -124,6 +125,7 @@ class SettingsRepository(private val context: Context) {
     val userBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.USER_BUBBLE_COLOR] ?: -1L }
     val assistantBubbleColor: Flow<Long> = context.dataStore.data.map { it[Keys.ASSIST_BUBBLE_COLOR] ?: -1L }
     val autoUpdateTiming: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_UPDATE_TIMING] ?: false }
+    val backgroundNotify: Flow<Boolean> = context.dataStore.data.map { it[Keys.BACKGROUND_NOTIFY] ?: false }
     val tableTimeFormat: Flow<Int> = context.dataStore.data.map { it[Keys.TABLE_TIME_FORMAT] ?: 0 }
     val exportTransparent: Flow<Boolean> = context.dataStore.data.map { it[Keys.EXPORT_TRANSPARENT] ?: true }
     val exportAuthor: Flow<String> = context.dataStore.data.map { it[Keys.EXPORT_AUTHOR] ?: "" }
@@ -378,6 +380,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setProjectPath(path: String) {
         context.dataStore.edit { it[Keys.PROJECT_PATH] = path }
+    }
+
+    suspend fun setBackgroundNotify(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.BACKGROUND_NOTIFY] = enabled }
     }
 
     suspend fun setAuth(username: String?, password: String?) {

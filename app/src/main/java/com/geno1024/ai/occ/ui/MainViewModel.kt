@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import androidx.core.content.ContextCompat
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Environment
@@ -14,6 +15,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.geno1024.ai.occ.BuildConfig
 import com.geno1024.ai.occ.R
+import com.geno1024.ai.occ.SessionPollService
 import java.util.Locale
 import com.geno1024.ai.occ.data.CapabilityCatalog
 import com.geno1024.ai.occ.data.CapabilityReport
@@ -256,6 +258,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _tokenSyncedAt = MutableStateFlow(0L)
 
+    private val _backgroundNotify = MutableStateFlow(false)
+    val backgroundNotify: StateFlow<Boolean> = _backgroundNotify.asStateFlow()
+
     val tokenSyncedAt: StateFlow<Long> = _tokenSyncedAt.asStateFlow()
     private val _sending = MutableStateFlow(false)
     val sending: StateFlow<Boolean> = _sending.asStateFlow()
@@ -482,6 +487,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.tokenSync.collect { _tokenSync.value = it }
+        }
+        viewModelScope.launch {
+            settings.backgroundNotify.collect { _backgroundNotify.value = it }
         }
         viewModelScope.launch {
             settings.tokenSyncedAt.collect { _tokenSyncedAt.value = it }
@@ -1100,6 +1108,23 @@ private fun sessionTitle(sid: String): String {
 
     fun setMirror(enabled: Boolean) {
         viewModelScope.launch { settings.setMirror(enabled) }
+    }
+
+    fun setBackgroundNotify(enabled: Boolean) {
+        if (enabled == _backgroundNotify.value) return
+        _backgroundNotify.value = enabled
+        viewModelScope.launch { settings.setBackgroundNotify(enabled) }
+        val context = getApplication<Application>()
+        val service = Intent(context, SessionPollService::class.java)
+        try {
+            if (enabled) {
+                ContextCompat.startForegroundService(context, service)
+            } else {
+                context.stopService(service)
+            }
+        } catch (_: Exception) {
+            // foreground service start may be blocked
+        }
     }
 
     fun checkForUpdates(notifyLatest: Boolean = true) {
