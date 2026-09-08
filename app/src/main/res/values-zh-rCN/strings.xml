@@ -426,6 +426,16 @@
     <string name="history_stats_fallback_title">历史窗口已前移，改为显示会话跨度</string>
     <string name="history_stats_fallback">会话跨度（创建→更新）：%.1fs</string>
     <string name="search">搜索对话</string>
+    <string name="search_all">全量搜索</string>
+    <string name="search_all_title">搜索结果</string>
+    <string name="search_all_progress">正在扫描 %1$s 条消息…</string>
+    <string name="search_all_error">搜索失败，请稍后重试。</string>
+    <string name="search_all_empty">没有匹配的消息</string>
+    <string name="search_all_count">共 %1$s 条匹配</string>
+    <string name="load_older">加载更早消息</string>
+    <string name="loading_older">加载中…</string>
+    <string name="role_user">你</string>
+    <string name="role_assistant">AI</string>
     <string name="regenerate">重新生成</string>
     <string name="message_actions">消息操作</string>
     <string name="message_copy_text">复制文本</string>

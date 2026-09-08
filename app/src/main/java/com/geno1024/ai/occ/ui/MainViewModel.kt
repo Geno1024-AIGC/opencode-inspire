@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -85,6 +86,15 @@ data class PartUi(
     val toolState: String? = null,
     val toolInput: String? = null,
     val toolOutput: String? = null,
+)
+
+data class SearchHit(
+    val id: String,
+    val role: String,
+    val model: String? = null,
+    val time: Long = 0L,
+    val text: String,
+    val snippet: String,
 )
 
 data class HistoryStats(
@@ -257,6 +267,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _exportMarkdown = MutableStateFlow<String?>(null)
     val exportMarkdown = _exportMarkdown.asStateFlow()
     val pendingQuestions: StateFlow<List<QuestionRequest>> = _pendingQuestions.asStateFlow()
+
+    private val _olderCursor = MutableStateFlow<String?>(null)
+    private val _loadingOlder = MutableStateFlow(false)
+    val loadingOlder: StateFlow<Boolean> = _loadingOlder.asStateFlow()
+    val hasOlderHistory: StateFlow<Boolean> =
+        _olderCursor.map { it != null }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    private val _searchingAll = MutableStateFlow(false)
+    val searchingAll: StateFlow<Boolean> = _searchingAll.asStateFlow()
+    private val _searchProgress = MutableStateFlow(0)
+    val searchProgress: StateFlow<Int> = _searchProgress.asStateFlow()
+    private val _searchResults = MutableStateFlow<List<SearchHit>>(emptyList())
+    val searchResults: StateFlow<List<SearchHit>> = _searchResults.asStateFlow()
+    private val _searchError = MutableStateFlow(false)
+    val searchError: StateFlow<Boolean> = _searchError.asStateFlow()
 
     private val _commands = MutableStateFlow<List<Command>>(emptyList())
     val commands: StateFlow<List<Command>> = _commands.asStateFlow()
@@ -1306,6 +1331,9 @@ private fun sessionTitle(sid: String): String {
         _sessionTokens.value = null
         _contextWindow.value = 0L
         _cumulativeTokens.value = 0L
+        _olderCursor.value = null
+        _loadingOlder.value = false
+        _searchResults.value = emptyList()
         settings.setLastSessionId(s.id)
         loadMessages()
         refreshPendingQuestions()
@@ -1335,33 +1363,9 @@ private fun sessionTitle(sid: String): String {
         val sid = _activeSession.value?.id ?: return
         viewModelScope.launch {
             try {
-                val pairs = withContext(Dispatchers.IO) { c.sessionMessages(sid, 100) }
-                _messages.value = pairs.map { (msg, parts) ->
-                    val tokens = msg.tokens
-                    ChatMessage(
-                        id = msg.id,
-                        role = msg.role ?: "unknown",
-                        text = buildText(parts),
-                        reasoning = buildReasoning(parts),
-                        parts = parts.map { p ->
-                            PartUi(
-                                type = p.type,
-                                text = p.text,
-                                tool = p.tool,
-                                toolTitle = p.title ?: p.tool,
-                                toolState = p.state?.status,
-                                toolInput = p.state?.input?.let {
-                                    if (it is kotlinx.serialization.json.JsonPrimitive) it.contentOrNull else it.toString()
-                                },
-                                toolOutput = p.state?.output,
-                            )
-                        },
-                        model = msg.modelID ?: msg.model?.id,
-                        tokens = tokens,
-                        time = serverTimeToMillis(msg.time?.created),
-                        cumulativeTokens = 0L,
-                    )
-                }
+                val (pairs, next) = withContext(Dispatchers.IO) { c.sessionMessagesPage(sid, 100, null) }
+                _messages.value = pairs.map { toChatMessage(it.first, it.second) }
+                _olderCursor.value = next
                 runCatching {
                     val todos = withContext(Dispatchers.IO) { c.sessionTodos(sid) }
                     _todos.value = todos.mapNotNull { t ->
@@ -1374,6 +1378,133 @@ private fun sessionTitle(sid: String): String {
                 recomputeSessionTotalElapsed()
             } catch (_: Exception) {
                 // ignore, keep current
+            }
+        }
+    }
+
+    private fun toChatMessage(msg: Message, parts: List<Part>): ChatMessage {
+        val tokens = msg.tokens
+        return ChatMessage(
+            id = msg.id,
+            role = msg.role ?: "unknown",
+            text = buildText(parts),
+            reasoning = buildReasoning(parts),
+            parts = parts.map { p ->
+                PartUi(
+                    type = p.type,
+                    text = p.text,
+                    tool = p.tool,
+                    toolTitle = p.title ?: p.tool,
+                    toolState = p.state?.status,
+                    toolInput = p.state?.input?.let {
+                        if (it is kotlinx.serialization.json.JsonPrimitive) it.contentOrNull else it.toString()
+                    },
+                    toolOutput = p.state?.output,
+                )
+            },
+            model = msg.modelID ?: msg.model?.id,
+            tokens = tokens,
+            time = serverTimeToMillis(msg.time?.created),
+            cumulativeTokens = 0L,
+        )
+    }
+
+    fun loadOlderHistory() {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        val cursor = _olderCursor.value ?: return
+        if (_loadingOlder.value) return
+        viewModelScope.launch {
+            _loadingOlder.value = true
+            try {
+                val (pairs, next) = withContext(Dispatchers.IO) { c.sessionMessagesPage(sid, 100, cursor) }
+                if (pairs.isEmpty()) {
+                    _olderCursor.value = null
+                    return@launch
+                }
+                _messages.value = pairs.reversed().map { toChatMessage(it.first, it.second) } + _messages.value
+                _olderCursor.value = next
+                recomputeCumulativeTokens()
+            } catch (_: Exception) {
+                // keep current history
+            } finally {
+                _loadingOlder.value = false
+            }
+        }
+    }
+
+    fun jumpToMessage(id: String, onReady: (found: Boolean) -> Unit) {
+        if (_messages.value.any { it.id == id }) {
+            onReady(true)
+            return
+        }
+        viewModelScope.launch {
+            var found = false
+            var guard = 0
+            while (_olderCursor.value != null && guard < 30) {
+                val c2 = client ?: break
+                val sid2 = _activeSession.value?.id ?: break
+                val cursor = _olderCursor.value ?: break
+                val ok = try {
+                    val (pairs, next) = withContext(Dispatchers.IO) { c2.sessionMessagesPage(sid2, 100, cursor) }
+                    if (pairs.isEmpty()) {
+                        _olderCursor.value = null
+                        false
+                    } else {
+                        _messages.value = pairs.reversed().map { toChatMessage(it.first, it.second) } + _messages.value
+                        _olderCursor.value = next
+                        recomputeCumulativeTokens()
+                        true
+                    }
+                } catch (_: Exception) {
+                    false
+                }
+                guard++
+                found = _messages.value.any { it.id == id }
+                if (!ok || found) break
+            }
+            onReady(found)
+        }
+    }
+
+    fun searchAll(query: String) {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        if (_searchingAll.value || query.isBlank()) return
+        viewModelScope.launch {
+            _searchingAll.value = true
+            _searchProgress.value = 0
+            try {
+                val all = withContext(Dispatchers.IO) {
+                    c.sessionMessagesAll(sid) { fetched, _ -> _searchProgress.value = fetched }
+                }
+                val hits = all.asReversed().mapNotNull { (msg, parts) ->
+                    val text = buildText(parts)
+                    val reasoning = buildReasoning(parts) ?: ""
+                    val toolText = parts.filter { it.type == "tool" }.joinToString(" ") { p ->
+                        listOfNotNull(p.title ?: p.tool, p.state?.input?.toString(), p.state?.output).joinToString(" ")
+                    }
+                    val combined = listOf(text, reasoning, toolText).joinToString("\n")
+                    val idx = combined.indexOf(query, ignoreCase = true)
+                    if (idx < 0) return@mapNotNull null
+                    val snippet = combined.substring(
+                        (idx - 80).coerceAtLeast(0),
+                        (idx + 120).coerceAtMost(combined.length),
+                    ).let { if (idx - 80 > 0) "…$it" else it }
+                    SearchHit(
+                        id = msg.id,
+                        role = msg.role ?: "unknown",
+                        model = msg.modelID ?: msg.model?.id,
+                        time = serverTimeToMillis(msg.time?.created),
+                        text = text.trim().ifEmpty { toolText.trim().take(200) },
+                        snippet = snippet.replace('\n', ' ').trim(),
+                    )
+                }
+                _searchResults.value = hits.take(200)
+            } catch (_: Exception) {
+                _searchError.value = true
+            } finally {
+                _searchingAll.value = false
             }
         }
     }

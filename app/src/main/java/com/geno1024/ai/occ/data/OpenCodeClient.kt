@@ -282,6 +282,22 @@ class OpenCodeClient(
                 .map { it.info to it.parts }
         }
 
+    suspend fun sessionMessagesPage(
+        sessionId: String,
+        limit: Int,
+        before: String?,
+    ): Pair<List<Pair<Message, List<Part>>>, String?> {
+        val (text, next) = fetchPageWithCursor(sessionId, limit, before)
+        val page = if (text.isBlank()) {
+            emptyList()
+        } else {
+            runCatching {
+                json.decodeFromString<List<SessionInfo>>(text).map { it.info to it.parts }
+            }.getOrElse { emptyList() }
+        }
+        return page to next
+    }
+
     suspend fun sessionMessagesAll(
         sessionId: String,
         onProgress: (fetched: Int, lastTimestamp: Long) -> Unit = { _, _ -> },

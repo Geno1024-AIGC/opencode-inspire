@@ -213,6 +213,20 @@ fun ChatScreen(
     var rangeArmed by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchActive by rememberSaveable { mutableStateOf(false) }
+    val searchingAll by viewModel.searchingAll.collectAsStateWithLifecycle()
+    val searchProgress by viewModel.searchProgress.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val searchError by viewModel.searchError.collectAsStateWithLifecycle()
+    val loadingOlder by viewModel.loadingOlder.collectAsStateWithLifecycle()
+    val hasOlderHistory by viewModel.hasOlderHistory.collectAsStateWithLifecycle()
+    var showSearchResults by rememberSaveable { mutableStateOf(false) }
+    var highlightedId by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(highlightedId) {
+        if (highlightedId != null) {
+            delay(2500)
+            highlightedId = null
+        }
+    }
 
     val reversedMessages = messages.asReversed()
     val filteredMessages = if (searchActive && searchQuery.isNotBlank()) {
@@ -288,6 +302,27 @@ fun ChatScreen(
             else info.visibleItemsInfo.maxByOrNull { it.offset + it.size }
         val idx = item?.index ?: return null
         return filteredMessages.getOrNull(idx)?.id
+    }
+
+    fun scrollToAndHighlight(id: String) {
+        coroutineScope.launch {
+            val rev = viewModel.messages.value.asReversed()
+            val idx = rev.indexOfFirst { it.id == id }
+            if (idx >= 0) {
+                listState.animateScrollToItem(idx)
+                highlightedId = id
+            }
+        }
+    }
+
+    fun jumpToSearchHit(id: String) {
+        searchActive = false
+        searchQuery = ""
+        if (viewModel.messages.value.any { it.id == id }) {
+            scrollToAndHighlight(id)
+        } else {
+            viewModel.jumpToMessage(id) { found -> if (found) scrollToAndHighlight(id) }
+        }
     }
 
     fun shareSelection() {
@@ -482,15 +517,34 @@ fun ChatScreen(
                 TokenStatsBar(tokens = sessionTokens, promptTokens = promptTokens, contextWindow = contextWindow, tokenFormat = tokenFormat, totalElapsed = effectiveTotalElapsed, messageCount = activeSession?.let { storedStats[it.id]?.messageCount }, cost = sessionCost)
             }
             if (searchActive) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 4.dp),
-                    placeholder = { Text(stringResource(R.string.search)) },
-                    singleLine = true,
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text(stringResource(R.string.search)) },
+                        singleLine = true,
+                    )
+                    IconButton(
+                        onClick = {
+                            if (searchQuery.isNotBlank()) {
+                                viewModel.searchAll(searchQuery)
+                                showSearchResults = true
+                            }
+                        },
+                    ) {
+                        Icon(
+                            Icons.Filled.Search,
+                            stringResource(R.string.search_all),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
             }
             Box(
                 modifier = Modifier
@@ -532,6 +586,7 @@ fun ChatScreen(
                         userColor = userBubbleColor,
                         assistantColor = assistantBubbleColor,
                         collapsed = msg.id in collapsedMessageIds,
+                        highlighted = msg.id == highlightedId,
                         onToggleCollapse = { viewModel.toggleMessageCollapsed(msg.id) },
                         onShowRaw = { rawMessage = msg },
                         onRegenerate = { (precedingUserText ?: msg.text).let { viewModel.send(it) } },
@@ -549,6 +604,35 @@ fun ChatScreen(
                             }
                         },
                     )
+                }
+                if (!searchActive && !selectMode && hasOlderHistory && searchQuery.isBlank()) {
+                    item(key = "load-older") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            TextButton(
+                                onClick = { viewModel.loadOlderHistory() },
+                                enabled = !loadingOlder,
+                            ) {
+                                if (loadingOlder) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text(
+                                    stringResource(
+                                        if (loadingOlder) R.string.loading_older else R.string.load_older
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+                        }
+                    }
                 }
                 }
                 if (selectMode && rangeArmed) {
@@ -746,6 +830,18 @@ fun ChatScreen(
             onReply = { q, answers -> viewModel.replyQuestions(q, answers) },
             onReject = { viewModel.rejectQuestion(it) },
             onDismissAll = { activeQuestions.forEach(viewModel::rejectQuestion) },
+        )
+    }
+
+    if (showSearchResults) {
+        SearchResultsSheet(
+            searching = searchingAll,
+            progress = searchProgress,
+            results = searchResults,
+            error = searchError,
+            query = searchQuery,
+            onDismiss = { showSearchResults = false },
+            onPick = { jumpToSearchHit(it) },
         )
     }
 
@@ -1112,6 +1208,142 @@ private fun isOutsideProjectDir(path: String, directory: String?): Boolean {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun SearchResultsSheet(
+    searching: Boolean,
+    progress: Int,
+    results: List<SearchHit>,
+    error: Boolean,
+    query: String,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            Text(
+                stringResource(R.string.search_all_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(12.dp))
+            when {
+                searching -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            stringResource(R.string.search_all_progress, progress.toString()),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                error -> Text(
+                    stringResource(R.string.search_all_error),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                results.isEmpty() -> Text(
+                    stringResource(R.string.search_all_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> {
+                    Text(
+                        stringResource(R.string.search_all_count, results.size.toString()),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 380.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(results, key = { it.id }) { hit ->
+                            SearchResultRow(hit = hit, query = query, onClick = { onPick(hit.id) })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultRow(hit: SearchHit, query: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RoleChip(hit.role)
+                Spacer(Modifier.width(8.dp))
+                hit.model?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    formatMillis(hit.time),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                hit.snippet,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RoleChip(role: String) {
+    val (bg, fg, label) = if (role == "user") {
+        Triple(
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer,
+            R.string.role_user,
+        )
+    } else {
+        Triple(
+            MaterialTheme.colorScheme.tertiaryContainer,
+            MaterialTheme.colorScheme.onTertiaryContainer,
+            R.string.role_assistant,
+        )
+    }
+    Box(
+        modifier = Modifier
+            .background(bg, MaterialTheme.shapes.small)
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            stringResource(label),
+            style = MaterialTheme.typography.labelSmall,
+            color = fg,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun PendingQuestionsSheet(
     requests: List<QuestionRequest>,
     onReply: (QuestionRequest, List<List<String>>) -> Unit,
@@ -1391,6 +1623,7 @@ private fun MessageBubble(
     sessionElapsed: Long? = null,
     responseTime: Long? = null,
     collapsed: Boolean = false,
+    highlighted: Boolean = false,
     onToggleCollapse: () -> Unit = {},
     onShowRaw: () -> Unit = {},
     onRegenerate: () -> Unit = {},
@@ -1497,7 +1730,8 @@ private fun MessageBubble(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .background(background, shape)
+                    .background(if (highlighted) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else background, shape)
+                    .then(if (highlighted) Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), shape) else Modifier)
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
             ) {
