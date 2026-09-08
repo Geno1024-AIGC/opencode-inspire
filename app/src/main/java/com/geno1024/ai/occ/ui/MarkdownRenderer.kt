@@ -472,10 +472,12 @@ private fun parseMarkdown(text: String): List<Any> {
 @Composable
 fun MarkdownMessage(content: String) {
     val markdownState = rememberMarkdownState(content, retainState = true)
-    Markdown(
-        markdownState = markdownState,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    SelectionContainer {
+        Markdown(
+            markdownState = markdownState,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable
