@@ -40,6 +40,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.graphics.Bitmap
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import com.geno1024.ai.occ.data.UsageShareData
+import com.geno1024.ai.occ.data.UsageShareItem
+import com.geno1024.ai.occ.data.buildUsageShareBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.occ.R
 import com.geno1024.ai.occ.data.TokenDay
@@ -64,6 +77,9 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     var customEnd by rememberSaveable { mutableStateOf<Long?>(null) }
     var expandedModel by rememberSaveable { mutableStateOf<String?>(null) }
     val today = remember { LocalDate.now() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val accentColor = MaterialTheme.colorScheme.primary.toArgb()
 
     val periodKeys = remember(tokenHistory, periodMode, customStart, customEnd, today) {
         when {
@@ -122,6 +138,67 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
         } else periodMode.toIntOrNull() ?: 7
     }
 
+    fun shareImage() {
+        val periodLabel = when (periodMode) {
+            "all" -> context.getString(R.string.usage_period_all)
+            "custom" -> listOfNotNull(
+                customStart?.toLocalDateUtc()?.toString(),
+                customEnd?.toLocalDateUtc()?.toString(),
+            ).joinToString(" ~ ")
+            else -> context.getString(
+                when (periodMode) {
+                    "7" -> R.string.usage_period_7d
+                    "30" -> R.string.usage_period_30d
+                    else -> R.string.usage_period_90d
+                },
+            )
+        }
+        val data = UsageShareData(
+            appName = context.getString(R.string.app_name),
+            title = context.getString(R.string.usage_leaderboard_title),
+            periodLabel = periodLabel,
+            footer = LocalDate.now().toString(),
+            totalTokens = periodTotal.total,
+            input = periodTotal.input,
+            output = periodTotal.output,
+            reasoning = periodTotal.reasoning,
+            cacheRead = periodTotal.cacheRead,
+            cacheWrite = periodTotal.cacheWrite,
+            messages = periodTotal.msgs,
+            cost = periodTotal.cost,
+            elapsed = formatElapsed(periodElapsed),
+            items = rows.map { row ->
+                val d = row.day
+                UsageShareItem(
+                    model = row.model,
+                    total = d.total,
+                    input = d.input,
+                    output = d.output,
+                    reasoning = d.reasoning,
+                    cacheRead = d.cacheRead,
+                    cacheWrite = d.cacheWrite,
+                    cost = d.cost,
+                    share = if (periodTotal.total > 0L) d.total.toFloat() / periodTotal.total.toFloat() else 0f,
+                )
+            },
+            accent = accentColor,
+        )
+        scope.launch {
+            val bmp = withContext(Dispatchers.Default) { buildUsageShareBitmap(data) }
+            val uri = withContext(Dispatchers.IO) {
+                val file = java.io.File(context.cacheDir, "opencodeclient-usage.png")
+                file.outputStream().use { out -> bmp.compress(Bitmap.CompressFormat.PNG, 100, out) }
+                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            }
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, context.getString(R.string.chat_select_share)))
+        }
+    }
+
     BackHandler(onBack = onBack)
 
     Scaffold(
@@ -132,6 +209,11 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.drawer_close))
+                    }
+                },
+                actions = {
+                    IconButton(onClick = ::shareImage) {
+                        Icon(Icons.Filled.Share, stringResource(R.string.chat_select_share))
                     }
                 },
             )
@@ -189,7 +271,6 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 UsageSummaryCard(
                     total = periodTotal,
                     elapsed = periodElapsed,
-                    days = periodDaySpan,
                     format = tokenFormat,
                 )
             }
@@ -216,7 +297,7 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun UsageSummaryCard(total: TokenDay, elapsed: Long, days: Int, format: TokenFormat) {
+private fun UsageSummaryCard(total: TokenDay, elapsed: Long, format: TokenFormat) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -239,13 +320,15 @@ private fun UsageSummaryCard(total: TokenDay, elapsed: Long, days: Int, format: 
             SummaryDataRow(stringResource(R.string.usage_period_msgs), total.msgs.toString())
             SummaryDataRow(
                 stringResource(R.string.usage_period_elapsed),
-                stringResource(R.string.usage_period_elapsed_days, days.toString()) + " · " + formatElapsed(elapsed),
+                formatElapsed(elapsed),
             )
-            Text(
-                inLine(total, format),
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = MonoFontFamily),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                MetricRow(stringResource(R.string.calendar_token_in), formatTokens(total.input, format))
+                MetricRow(stringResource(R.string.calendar_token_out), formatTokens(total.output, format))
+                MetricRow(stringResource(R.string.calendar_token_infer), formatTokens(total.reasoning, format))
+                MetricRow(stringResource(R.string.calendar_token_crd), formatTokens(total.cacheRead, format))
+                MetricRow(stringResource(R.string.calendar_token_cwr), formatTokens(total.cacheWrite, format))
+            }
         }
     }
 }
@@ -312,8 +395,15 @@ private fun ModelUsageRow(
                 progress = { share },
                 modifier = Modifier.fillMaxWidth().height(6.dp),
             )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                MetricRow(stringResource(R.string.calendar_token_in), formatTokens(day.input, format))
+                MetricRow(stringResource(R.string.calendar_token_out), formatTokens(day.output, format))
+                MetricRow(stringResource(R.string.calendar_token_infer), formatTokens(day.reasoning, format))
+                MetricRow(stringResource(R.string.calendar_token_crd), formatTokens(day.cacheRead, format))
+                MetricRow(stringResource(R.string.calendar_token_cwr), formatTokens(day.cacheWrite, format))
+            }
             Text(
-                "${inLine(day, format)} · ${formatCost(day.cost)} · ${"%.1f".format(share * 100f)}%",
+                "${formatCost(day.cost)} · ${"%.1f".format(share * 100f)}%",
                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = MonoFontFamily),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -324,15 +414,7 @@ private fun ModelUsageRow(
                     days = trendDays,
                     format = format,
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MetricRow(stringResource(R.string.calendar_token_in), formatTokens(day.input, format))
-                    MetricRow(stringResource(R.string.calendar_token_out), formatTokens(day.output, format))
-                    MetricRow(stringResource(R.string.calendar_token_infer), formatTokens(day.reasoning, format))
-                    MetricRow(stringResource(R.string.calendar_token_crd), formatTokens(day.cacheRead, format))
-                    MetricRow(stringResource(R.string.calendar_token_cwr), formatTokens(day.cacheWrite, format))
-                    MetricRow(stringResource(R.string.stats_tab_msgs), day.msgs.toString())
-                    MetricRow(stringResource(R.string.usage_cost), formatCost(day.cost))
-                }
+                MetricRow(stringResource(R.string.stats_tab_msgs), day.msgs.toString())
             }
         }
     }
@@ -352,12 +434,6 @@ private fun MetricRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily),
         )
     }
-}
-
-private fun inLine(day: TokenDay, format: TokenFormat): String {
-    return "${formatTokens(day.input, format)} in · ${formatTokens(day.output, format)} out · " +
-        "${formatTokens(day.reasoning, format)} infer · ${formatTokens(day.cacheRead, format)} crd · " +
-        "${formatTokens(day.cacheWrite, format)} cwr"
 }
 
 private fun Long.toLocalDateUtc(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
