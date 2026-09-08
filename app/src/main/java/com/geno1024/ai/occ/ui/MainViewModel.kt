@@ -16,6 +16,7 @@ import androidx.lifecycle.viewModelScope
 import com.geno1024.ai.occ.BuildConfig
 import com.geno1024.ai.occ.R
 import com.geno1024.ai.occ.SessionPollService
+import com.geno1024.ai.occ.SessionWidgetProvider
 import java.util.Locale
 import com.geno1024.ai.occ.data.CapabilityCatalog
 import com.geno1024.ai.occ.data.CapabilityReport
@@ -1224,6 +1225,15 @@ private fun sessionTitle(sid: String): String {
                 c.pendingPermissions(_activeSession.value?.directory)
             }.filter { it.sessionId == _activeSession.value?.id }
         }
+        refreshWidgetCache(allSessions)
+    }
+
+    private fun refreshWidgetCache(allSessions: List<Session>) {
+        val context = getApplication<Application>()
+        val title = allSessions.firstOrNull()?.let { it.title.ifBlank { it.id } } ?: ""
+        val questions = _pendingQuestions.value.size
+        SessionWidgetProvider.updateCached(context, title, questions)
+        SessionWidgetProvider.refreshAppWidgets(context)
     }
 
     private fun groupProjects(projects: List<Project>, all: List<Session>): List<ProjectUi> {

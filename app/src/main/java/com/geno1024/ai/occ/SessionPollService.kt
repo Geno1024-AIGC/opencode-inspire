@@ -73,6 +73,7 @@ class SessionPollService : Service() {
         val client = OpenCodeClient(url, username, password)
         var newMessageTime = 0L
         var sessionTitle = ""
+        var questions = 0
         runCatching {
             val active = withContext(Dispatchers.IO) { client.sessions() }.firstOrNull()
             if (active != null) {
@@ -80,7 +81,7 @@ class SessionPollService : Service() {
                 val page = withContext(Dispatchers.IO) { client.sessionMessagesPage(active.id, 1, null) }
                 newMessageTime = page.first.firstOrNull()?.first?.time?.created?.let { serverToMillis(it) } ?: 0L
             }
-            val questions = withContext(Dispatchers.IO) { client.pendingQuestions(active?.directory) }.size
+            questions = withContext(Dispatchers.IO) { client.pendingQuestions(active?.directory) }.size
             val lastSession = prefs.getString(KEY_LAST_SESSION, null)
             val lastTime = prefs.getLong(KEY_LAST_TIME, 0L)
             val lastQuestions = prefs.getInt(KEY_LAST_QUESTIONS, 0)
@@ -99,6 +100,8 @@ class SessionPollService : Service() {
                 .putLong(KEY_LAST_CHECK, System.currentTimeMillis())
                 .apply()
         }
+        SessionWidgetProvider.updateCached(applicationContext, sessionTitle, questions)
+        SessionWidgetProvider.refreshAppWidgets(applicationContext)
         runCatching {
             val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(prefs.getLong(KEY_LAST_CHECK, System.currentTimeMillis())))
             (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)

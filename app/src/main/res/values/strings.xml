@@ -467,6 +467,12 @@
     <string name="notify_new_messages_title">%1$s</string>
     <string name="notify_new_messages">New messages in active session</string>
     <string name="notify_questions_title">%1$s</string>
+    <plurals name="widget_questions">
+        <item quantity="one">%1$d question pending</item>
+        <item quantity="other">%1$d questions pending</item>
+    </plurals>
+    <string name="widget_title">OpenCode</string>
+    <string name="widget_description">Shows the active session and pending questions</string>
     <plurals name="notify_questions">
         <item quantity="one">%1$d question awaiting your answer</item>
         <item quantity="other">%1$d questions awaiting your answer</item>

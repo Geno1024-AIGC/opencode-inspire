@@ -467,6 +467,11 @@
     <string name="notify_new_messages_title">%1$s</string>
     <string name="notify_new_messages">当前会话有新的消息</string>
     <string name="notify_questions_title">%1$s</string>
+    <plurals name="widget_questions">
+        <item quantity="other">%1$d 个提问待处理</item>
+    </plurals>
+    <string name="widget_title">OpenCode</string>
+    <string name="widget_description">显示当前会话与待处理提问</string>
     <plurals name="notify_questions">
         <item quantity="other">有 %1$d 个提问等待你处理</item>
     </plurals>
