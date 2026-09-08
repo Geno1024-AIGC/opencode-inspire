@@ -289,6 +289,17 @@
     <string name="about_ack_text">The entire project was written with free models provided by OpenCode Zen (the big-pickle model). Built on Jetpack Compose, Ktor, and Kotlin.</string>
     <string name="about_tokens_used">App dev</string>
     <string name="usage_cost">Cost</string>
+    <string name="usage_leaderboard_title">Usage Leaderboard</string>
+    <string name="usage_period_7d">7d</string>
+    <string name="usage_period_30d">30d</string>
+    <string name="usage_period_90d">90d</string>
+    <string name="usage_period_tokens">Period tokens</string>
+    <string name="usage_period_cost">Cost</string>
+    <string name="usage_period_msgs">Messages</string>
+    <string name="usage_period_elapsed">Elapsed</string>
+    <string name="usage_period_elapsed_days">%1$s days</string>
+    <string name="usage_model_section">Per model</string>
+    <string name="usage_no_data">No usage data yet. Open Calendar and run a sync first.</string>
     <string name="calendar_cost_info_title">Monthly cost unavailable</string>
     <string name="calendar_cost_info_msg">Per-message cost is not reported by the server, so a session\'s cost cannot be reliably attributed to a specific month. Monthly cost is hidden; only the session-level total is trustworthy.</string>
     <string name="about_token_in">Input</string>

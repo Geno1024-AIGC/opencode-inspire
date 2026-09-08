@@ -105,6 +105,7 @@ sealed class Screen {
     data object Calendar : Screen()
     data object Export : Screen()
     data object About : Screen()
+    data object Usage : Screen()
 
     val key: String
         get() = when (this) {
@@ -114,6 +115,7 @@ sealed class Screen {
             Calendar -> "calendar"
             Export -> "export"
             About -> "about"
+            Usage -> "usage"
         }
 
     companion object {
@@ -123,6 +125,7 @@ sealed class Screen {
             "calendar" -> Calendar
             "export" -> Export
             "about" -> About
+            "usage" -> Usage
             else -> Connect
         }
     }
@@ -178,6 +181,13 @@ fun OpenCodeApp(viewModel: MainViewModel) {
                     exportStartMonth = m
                     screenKey = Screen.Export.key
                 },
+                onOpenUsage = { screenKey = Screen.Usage.key },
+            )
+        }
+        is Screen.Usage -> saveableStateHolder.SaveableStateProvider(Screen.Usage.key) {
+            UsageScreen(
+                viewModel = viewModel,
+                onBack = { screenKey = Screen.Calendar.key },
             )
         }
         is Screen.Export -> saveableStateHolder.SaveableStateProvider(Screen.Export.key) {
