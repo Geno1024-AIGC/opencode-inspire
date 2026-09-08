@@ -132,9 +132,14 @@ fun buildUsageShareBitmap(data: UsageShareData): Bitmap {
         c.drawRoundRect(RectF(x, y, x + cw, y + ch), r, r, b)
     }
 
-    fun metric(x: Float, baseline: Float, label: String, value: String) {
-        c.drawText(label, x, baseline, labelPaint)
-        c.drawText(value, x + contentW - valuePaint.measureText(value), baseline, valuePaint)
+    val valueRight = margin + contentW - 36f
+
+    fun metric(x: Float, rowTop: Float, label: String, value: String) {
+        val center = rowTop + metricRow / 2f
+        val lb = center - (labelPaint.ascent() + labelPaint.descent()) / 2f
+        val vb = center - (valuePaint.ascent() + valuePaint.descent()) / 2f
+        c.drawText(label, x, lb, labelPaint)
+        c.drawText(value, valueRight - valuePaint.measureText(value), vb, valuePaint)
     }
 
     var y = margin
@@ -157,10 +162,10 @@ fun buildUsageShareBitmap(data: UsageShareData): Bitmap {
     c.drawText("TOTAL TOKENS", margin + 36f, baseline, labelPaint)
     baseline += 8f + bigLine
     c.drawText(nf.format(data.totalTokens), margin + 36f, baseline, bigValue)
-    baseline += 28f
+    var rowTop = baseline + 14f
     fun totalMetric(l: String, v: String) {
-        metric(margin + 36f, baseline, l, v)
-        baseline += metricRow
+        metric(margin + 36f, rowTop, l, v)
+        rowTop += metricRow
     }
     totalMetric("in", nf.format(data.input))
     totalMetric("out", nf.format(data.output))
@@ -177,27 +182,27 @@ fun buildUsageShareBitmap(data: UsageShareData): Bitmap {
         val imBottom = imTop + modelCardH
         roundRect(margin, imTop, contentW, modelCardH, cardRad)
         val modelX = margin + 36f
-        var ib = imTop + cardPadT + valueLine
+        var headerBase = imTop + cardPadT + valueLine
         val rankW = valuePaint.measureText("#${index + 1}")
-        c.drawText("#${index + 1}", modelX, ib, accentPaint)
+        c.drawText("#${index + 1}", modelX, headerBase, accentPaint)
         val totalStr = nf.format(item.total)
         val nameX = modelX + rankW + 16f
-        val maxNameW = contentW - 36f - rankW - 16f - valuePaint.measureText(totalStr) - 36f
-        c.drawText(ellipsize(valuePaint, item.model, maxNameW), nameX, ib, valuePaint)
-        c.drawText(totalStr, modelX + contentW - 72f - valuePaint.measureText(totalStr), ib, valuePaint)
-        ib += 20f
+        val maxNameW = valueRight - nameX - 16f - valuePaint.measureText(totalStr)
+        c.drawText(ellipsize(valuePaint, item.model, maxNameW), nameX, headerBase, valuePaint)
+        c.drawText(totalStr, valueRight - valuePaint.measureText(totalStr), headerBase, valuePaint)
+        var rowTop = headerBase + 22f
         fun metricRow(l: String, v: String) {
-            metric(modelX, ib, l, v)
-            ib += metricRow
+            metric(modelX, rowTop, l, v)
+            rowTop += metricRow
         }
         metricRow("in", nf.format(item.input))
         metricRow("out", nf.format(item.output))
         metricRow("infer", nf.format(item.reasoning))
         metricRow("crd", nf.format(item.cacheRead))
         metricRow("cwr", nf.format(item.cacheWrite))
-        ib += 12f
+        val footBaseline = imBottom - cardPadB - labelPaint.descent()
         val foot = "${String.format(Locale.US, "$%.4f", item.cost)} · ${String.format(Locale.US, "%.1f%%", item.share * 100f)}"
-        c.drawText(foot, modelX, ib, labelPaint)
+        c.drawText(foot, modelX, footBaseline, labelPaint)
         y = imBottom + cardGap
     }
 

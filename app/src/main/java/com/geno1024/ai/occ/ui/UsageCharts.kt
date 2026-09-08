@@ -32,11 +32,14 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.rotate
 import com.geno1024.ai.occ.R
 import com.geno1024.ai.occ.data.TokenDay
 import com.geno1024.ai.occ.data.TokenFormat
 import com.geno1024.ai.occ.data.TokenModelStats
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
 private val chartBarHeight = 14.dp
@@ -173,28 +176,48 @@ fun DailyTrendChart(
                 color = textColor,
             )
         }
-        Canvas(Modifier.fillMaxWidth().height(120.dp)) {
-            val step = size.height / 4f
+        Canvas(Modifier.fillMaxWidth().height(140.dp)) {
+            val labelAreaH = 44.dp.toPx()
+            val plotH = size.height - labelAreaH
+            val step = plotH / 4f
             for (i in 0..4) {
-                val y = size.height - i * step
-                drawLine(gridColor, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 1f)
+                val y = plotH - i * step
+                drawLine(gridColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
             }
             val barW = (size.width - 12f) / data.size
+            val mmdd = DateTimeFormatter.ofPattern("MM-dd")
+            val probe = measurer.measure("00-00", labelStyle)
+            val horizontal = probe.size.width + 4.dp.toPx() <= barW
+            val labelTop = plotH + 4.dp.toPx()
             for ((index, item) in data.withIndex()) {
                 val v = if (showMsgs) item.third else item.second
-                if (v <= 0L) continue
-                val h = (size.height - 8f) / maxVal.toFloat() * v.toFloat()
-                val left = 6f + index * barW
-                drawRoundRect(
-                    barColor,
-                    topLeft = androidx.compose.ui.geometry.Offset(left, size.height - h),
-                    size = Size(barW * 0.72f, h),
-                    cornerRadius = CornerRadius(2.dp.toPx()),
-                )
-                drawText(
-                    textLayoutResult = measurer.measure(item.first.dayOfMonth.toString(), labelStyle),
-                    topLeft = androidx.compose.ui.geometry.Offset(left, size.height + 2f),
-                )
+                if (v > 0L) {
+                    val h = (plotH - 8f) / maxVal.toFloat() * v.toFloat()
+                    val left = 6f + index * barW
+                    drawRoundRect(
+                        barColor,
+                        topLeft = Offset(left, plotH - h),
+                        size = Size(barW * 0.72f, h),
+                        cornerRadius = CornerRadius(2.dp.toPx()),
+                    )
+                }
+                val layout = measurer.measure(item.first.format(mmdd), labelStyle)
+                val centerX = 6f + index * barW + barW / 2f
+                if (horizontal) {
+                    val lx = (centerX - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width)
+                    drawText(
+                        textLayoutResult = layout,
+                        topLeft = Offset(lx, labelTop),
+                    )
+                } else {
+                    val lx = (centerX - layout.size.height / 2f).coerceIn(0f, size.width - 1f)
+                    rotate(degrees = -90f, pivot = Offset(lx, labelTop)) {
+                        drawText(
+                            textLayoutResult = layout,
+                            topLeft = Offset(lx, labelTop),
+                        )
+                    }
+                }
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
