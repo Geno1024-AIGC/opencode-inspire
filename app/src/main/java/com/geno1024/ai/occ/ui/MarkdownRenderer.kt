@@ -36,6 +36,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
@@ -211,6 +212,19 @@ private fun parseInlineInternal(
                     builder.append(ch); i++
                 }
             }
+            matchAt(i, "~~") -> {
+                val token = "~~"
+                val close = text.indexOf(token, i + 2)
+                if (close > i) {
+                    stack.addLast(SpanStyle(textDecoration = TextDecoration.LineThrough))
+                    builder.withStyle(stack.last()) {
+                        appendInlineNested(text, i + 2, close, codeStyle, linkColor, stack)
+                    }
+                    i = close + 2
+                } else {
+                    builder.append(ch); i++
+                }
+            }
             matchAt(i, "**") || matchAt(i, "__") -> {
                 val token = if (matchAt(i, "**")) "**" else "__"
                 val close = text.indexOf(token, i + 2)
@@ -233,6 +247,18 @@ private fun parseInlineInternal(
                         appendInlineNested(text, i + 1, close, codeStyle, linkColor, stack)
                     }
                     i = close + 1
+                } else {
+                    builder.append(ch); i++
+                }
+            }
+            matchAt(i, "![") -> {
+                val closeBracket = text.indexOf("]", i + 2)
+                val openParen = if (closeBracket > 0) text.indexOf("(", closeBracket + 1) else -1
+                val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
+                if (closeBracket > 0 && openParen == closeBracket + 1 && closeParen > openParen) {
+                    val alt = text.substring(i + 2, closeBracket)
+                    if (alt.isNotEmpty()) builder.append(alt)
+                    i = closeParen + 1
                 } else {
                     builder.append(ch); i++
                 }
@@ -295,6 +321,17 @@ private fun AnnotatedString.Builder.appendInlineNested(
                     append(ch); i++
                 }
             }
+            matchAt(i, "~~") -> {
+                val token = "~~"
+                val close = text.indexOf(token, i + 2)
+                if (close > i && close < n) {
+                    stack.addLast(SpanStyle(textDecoration = TextDecoration.LineThrough))
+                    this.withStyle(stack.last()) { appendInlineNested(text, i + 2, close, codeStyle, linkColor, stack) }
+                    i = close + 2
+                } else {
+                    append(ch); i++
+                }
+            }
             matchAt(i, "**") -> {
                 val token = "**"
                 val close = text.indexOf(token, i + 2)
@@ -312,6 +349,18 @@ private fun AnnotatedString.Builder.appendInlineNested(
                     stack.addLast(SpanStyle(fontStyle = FontStyle.Italic))
                     this.withStyle(stack.last()) { appendInlineNested(text, i + 1, close, codeStyle, linkColor, stack) }
                     i = close + 1
+                } else {
+                    append(ch); i++
+                }
+            }
+            matchAt(i, "![") -> {
+                val closeBracket = text.indexOf("]", i + 2)
+                val openParen = if (closeBracket > 0) text.indexOf("(", closeBracket + 1) else -1
+                val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
+                if (closeBracket > 0 && openParen == closeBracket + 1 && closeParen > openParen) {
+                    val alt = text.substring(i + 2, closeBracket)
+                    if (alt.isNotEmpty()) append(alt)
+                    i = closeParen + 1
                 } else {
                     append(ch); i++
                 }
@@ -520,7 +569,7 @@ fun MarkdownMessage(content: String) {
                                 Modifier.padding(vertical = 2.dp),
                                 MaterialTheme.colorScheme.primary,
                             )
-                            "blank" -> {}
+                            "blank" -> Spacer(Modifier.height(6.dp))
                         }
                     }
                 }
