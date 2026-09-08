@@ -1400,6 +1400,7 @@ private fun sessionTitle(sid: String): String {
             if (detail != null) {
                 _sessionTokens.value = detail.tokens
                 _sessionCost.value = detail.cost
+                _promptTokens.value = detail.tokens?.promptTokens ?: 0L
                 val modelId = detail.model?.id
                 _contextWindow.value = withContext(Dispatchers.IO) { c.contextWindow(modelId) }
                 recomputeCumulativeTokens()
@@ -1438,6 +1439,7 @@ private fun sessionTitle(sid: String): String {
         _currentModelId.value = s.model?.id
         _sessionTokens.value = null
         _contextWindow.value = 0L
+        _promptTokens.value = 0L
         _cumulativeTokens.value = 0L
         _olderCursor.value = null
         _loadingOlder.value = false
