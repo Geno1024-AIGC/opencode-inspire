@@ -1482,6 +1482,7 @@ private fun sessionTitle(sid: String): String {
                 }
                 _messages.value = pairs.map { toChatMessage(it.first, it.second) }
                 _olderCursor.value = next
+                derivePromptTokens()
                 runCatching {
                     val todos = withContext(Dispatchers.IO) { c.sessionTodos(sid) }
                     _todos.value = todos.mapNotNull { t ->
@@ -1528,6 +1529,14 @@ private fun sessionTitle(sid: String): String {
             time = serverTimeToMillis(msg.time?.created),
             cumulativeTokens = 0L,
         )
+    }
+
+    private fun derivePromptTokens() {
+        _promptTokens.value = _messages.value.asReversed()
+            .firstOrNull { it.role == "assistant" && it.tokens != null }
+            ?.tokens
+            ?.promptTokens
+            ?: 0L
     }
 
     fun loadOlderHistory() {
