@@ -77,6 +77,8 @@ class SettingsRepository(private val context: Context) {
         val EXPORT_AUTHOR = stringPreferencesKey("export_author")
         val FAVORITES = stringPreferencesKey("favorites")
         val ARCHIVED = stringPreferencesKey("archived")
+        val IGNORED_PERMISSIONS = stringPreferencesKey("ignored_permissions")
+        val IGNORED_QUESTIONS = stringPreferencesKey("ignored_questions")
         val HISTORY_STATS = stringPreferencesKey("history_stats")
         val TOKEN_HISTORY = stringPreferencesKey("token_history")
         val TOKEN_ELAPSED = stringPreferencesKey("token_elapsed")
@@ -132,6 +134,16 @@ class SettingsRepository(private val context: Context) {
     }
     val archived: Flow<Set<String>> = context.dataStore.data.map { prefs ->
         prefs[Keys.ARCHIVED]?.let { raw ->
+            runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
+        } ?: emptySet()
+    }
+    val ignoredPermissions: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.IGNORED_PERMISSIONS]?.let { raw ->
+            runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
+        } ?: emptySet()
+    }
+    val ignoredQuestions: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.IGNORED_QUESTIONS]?.let { raw ->
             runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
         } ?: emptySet()
     }
@@ -281,6 +293,33 @@ class SettingsRepository(private val context: Context) {
             )
         }
     }
+
+    private suspend fun updateIgnoredSet(
+        key: androidx.datastore.preferences.core.Preferences.Key<String>,
+        value: String,
+        add: Boolean,
+    ) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[key]?.let { raw ->
+                runCatching { json.decodeFromString<Set<String>>(raw) }.getOrNull()
+            } ?: emptySet()
+            prefs[key] = json.encodeToString(
+                if (add) current + value else current - value
+            )
+        }
+    }
+
+    suspend fun addIgnoredPermission(key: String) =
+        updateIgnoredSet(Keys.IGNORED_PERMISSIONS, key, true)
+
+    suspend fun removeIgnoredPermission(key: String) =
+        updateIgnoredSet(Keys.IGNORED_PERMISSIONS, key, false)
+
+    suspend fun addIgnoredQuestion(key: String) =
+        updateIgnoredSet(Keys.IGNORED_QUESTIONS, key, true)
+
+    suspend fun removeIgnoredQuestion(key: String) =
+        updateIgnoredSet(Keys.IGNORED_QUESTIONS, key, false)
 
     suspend fun saveTokenHistory(tokens: Map<String, TokenDay>, elapsed: Map<String, Long>) {
         context.dataStore.edit {

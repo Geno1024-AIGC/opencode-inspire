@@ -456,6 +456,16 @@
     <string name="rename_title">Rename session</string>
     <string name="rename_placeholder">New title</string>
     <string name="save">Save</string>
+    <string name="close">Close</string>
+    <string name="permission_never_ask">Never ask again</string>
+    <string name="settings_ignored_title">Ignored requests</string>
+    <string name="settings_ignored_sub">Permissions and questions you will not be asked again</string>
+    <string name="settings_manage">Manage</string>
+    <string name="settings_ignored_permissions">Permissions</string>
+    <string name="settings_ignored_questions">Questions</string>
+    <string name="settings_ignored_empty">No ignored requests</string>
+    <string name="settings_ignored_clear_all">Clear all</string>
+    <string name="settings_ignored_remove">Remove</string>
 
     <!-- File browser -->
     <string name="files_title">Files</string>

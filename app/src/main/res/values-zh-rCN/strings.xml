@@ -456,6 +456,16 @@
     <string name="rename_title">重命名会话</string>
     <string name="rename_placeholder">新标题</string>
     <string name="save">保存</string>
+    <string name="close">关闭</string>
+    <string name="permission_never_ask">永不询问</string>
+    <string name="settings_ignored_title">已忽略的请求</string>
+    <string name="settings_ignored_sub">将不再询问的问题与权限</string>
+    <string name="settings_manage">管理</string>
+    <string name="settings_ignored_permissions">权限</string>
+    <string name="settings_ignored_questions">提问</string>
+    <string name="settings_ignored_empty">暂无忽略的请求</string>
+    <string name="settings_ignored_clear_all">全部清除</string>
+    <string name="settings_ignored_remove">移除</string>
 
     <!-- File browser -->
     <string name="files_title">文件</string>

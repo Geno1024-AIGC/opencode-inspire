@@ -27,6 +27,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,6 +38,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
@@ -103,6 +106,9 @@ fun SettingsScreen(
     val updateMessage by viewModel.updateMessage.collectAsStateWithLifecycle()
     val userBubbleColor by viewModel.userBubbleColor.collectAsStateWithLifecycle()
     val assistantBubbleColor by viewModel.assistantBubbleColor.collectAsStateWithLifecycle()
+    val ignoredPermissions by viewModel.ignoredPermissions.collectAsStateWithLifecycle()
+    val ignoredQuestions by viewModel.ignoredQuestions.collectAsStateWithLifecycle()
+    var showIgnored by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -343,6 +349,35 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Ignored requests ──
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showIgnored = true }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_ignored_title), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            stringResource(R.string.settings_ignored_sub),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.settings_manage),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+
             // ── Updates ──
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -482,6 +517,74 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.size(16.dp))
+
+            val perms = ignoredPermissions.toList().sorted()
+            val qs = ignoredQuestions.toList().sorted()
+            if (showIgnored) {
+                AlertDialog(
+                    onDismissRequest = { showIgnored = false },
+                    title = { Text(stringResource(R.string.settings_ignored_title)) },
+                    text = {
+                        if (perms.isEmpty() && qs.isEmpty()) {
+                            Text(stringResource(R.string.settings_ignored_empty))
+                        } else {
+                            Column(
+                                modifier = Modifier.verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                if (perms.isNotEmpty()) {
+                                    Text(
+                                        stringResource(R.string.settings_ignored_permissions),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                    perms.forEach { IgnoredKeyRow(it, true, viewModel) }
+                                }
+                                if (qs.isNotEmpty()) {
+                                    Text(
+                                        stringResource(R.string.settings_ignored_questions),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                    qs.forEach { IgnoredKeyRow(it, false, viewModel) }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showIgnored = false }) { Text(stringResource(R.string.close)) }
+                    },
+                    dismissButton = {
+                        if (perms.isNotEmpty() || qs.isNotEmpty()) {
+                            TextButton(onClick = { viewModel.clearAllIgnored() }) {
+                                Text(stringResource(R.string.settings_ignored_clear_all))
+                            }
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun IgnoredKeyRow(key: String, isPermission: Boolean, viewModel: MainViewModel) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            key,
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = {
+            if (isPermission) viewModel.unignorePermission(key) else viewModel.unignoreQuestion(key)
+        }) {
+            Icon(
+                Icons.Filled.Close,
+                stringResource(R.string.settings_ignored_remove),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

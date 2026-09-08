@@ -223,6 +223,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _archived = MutableStateFlow<Set<String>>(emptySet())
     val archived: StateFlow<Set<String>> = _archived.asStateFlow()
 
+    private val _ignoredPermissions = MutableStateFlow<Set<String>>(emptySet())
+    val ignoredPermissions: StateFlow<Set<String>> = _ignoredPermissions.asStateFlow()
+
+    private val _ignoredQuestions = MutableStateFlow<Set<String>>(emptySet())
+    val ignoredQuestions: StateFlow<Set<String>> = _ignoredQuestions.asStateFlow()
+
     private val _tokenHistory = MutableStateFlow<Map<String, TokenDay>>(emptyMap())
     val tokenHistory: StateFlow<Map<String, TokenDay>> = _tokenHistory.asStateFlow()
     private val _tokenHistoryLoading = MutableStateFlow(false)
@@ -440,6 +446,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.archived.collect { _archived.value = it }
+        }
+        viewModelScope.launch {
+            settings.ignoredPermissions.collect { _ignoredPermissions.value = it }
+        }
+        viewModelScope.launch {
+            settings.ignoredQuestions.collect { _ignoredQuestions.value = it }
         }
         viewModelScope.launch {
             settings.tokenHistory.collect { _tokenHistory.value = it }
@@ -986,6 +998,61 @@ private fun sessionTitle(sid: String): String {
                 .onFailure { e ->
                     _workspaceState.value = UiState.Error(getAppString(R.string.chat_reject) + ": " + (e.message ?: ""))
                 }
+        }
+    }
+
+    private fun questionIgnoreKey(q: QuestionRequest): String =
+        listOfNotNull(q.sessionId)
+            .plus(q.questions.flatMap { qq ->
+                qq.options.flatMap { listOf(it.label, it.description) } + listOf(qq.header, qq.question)
+            })
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .joinToString("\u0001")
+
+    private fun permissionIgnoreKey(p: PermissionRequest): String =
+        listOfNotNull(_activeSession.value?.directory, p.permission)
+            .plus(p.patterns.map { it.trim() }.filter { it.isNotBlank() }.sorted())
+            .filter { it.isNotBlank() }
+            .joinToString("\u0001")
+
+    fun ignoreQuestion(q: QuestionRequest) {
+        val c = client ?: return
+        val dir = _activeSession.value?.directory
+        val key = questionIgnoreKey(q)
+        viewModelScope.launch {
+            settings.addIgnoredQuestion(key)
+            runCatching { withContext(Dispatchers.IO) { c.rejectQuestion(q.id, dir) } }
+            _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
+        }
+    }
+
+    fun unignoreQuestion(key: String) {
+        viewModelScope.launch { settings.removeIgnoredQuestion(key) }
+    }
+
+    fun ignorePermission(permission: PermissionRequest) {
+        val c = client ?: return
+        val dir = _activeSession.value?.directory
+        val key = permissionIgnoreKey(permission)
+        viewModelScope.launch {
+            settings.addIgnoredPermission(key)
+            runCatching { withContext(Dispatchers.IO) { c.replyPermission(permission.id, "reject", null, dir) } }
+            _pendingPermissions.value = _pendingPermissions.value.filterNot { it.id == permission.id }
+        }
+    }
+
+    fun unignorePermission(key: String) {
+        viewModelScope.launch { settings.removeIgnoredPermission(key) }
+    }
+
+    fun clearAllIgnored() {
+        val perms = _ignoredPermissions.value.toList()
+        val qs = _ignoredQuestions.value.toList()
+        viewModelScope.launch {
+            perms.forEach { settings.removeIgnoredPermission(it) }
+            qs.forEach { settings.removeIgnoredQuestion(it) }
         }
     }
 
@@ -2306,7 +2373,12 @@ text = e.message ?: getAppString(R.string.send_failed),
         val fetched = runCatching {
             withContext(Dispatchers.IO) { c.pendingQuestions(dir) }
         }.getOrNull() ?: return
-        _pendingQuestions.value = (_pendingQuestions.value + fetched).distinctBy { it.id }
+        val ignored = _ignoredQuestions.value
+        val (silent, keep) = fetched.partition { questionIgnoreKey(it) in ignored }
+        if (silent.isNotEmpty()) {
+            withContext(Dispatchers.IO) { silent.forEach { runCatching { c.rejectQuestion(it.id, dir) } } }
+        }
+        _pendingQuestions.value = (_pendingQuestions.value + keep).distinctBy { it.id }
     }
 
     private suspend fun refreshPendingPermissions() {
@@ -2316,7 +2388,12 @@ text = e.message ?: getAppString(R.string.send_failed),
         val fetched = runCatching {
             withContext(Dispatchers.IO) { c.pendingPermissions(dir) }
         }.getOrNull() ?: return
-        _pendingPermissions.value = (_pendingPermissions.value + fetched).distinctBy { it.id }
+        val ignored = _ignoredPermissions.value
+        val (silent, keep) = fetched.partition { permissionIgnoreKey(it) in ignored }
+        if (silent.isNotEmpty()) {
+            withContext(Dispatchers.IO) { silent.forEach { runCatching { c.replyPermission(it.id, "reject", null, dir) } } }
+        }
+        _pendingPermissions.value = (_pendingPermissions.value + keep).distinctBy { it.id }
     }
 
     private fun handleEvent(raw: String) {
@@ -2332,6 +2409,15 @@ text = e.message ?: getAppString(R.string.send_failed),
             "question.asked" -> {
                 runCatching {
                     val q = json.decodeFromString(QuestionRequest.serializer(), props.toString())
+                    if (questionIgnoreKey(q) in _ignoredQuestions.value) {
+                        val dir = _activeSession.value?.directory
+                        client?.let { cc ->
+                            viewModelScope.launch {
+                                runCatching { withContext(Dispatchers.IO) { cc.rejectQuestion(q.id, dir) } }
+                            }
+                        }
+                        return@runCatching
+                    }
                     _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id } + q
                 }
             }
@@ -2346,6 +2432,15 @@ text = e.message ?: getAppString(R.string.send_failed),
                 if (sid == active) {
                     runCatching {
                         val p = json.decodeFromString(PermissionRequest.serializer(), props.toString())
+                        if (permissionIgnoreKey(p) in _ignoredPermissions.value) {
+                            val dir = _activeSession.value?.directory
+                            client?.let { cc ->
+                                viewModelScope.launch {
+                                    runCatching { withContext(Dispatchers.IO) { cc.replyPermission(p.id, "reject", null, dir) } }
+                                }
+                            }
+                            return@runCatching
+                        }
                         _pendingPermissions.value = _pendingPermissions.value.filterNot { it.id == p.id } + p
                     }
                 }

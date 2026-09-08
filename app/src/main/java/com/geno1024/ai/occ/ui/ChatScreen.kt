@@ -829,6 +829,7 @@ fun ChatScreen(
             requests = activeQuestions,
             onReply = { q, answers -> viewModel.replyQuestions(q, answers) },
             onReject = { viewModel.rejectQuestion(it) },
+            onIgnore = { viewModel.ignoreQuestion(it) },
             onDismissAll = { activeQuestions.forEach(viewModel::rejectQuestion) },
         )
     }
@@ -846,9 +847,12 @@ fun ChatScreen(
     }
 
      pendingPermissions.firstOrNull()?.let { permission ->
-         PermissionDialog(permission = permission, directory = activeSession?.directory) { reply ->
-             viewModel.replyPermission(permission, reply)
-         }
+         PermissionDialog(
+             permission = permission,
+             directory = activeSession?.directory,
+             onReply = { reply -> viewModel.replyPermission(permission, reply) },
+             onNeverAsk = { viewModel.ignorePermission(permission) },
+         )
      }
 
     rawMessage?.let { msg ->
@@ -1122,6 +1126,7 @@ private fun PermissionDialog(
     permission: com.geno1024.ai.occ.data.PermissionRequest,
     directory: String?,
     onReply: (String) -> Unit,
+    onNeverAsk: () -> Unit = {},
 ) {
     val typeLabel = when (permission.permission) {
         "fileRead" -> stringResource(R.string.permission_read_files)
@@ -1188,7 +1193,10 @@ private fun PermissionDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onReply("once") }) { Text(stringResource(R.string.permission_allow_once)) }
+            Row {
+                TextButton(onClick = { onReply("once") }) { Text(stringResource(R.string.permission_allow_once)) }
+                TextButton(onClick = onNeverAsk) { Text(stringResource(R.string.permission_never_ask)) }
+            }
         },
         dismissButton = {
             Row {
@@ -1348,6 +1356,7 @@ private fun PendingQuestionsSheet(
     requests: List<QuestionRequest>,
     onReply: (QuestionRequest, List<List<String>>) -> Unit,
     onReject: (QuestionRequest) -> Unit,
+    onIgnore: (QuestionRequest) -> Unit,
     onDismissAll: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismissAll) {
@@ -1375,6 +1384,7 @@ private fun PendingQuestionsSheet(
                     question = question,
                     onReply = { answers -> onReply(question, answers) },
                     onReject = { onReject(question) },
+                    onNeverAsk = { onIgnore(question) },
                 )
             }
         }
@@ -1386,6 +1396,7 @@ private fun QuestionCard(
     question: QuestionRequest,
     onReply: (List<List<String>>) -> Unit,
     onReject: () -> Unit,
+    onNeverAsk: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -1461,6 +1472,7 @@ private fun QuestionCard(
                 horizontalArrangement = Arrangement.End,
             ) {
                 TextButton(onClick = onReject) { Text(stringResource(R.string.chat_reject)) }
+                TextButton(onClick = onNeverAsk) { Text(stringResource(R.string.permission_never_ask)) }
                 TextButton(
                     onClick = {
                         val answers = question.questions.mapIndexed { i, q ->
