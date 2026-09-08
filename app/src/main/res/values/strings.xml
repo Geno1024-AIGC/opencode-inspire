@@ -339,6 +339,8 @@
     <string name="tool_input">Input</string>
     <string name="tool_ran">ran</string>
     <string name="tool_edited">edited</string>
+    <string name="tool_subagent_badge">SUB</string>
+    <string name="tool_subagent_title">Subagent · %1$s</string>
 
     <!-- Compression notice -->
     <string name="compact_notice">Context was compressed; earlier messages were summarized</string>

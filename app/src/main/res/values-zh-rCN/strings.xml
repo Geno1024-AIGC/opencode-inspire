@@ -339,6 +339,8 @@
     <string name="tool_input">输入</string>
     <string name="tool_ran">执行</string>
     <string name="tool_edited">已修改</string>
+    <string name="tool_subagent_badge">子代理</string>
+    <string name="tool_subagent_title">子代理 · %1$s</string>
 
     <!-- Compression notice -->
     <string name="compact_notice">上下文已压缩，较早的消息已被摘要</string>

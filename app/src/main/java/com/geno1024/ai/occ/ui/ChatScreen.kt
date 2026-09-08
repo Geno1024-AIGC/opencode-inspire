@@ -10,6 +10,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +52,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -1683,10 +1685,29 @@ private fun ToolPart(part: PartUi) {
         edited = stringResource(R.string.tool_edited),
     )
     val details = buildToolDetails(part, labels)
+    val isSubagent = part.tool == "task" || (part.tool?.startsWith("subagent") == true)
+    val subagentType = if (isSubagent) {
+        part.toolInput?.let {
+            runCatching { Json.parseToJsonElement(it).jsonObject["subagent_type"]?.jsonPrimitive?.contentOrNull }
+                .getOrNull()
+        }
+    } else null
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+            .then(
+                if (isSubagent) Modifier.border(
+                    1.dp,
+                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f),
+                    RoundedCornerShape(8.dp),
+                )
+                else Modifier
+            )
+            .background(
+                if (isSubagent) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                RoundedCornerShape(8.dp),
+            )
             .clickable { expanded = !expanded }
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -1696,27 +1717,40 @@ private fun ToolPart(part: PartUi) {
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Icon(
-                painterResource(R.drawable.ic_build),
-                null,
-                Modifier.height(14.dp).width(14.dp),
-                tint = MaterialTheme.colorScheme.tertiary,
-            )
+            if (isSubagent) {
+                Icon(
+                    Icons.Filled.Person,
+                    null,
+                    Modifier.height(14.dp).width(14.dp),
+                    tint = MaterialTheme.colorScheme.tertiary,
+                )
+            } else {
+                Icon(
+                    painterResource(R.drawable.ic_build),
+                    null,
+                    Modifier.height(14.dp).width(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
-                when (status) {
+                if (isSubagent) stringResource(R.string.tool_subagent_badge)
+                else when (status) {
                     "completed" -> "✓"
                     "error" -> "✗"
                     else -> "…"
                 },
                 style = MaterialTheme.typography.labelSmall,
-                color = when (status) {
-                    "completed" -> MaterialTheme.colorScheme.primary
-                    "error" -> MaterialTheme.colorScheme.error
+                fontWeight = if (isSubagent) FontWeight.Bold else FontWeight.Normal,
+                color = when {
+                    isSubagent -> MaterialTheme.colorScheme.tertiary
+                    status == "completed" -> MaterialTheme.colorScheme.primary
+                    status == "error" -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
             Text(
-                title,
+                if (isSubagent) stringResource(R.string.tool_subagent_title, subagentType ?: part.tool ?: "task")
+                else title,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium,
