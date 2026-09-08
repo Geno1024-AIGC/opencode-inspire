@@ -190,28 +190,24 @@ fun DailyTrendChart(
             val labelW = probe.size.width.toFloat()
             val labelH = probe.size.height.toFloat()
             val labelPad = 4.dp.toPx()
-            val dateTiers: List<Set<Int>?> = listOf(null, setOf(1, 8, 15, 22), setOf(1, 15), setOf(1))
+            val plotW = size.width - 12f
+            val allShown = data.mapIndexed { index, item -> index to item.first.format(mmdd) }
             var shownLabels: List<Pair<Int, String>> = emptyList()
             var horizontal = false
-            for (tier in dateTiers) {
-                val shown = data.mapIndexedNotNull { index, item ->
-                    if (tier == null || item.first.dayOfMonth in tier) index to item.first.format(mmdd) else null
-                }
-                if (shown.isEmpty()) continue
-                val slotW = (size.width - 12f) / shown.size
-                if (slotW >= labelW + labelPad) {
-                    shownLabels = shown
-                    horizontal = true
-                    break
-                } else if (slotW >= labelH * 0.85f) {
-                    shownLabels = shown
-                    horizontal = false
-                    break
-                }
-            }
-            if (shownLabels.isEmpty()) {
-                shownLabels = data.mapIndexedNotNull { index, item ->
-                    if (item.first.dayOfMonth == 1) index to item.first.format(mmdd) else null
+            if (plotW / allShown.size >= labelW + labelPad) {
+                shownLabels = allShown
+                horizontal = true
+            } else {
+                for (tier in listOf<Set<Int>?>(null, setOf(1, 8, 15, 22), setOf(1, 15), setOf(1))) {
+                    val shown = data.mapIndexedNotNull { index, item ->
+                        if (tier == null || item.first.dayOfMonth in tier) index to item.first.format(mmdd) else null
+                    }
+                    if (shown.isEmpty()) continue
+                    if (plotW / shown.size >= labelH * 0.7f || tier == setOf(1)) {
+                        shownLabels = shown
+                        horizontal = false
+                        break
+                    }
                 }
             }
             val labelTop = plotH + 4.dp.toPx()
