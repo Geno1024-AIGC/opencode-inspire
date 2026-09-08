@@ -517,6 +517,10 @@ fun ChatScreen(
                             ?.let { reversedMessages[it].time }
                         if (precedingUserTime != null && msg.time > precedingUserTime) msg.time - precedingUserTime else null
                     } else null
+                    val precedingUserText = (index + 1 until reversedMessages.size)
+                        .firstOrNull { reversedMessages[it].role == "user" }
+                        ?.let { reversedMessages[it].text }
+                    val clipboard = LocalClipboardManager.current
                     MessageBubble(
                         msg = msg,
                         cumulativeTokens = if (msg.cumulativeTokens > 0) msg.cumulativeTokens else null,
@@ -530,7 +534,9 @@ fun ChatScreen(
                         collapsed = msg.id in collapsedMessageIds,
                         onToggleCollapse = { viewModel.toggleMessageCollapsed(msg.id) },
                         onShowRaw = { rawMessage = msg },
-                        onRegenerate = { viewModel.regenerate() },
+                        onRegenerate = { (precedingUserText ?: msg.text).let { viewModel.send(it) } },
+                        onCopyText = { clipboard.setText(AnnotatedString(stripMarkdown(msg.text))) },
+                        onCopyMarkdown = { clipboard.setText(AnnotatedString(msg.text)) },
                         onOpenLink = { previewUrl = it },
                         selectMode = selectMode,
                         selected = msg.id in selectedIds,
@@ -1388,6 +1394,8 @@ private fun MessageBubble(
     onToggleCollapse: () -> Unit = {},
     onShowRaw: () -> Unit = {},
     onRegenerate: () -> Unit = {},
+    onCopyText: () -> Unit = {},
+    onCopyMarkdown: () -> Unit = {},
     onOpenLink: (String) -> Unit = {},
     selectMode: Boolean = false,
     selected: Boolean = false,
@@ -1549,6 +1557,14 @@ private fun MessageBubble(
                     onShowRaw = onShowRaw,
                 )
             }
+            if (!selectMode) {
+                BubbleActions(
+                    isAssistant = !isUser && msg.role != "error",
+                    onCopyText = onCopyText,
+                    onCopyMarkdown = onCopyMarkdown,
+                    onRegenerate = onRegenerate,
+                )
+            }
         }
         if (sessionElapsed != null) {
             Text(
@@ -1580,6 +1596,57 @@ private fun MessageBubble(
                     .clickable { onRegenerate() }
                     .padding(top = 2.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun BubbleActions(
+    isAssistant: Boolean,
+    onCopyText: () -> Unit,
+    onCopyMarkdown: () -> Unit,
+    onRegenerate: () -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { open = true },
+            modifier = Modifier.size(30.dp),
+        ) {
+            Icon(
+                Icons.Filled.MoreVert,
+                contentDescription = stringResource(R.string.message_actions),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.message_copy_text)) },
+                onClick = {
+                    open = false
+                    onCopyText()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.message_copy_markdown)) },
+                onClick = {
+                    open = false
+                    onCopyMarkdown()
+                },
+            )
+            if (isAssistant) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.regenerate)) },
+                    onClick = {
+                        open = false
+                        onRegenerate()
+                    },
+                )
+            }
         }
     }
 }
@@ -2007,6 +2074,35 @@ private fun genericDetails(trimmed: String, raw: String): ToolDetails {
 
 private fun summarizeText(s: String, max: Int = 400): String =
     if (s.length <= max) s else s.take(max) + "\n... (${s.length} chars)"
+
+private fun stripMarkdown(s: String): String {
+    val out = StringBuilder()
+    var inFence = false
+    for (line in s.lines()) {
+        val trimmed = line.trim()
+        if (trimmed.startsWith("```")) {
+            inFence = !inFence
+            if (!inFence || trimmed != "```") out.appendLine(line)
+            continue
+        }
+        if (inFence) {
+            out.appendLine(line)
+            continue
+        }
+        var t = line
+        if (trimmed != "---" && trimmed != "***" && trimmed != "___") {
+            t = t.replace(Regex("^#{1,6}\\s+"), "")
+            t = t.replace(Regex("^>\\s?"), "")
+            t = t.replace(Regex("\\[(.*?)]\\(.*?\\)"), "$1")
+            t = t.replace(Regex("```?"), "")
+            t = t.replace("**", "").replace("__", "").replace("*", "").replace("_", "")
+            t = t.replace(Regex("^(?:[-+*]\\s+|\\d+\\.\\s+)*"), "")
+            t = t.trim()
+            if (t.isNotEmpty()) out.appendLine(t)
+        }
+    }
+    return out.toString().trimEnd()
+}
 
 private fun noteFor(s: String): String =
     when {
