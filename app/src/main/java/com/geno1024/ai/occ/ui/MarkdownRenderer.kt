@@ -644,7 +644,7 @@ fun MarkdownMessage(content: String) {
             if (segment.kind == "mermaid") {
                 MermaidBlock(segment.text)
             } else {
-                MarkwonText(segment.text)
+                MarkdownMessageCustom(segment.text)
             }
         }
     }
