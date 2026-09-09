@@ -55,6 +55,8 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import io.noties.markwon.AbstractMarkwonPlugin
@@ -290,15 +292,18 @@ private fun parseInlineInternal(
                 val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
                 if (closeBracket > 0 && openParen == closeBracket + 1 && closeParen > openParen) {
                     val linkText = text.substring(i + 1, closeBracket)
+                    val url = text.substring(openParen + 1, closeParen)
                     val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
                     val linkStyle = if (color != androidx.compose.ui.graphics.Color.Unspecified)
                         SpanStyle(color = color) else null
+                    val start = builder.length
                     if (linkStyle != null) {
-                        builder.withStyle(linkStyle) {
-                            builder.append(linkText)
-                        }
+                        builder.withStyle(linkStyle) { builder.append(linkText) }
                     } else {
                         builder.append(linkText)
+                    }
+                    if (url.isNotEmpty()) {
+                        builder.addLink(LinkAnnotation.Url(url, TextLinkStyles(style = linkStyle)), start, builder.length)
                     }
                     i = closeParen + 1
                 } else {
@@ -392,11 +397,18 @@ private fun AnnotatedString.Builder.appendInlineNested(
                 val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
                 if (closeBracket > 0 && closeBracket < n && openParen == closeBracket + 1 && closeParen > openParen && closeParen < n) {
                     val linkText = text.substring(i + 1, closeBracket)
+                    val url = text.substring(openParen + 1, closeParen)
                     val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
-                    if (color != androidx.compose.ui.graphics.Color.Unspecified) {
-                        withStyle(SpanStyle(color = color)) { append(linkText) }
+                    val linkStyle = if (color != androidx.compose.ui.graphics.Color.Unspecified)
+                        SpanStyle(color = color) else null
+                    val start = length
+                    if (linkStyle != null) {
+                        withStyle(linkStyle) { append(linkText) }
                     } else {
                         append(linkText)
+                    }
+                    if (url.isNotEmpty()) {
+                        addLink(LinkAnnotation.Url(url, TextLinkStyles(style = linkStyle)), start, start + linkText.length)
                     }
                     i = closeParen + 1
                 } else {
