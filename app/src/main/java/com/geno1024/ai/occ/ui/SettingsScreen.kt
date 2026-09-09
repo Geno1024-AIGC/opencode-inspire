@@ -368,7 +368,7 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    SectionLabel(R.string.settings_token_history)
+                    SectionLabel(R.string.settings_stats)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
