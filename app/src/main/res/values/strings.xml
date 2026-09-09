@@ -245,6 +245,8 @@
     <string name="calendar_stats_metric_label">Show:</string>
     <string name="calendar_model_label">Model:</string>
     <string name="model_all">All</string>
+    <string name="calendar_day_start_label">Day start:</string>
+    <string name="calendar_day_start_follow_system">Follow device timezone</string>
     <string name="calendar_cat_token">token</string>
     <string name="calendar_cat_msgs">msgs</string>
     <string name="calendar_token_total">total</string>

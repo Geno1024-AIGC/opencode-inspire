@@ -76,7 +76,8 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     var customStart by rememberSaveable { mutableStateOf<Long?>(null) }
     var customEnd by rememberSaveable { mutableStateOf<Long?>(null) }
     var expandedModel by rememberSaveable { mutableStateOf<String?>(null) }
-    val today = remember { LocalDate.now() }
+    val dayStartOffset by viewModel.dayStartOffset.collectAsStateWithLifecycle()
+    val today = remember(dayStartOffset) { LocalDate.now(effectiveStatsZone(dayStartOffset)) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val accentColor = MaterialTheme.colorScheme.primary.toArgb()
@@ -256,6 +257,7 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 CustomRangePickers(
                     start = customStart,
                     end = customEnd,
+                    today = today,
                     onStartChange = { customStart = it },
                     onEndChange = { customEnd = it },
                 )
@@ -289,6 +291,7 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                     trendDays = periodDaySpan,
                     expanded = expandedModel == row.model,
                     format = tokenFormat,
+                    today = today,
                     onClick = { expandedModel = if (expandedModel == row.model) null else row.model },
                 )
             }
@@ -358,6 +361,7 @@ private fun ModelUsageRow(
     trendDays: Int,
     expanded: Boolean,
     format: TokenFormat,
+    today: LocalDate,
     onClick: () -> Unit,
 ) {
     val day = row.day
@@ -413,6 +417,7 @@ private fun ModelUsageRow(
                     history = trendHistory,
                     days = trendDays,
                     format = format,
+                    today = today,
                 )
                 MetricRow(stringResource(R.string.stats_tab_msgs), day.msgs.toString())
             }
@@ -445,11 +450,11 @@ private fun LocalDate.toEpochMillisUtc(): Long = atStartOfDay(ZoneOffset.UTC).to
 private fun CustomRangePickers(
     start: Long?,
     end: Long?,
+    today: LocalDate,
     onStartChange: (Long?) -> Unit,
     onEndChange: (Long?) -> Unit,
 ) {
     var picker by rememberSaveable { mutableStateOf<String?>(null) }
-    val today = LocalDate.now()
 
     Surface(
         shape = MaterialTheme.shapes.medium,

@@ -141,10 +141,10 @@ fun DailyTrendChart(
     history: Map<String, TokenDay>,
     days: Int = 14,
     format: TokenFormat,
+    today: LocalDate = LocalDate.now(),
 ) {
     val measurer = rememberTextMeasurer()
-    val today = LocalDate.now()
-    val data = remember(history, days) {
+    val data = remember(history, days, today) {
         (days - 1 downTo 0).map { offset ->
             val date = today.minusDays(offset.toLong())
             Triple(date, history[date.toString()]?.fresh ?: 0L, history[date.toString()]?.msgs ?: 0L)

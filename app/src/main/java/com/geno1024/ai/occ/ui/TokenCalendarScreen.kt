@@ -76,6 +76,8 @@ import com.geno1024.ai.occ.data.TokenFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
@@ -108,6 +110,11 @@ private enum class EmptyPeriodMode(val labelRes: Int) {
     HIDE_EMPTY(R.string.calendar_period_hide_empty),
 }
 
+internal fun effectiveStatsZone(offsetMinutes: Int?): ZoneId =
+    offsetMinutes?.let { ZoneOffset.ofTotalSeconds(it * 60) } ?: ZoneId.systemDefault()
+
+private fun utcOffsetLabel(hours: Int): String = if (hours >= 0) "UTC+$hours" else "UTC$hours"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TokenCalendarScreen(
@@ -126,6 +133,7 @@ fun TokenCalendarScreen(
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
     val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
     val timeFormat by viewModel.tableTimeFormat.collectAsStateWithLifecycle()
+    val dayStartOffset by viewModel.dayStartOffset.collectAsStateWithLifecycle()
     var hiddenSyncAt by remember { mutableStateOf(false) }
     var categoryName by rememberSaveable { mutableStateOf(TokenCategory.TOKEN.name) }
     var tokenMetricName by rememberSaveable { mutableStateOf(TokenMetric.TOTAL.name) }
@@ -151,10 +159,12 @@ fun TokenCalendarScreen(
     val totalDay = viewHistory.values.fold(TokenDay()) { acc, t -> acc + t }
     val totalElapsed = viewElapsed.values.sum()
     val locale = Locale.getDefault()
-    val today = LocalDate.now()
-    var shownMonth by remember { mutableStateOf(YearMonth.now()) }
+    val zone = remember(dayStartOffset) { effectiveStatsZone(dayStartOffset) }
+    val today = remember(zone) { LocalDate.now(zone) }
+    var shownMonth by remember { mutableStateOf(YearMonth.now(zone)) }
     var selected by remember { mutableStateOf<LocalDate?>(today) }
     var tab by remember { mutableIntStateOf(0) }
+    var dayStartMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -228,6 +238,49 @@ fun TokenCalendarScreen(
                                 DropdownMenuItem(
                                     text = { Text(id, fontFamily = MonoFontFamily) },
                                     onClick = { modelName = id; modelMenu = false },
+                                )
+                            }
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.calendar_day_start_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        Text(
+                            if (dayStartOffset == null) stringResource(R.string.calendar_day_start_follow_system)
+                            else utcOffsetLabel(dayStartOffset!! / 60),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { dayStartMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = dayStartMenu, onDismissRequest = { dayStartMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.calendar_day_start_follow_system), fontFamily = MonoFontFamily) },
+                                onClick = {
+                                    viewModel.setDayStartOffset(null)
+                                    dayStartMenu = false
+                                },
+                            )
+                            (-12..14).forEach { h ->
+                                DropdownMenuItem(
+                                    text = { Text(utcOffsetLabel(h), fontFamily = MonoFontFamily) },
+                                    onClick = {
+                                        viewModel.setDayStartOffset(h * 60)
+                                        dayStartMenu = false
+                                    },
                                 )
                             }
                         }
@@ -372,6 +425,7 @@ fun TokenCalendarScreen(
                         shownMonth = shownMonth,
                         selected = selected,
                         locale = locale,
+                        today = today,
                         tokenFormat = tokenFormat,
                         category = category,
                         tokenMetric = tokenMetric,
@@ -383,14 +437,15 @@ fun TokenCalendarScreen(
                     1 -> DayColumnCard(
                         buckets = viewHourByDay,
                         locale = locale,
+                        today = today,
                         category = category,
                         tokenMetric = tokenMetric,
                         msgMetric = msgMetric,
                         hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY,
                         modifier = Modifier.fillMaxWidth().height(viewportH),
                     )
-                    2 -> WeekColumnCard(buckets = viewHourByWeek, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY, modifier = Modifier.fillMaxWidth().height(viewportH))
-                    3 -> MonthColumnCard(buckets = viewHourByMonth, locale = locale, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    2 -> WeekColumnCard(buckets = viewHourByWeek, locale = locale, today = today, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    3 -> MonthColumnCard(buckets = viewHourByMonth, locale = locale, nowMonth = YearMonth.from(today), category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY, modifier = Modifier.fillMaxWidth().height(viewportH))
                 }
                 Spacer(Modifier.height(12.dp))
             }
@@ -405,6 +460,7 @@ private fun DailyCalendarTab(
     shownMonth: YearMonth,
     selected: LocalDate?,
     locale: Locale,
+    today: LocalDate,
     tokenFormat: TokenFormat,
     category: TokenCategory,
     tokenMetric: TokenMetric,
@@ -439,6 +495,7 @@ private fun DailyCalendarTab(
             shownMonth = shownMonth,
             selected = selected,
             locale = locale,
+            today = today,
             category = category,
             tokenMetric = tokenMetric,
             msgMetric = msgMetric,
@@ -494,6 +551,7 @@ private fun DailyCalendarTab(
 private fun DayColumnCard(
     buckets: Map<String, Map<Int, TokenDay>>,
     locale: Locale,
+    today: LocalDate,
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
@@ -505,7 +563,7 @@ private fun DayColumnCard(
     val periods: List<Pair<String, Map<Int, TokenDay>>> = buildList {
         if (sorted.isNotEmpty()) {
             var d = LocalDate.parse(sorted.firstKey())
-            val last = LocalDate.now()
+            val last = today
             while (!d.isAfter(last)) {
                 val key = d.toString()
                 add(key to (sorted[key] ?: emptyMap()))
@@ -529,6 +587,7 @@ private fun DayColumnCard(
 private fun MonthColumnCard(
     buckets: Map<String, Map<Int, TokenDay>>,
     locale: Locale,
+    nowMonth: YearMonth,
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
@@ -540,7 +599,7 @@ private fun MonthColumnCard(
     val periods: List<Pair<String, Map<Int, TokenDay>>> = buildList {
         if (sorted.isNotEmpty()) {
             var m = YearMonth.parse(sorted.firstKey())
-            val last = YearMonth.now()
+            val last = nowMonth
             while (!m.isAfter(last)) {
                 val key = m.toString()
                 add(key to (sorted[key] ?: emptyMap()))
@@ -564,6 +623,7 @@ private fun MonthColumnCard(
 private fun WeekColumnCard(
     buckets: Map<String, Map<Int, TokenDay>>,
     locale: Locale,
+    today: LocalDate,
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
@@ -578,7 +638,7 @@ private fun WeekColumnCard(
         if (sorted.isNotEmpty()) {
             var d = LocalDate.parse(sorted.firstKey())
                 .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow)))
-            val todayStart = LocalDate.now()
+            val todayStart = today
                 .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow)))
             while (!d.isAfter(todayStart)) {
                 val key = d.toString()
@@ -1070,12 +1130,12 @@ private fun CalendarGrid(
     shownMonth: YearMonth,
     selected: LocalDate?,
     locale: Locale,
+    today: LocalDate,
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
     onSelect: (LocalDate) -> Unit,
 ) {
-    val today = LocalDate.now()
     val firstDayOfWeek = WeekFields.of(locale).firstDayOfWeek.value
     val first = shownMonth.atDay(1)
     val leading = (first.dayOfWeek.value - firstDayOfWeek + 7) % 7
