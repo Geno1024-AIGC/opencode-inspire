@@ -51,6 +51,7 @@ data class SettingsBackup(
     val favorites: Set<String> = emptySet(),
     val archived: Set<String> = emptySet(),
     val drafts: Map<String, String> = emptyMap(),
+    val dayStartOffsetMin: Int? = null,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -90,6 +91,9 @@ class SettingsRepository(private val context: Context) {
         val SESSION_MODEL_TOKENS = stringPreferencesKey("session_model_tokens")
         val TOKEN_SYNC = longPreferencesKey("token_sync")
         val TOKEN_SYNC_AT = longPreferencesKey("token_sync_at")
+        val TOKEN_RAW_HOURS = stringPreferencesKey("token_raw_hours")
+        val TOKEN_RAW_SYNC = longPreferencesKey("token_raw_sync")
+        val DAY_START_OFFSET_MIN = intPreferencesKey("day_start_offset_min")
         val DOWNLOADED_APK = stringPreferencesKey("downloaded_apk")
         val INSTALLED_VERSION = stringPreferencesKey("installed_version")
         val DRAFTS = stringPreferencesKey("drafts")
@@ -204,6 +208,13 @@ class SettingsRepository(private val context: Context) {
     }
     val tokenSync: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC] ?: 0L }
     val tokenSyncedAt: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC_AT] ?: 0L }
+    val tokenRawHours: Flow<List<TokenRawHour>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.TOKEN_RAW_HOURS]?.let { raw ->
+            runCatching { json.decodeFromString<List<TokenRawHour>>(raw) }.getOrNull()
+        } ?: emptyList()
+    }
+    val tokenRawSync: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_RAW_SYNC] ?: 0L }
+    val dayStartOffset: Flow<Int?> = context.dataStore.data.map { it[Keys.DAY_START_OFFSET_MIN] }
     val downloadedApk: Flow<String?> = context.dataStore.data.map { it[Keys.DOWNLOADED_APK] }
     val installedVersion: Flow<String?> = context.dataStore.data.map { it[Keys.INSTALLED_VERSION] }
     val drafts: Flow<Map<String, String>> = context.dataStore.data.map { prefs ->
@@ -354,6 +365,23 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.SESSION_MODEL_TOKENS] = json.encodeToString(stats) }
     }
 
+    suspend fun saveTokenRawHours(list: List<TokenRawHour>) {
+        context.dataStore.edit {
+            it[Keys.TOKEN_RAW_HOURS] = json.encodeToString(ListSerializer(TokenRawHour.serializer()), list)
+        }
+    }
+
+    suspend fun saveTokenRawSync(ms: Long) {
+        context.dataStore.edit { it[Keys.TOKEN_RAW_SYNC] = ms }
+    }
+
+    suspend fun setDayStartOffset(offsetMinutes: Int?) {
+        context.dataStore.edit { p ->
+            if (offsetMinutes == null) p.remove(Keys.DAY_START_OFFSET_MIN)
+            else p[Keys.DAY_START_OFFSET_MIN] = offsetMinutes
+        }
+    }
+
     suspend fun saveHistoryStats(sessionId: String, stats: StoredHistoryStats) {
         context.dataStore.edit { prefs ->
             val current = prefs[Keys.HISTORY_STATS]?.let { raw ->
@@ -470,6 +498,7 @@ class SettingsRepository(private val context: Context) {
             drafts = p[Keys.DRAFTS]?.let { raw ->
                 runCatching { json.decodeFromString<Map<String, String>>(raw) }.getOrNull()
             } ?: emptyMap(),
+            dayStartOffsetMin = p[Keys.DAY_START_OFFSET_MIN],
         )
     }
 
@@ -498,6 +527,8 @@ class SettingsRepository(private val context: Context) {
             p[Keys.FAVORITES] = json.encodeToString(b.favorites)
             p[Keys.ARCHIVED] = json.encodeToString(b.archived)
             p[Keys.DRAFTS] = json.encodeToString(b.drafts)
+            if (b.dayStartOffsetMin == null) p.remove(Keys.DAY_START_OFFSET_MIN)
+            else p[Keys.DAY_START_OFFSET_MIN] = b.dayStartOffsetMin
         }
     }
 

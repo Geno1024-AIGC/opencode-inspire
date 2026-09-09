@@ -195,6 +195,39 @@ data class TokenDay(
 }
 
 @Serializable
+data class TokenRawHour(
+    val epochHour: Long = 0L,
+    val model: String = "",
+    val total: Long = 0L,
+    val input: Long = 0L,
+    val output: Long = 0L,
+    val reasoning: Long = 0L,
+    val cacheRead: Long = 0L,
+    val cacheWrite: Long = 0L,
+    val msgs: Long = 0L,
+    val msgsSent: Long = 0L,
+    val msgsReceived: Long = 0L,
+    val cost: Double = 0.0,
+    val elapsedMs: Long = 0L,
+) {
+    operator fun plus(other: TokenRawHour): TokenRawHour = TokenRawHour(
+        epochHour = epochHour,
+        model = model,
+        total = total + other.total,
+        input = input + other.input,
+        output = output + other.output,
+        reasoning = reasoning + other.reasoning,
+        cacheRead = cacheRead + other.cacheRead,
+        cacheWrite = cacheWrite + other.cacheWrite,
+        msgs = msgs + other.msgs,
+        msgsSent = msgsSent + other.msgsSent,
+        msgsReceived = msgsReceived + other.msgsReceived,
+        cost = cost + other.cost,
+        elapsedMs = elapsedMs + other.elapsedMs,
+    )
+}
+
+@Serializable
 data class TokenModelStats(
     val history: Map<String, TokenDay> = emptyMap(),
     val elapsed: Map<String, Long> = emptyMap(),
