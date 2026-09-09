@@ -40,7 +40,7 @@ import com.geno1024.ai.occ.data.SessionV2Info
 import com.geno1024.ai.occ.data.SettingsRepository
 import com.geno1024.ai.occ.data.StoredHistoryStats
 import com.geno1024.ai.occ.data.TokenDay
-import com.geno1024.ai.occ.data.TokenRawHour
+import com.geno1024.ai.occ.data.TokenRawBucket
 import com.geno1024.ai.occ.data.TokenFormat
 import com.geno1024.ai.occ.data.TokenModelStats
 import com.geno1024.ai.occ.data.Tokens
@@ -145,6 +145,10 @@ sealed interface UiState {
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
+    private companion object {
+        const val RAW_BUCKET_MS = 900_000L
+    }
+
     private val settings = SettingsRepository(application)
     private val sessionCache = SessionCache(application)
 
@@ -258,8 +262,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _sessionModelTokens = MutableStateFlow<Map<String, Map<String, TokenDay>>>(emptyMap())
     val sessionModelTokens: StateFlow<Map<String, Map<String, TokenDay>>> = _sessionModelTokens.asStateFlow()
 
-    private val _tokenRawHours = MutableStateFlow<List<TokenRawHour>>(emptyList())
-    val tokenRawHours: StateFlow<List<TokenRawHour>> = _tokenRawHours.asStateFlow()
+    private val _tokenRawBuckets = MutableStateFlow<List<TokenRawBucket>>(emptyList())
+    val tokenRawBuckets: StateFlow<List<TokenRawBucket>> = _tokenRawBuckets.asStateFlow()
 
     private val _tokenRawSync = MutableStateFlow(0L)
 
@@ -516,7 +520,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settings.tokenSyncedAt.collect { _tokenSyncedAt.value = it }
         }
         viewModelScope.launch {
-            settings.tokenRawHours.collect { _tokenRawHours.value = it }
+            settings.tokenRawBuckets.collect { _tokenRawBuckets.value = it }
         }
         viewModelScope.launch {
             settings.tokenRawSync.collect { _tokenRawSync.value = it }
@@ -675,15 +679,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setDayStartOffset(offsetMinutes: Int?) {
         _dayStartOffset.value = offsetMinutes
         viewModelScope.launch { settings.setDayStartOffset(offsetMinutes) }
-        if (_tokenRawHours.value.isEmpty()) loadTokenHistory() else rebuildTokenMapsFromRaw()
+        if (_tokenRawBuckets.value.isEmpty()) loadTokenHistory() else rebuildTokenMapsFromRaw()
     }
 
     private fun rebuildTokenMapsFromRaw() {
-        if (_tokenRawHours.value.isEmpty()) return
+        if (_tokenRawBuckets.value.isEmpty()) return
         val zone = effectiveZone()
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                if (_tokenRawHours.value.isEmpty()) return@withContext
+                if (_tokenRawBuckets.value.isEmpty()) return@withContext
                 val firstDow = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value
                 val now = java.time.LocalDate.now(zone)
                 val currentWeekStart = now.with(
@@ -700,9 +704,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val dayHours = mutableMapOf<String, MutableMap<Int, TokenDay>>()
                 val modelStats = mutableMapOf<String, MutableTokenModelStats>()
 
-                for (rh in _tokenRawHours.value) {
+                for (rh in _tokenRawBuckets.value) {
                     coroutineContext.ensureActive()
-                    val zdt = java.time.Instant.ofEpochMilli(rh.epochHour * 3_600_000L).atZone(zone)
+                    val zdt = java.time.Instant.ofEpochMilli(rh.epochBucket * RAW_BUCKET_MS).atZone(zone)
                     val day = zdt.toLocalDate()
                     val dayKey = day.toString()
                     val hour = zdt.hour
@@ -844,7 +848,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val c = client ?: return@withContext
                     val zone = effectiveZone()
                     val backfillRaw = incremental && _tokenSync.value > 0L && _tokenHistory.value.isNotEmpty() &&
-                        _tokenRawHours.value.isEmpty() && _tokenRawSync.value == 0L
+                        _tokenRawBuckets.value.isEmpty() && _tokenRawSync.value == 0L
                     val incremental = incremental && !backfillRaw
                     val now = java.time.LocalDate.now(zone)
                     val firstDow = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value
@@ -883,9 +887,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     var maxMsgMs = baseSync
 
                     val rawWatermark = if (incremental) _tokenRawSync.value else 0L
-                    val rawAccum: MutableMap<Pair<Long, String>, TokenRawHour> = if (incremental) {
-                        mutableMapOf<Pair<Long, String>, TokenRawHour>().apply {
-                            _tokenRawHours.value.forEach { put(it.epochHour to it.model, it) }
+                    val rawAccum: MutableMap<Pair<Long, String>, TokenRawBucket> = if (incremental) {
+                        mutableMapOf<Pair<Long, String>, TokenRawBucket>().apply {
+                            _tokenRawBuckets.value.forEach { put(it.epochBucket to it.model, it) }
                         }
                     } else mutableMapOf()
                     var maxRawMs = if (incremental) _tokenRawSync.value else 0L
@@ -969,9 +973,9 @@ val dayKey = day.toString()
                             sessionTokens.getOrPut(s.id) { mutableMapOf() }[mid] =
                                 (sessionTokens[s.id]?.get(mid) ?: TokenDay()) + frag
                             if (created > rawWatermark) {
-                                val key = (created / 3_600_000L) to mid
+                                val key = (created / RAW_BUCKET_MS) to mid
                                 rawAccum[key] = (rawAccum[key]
-                                    ?: TokenRawHour(epochHour = key.first, model = key.second)) + TokenRawHour(
+                                    ?: TokenRawBucket(epochBucket = key.first, model = key.second)) + TokenRawBucket(
                                     total = frag.total,
                                     input = frag.input,
                                     output = frag.output,
@@ -992,8 +996,8 @@ val dayKey = day.toString()
                                     elapsed[d] = (elapsed[d] ?: 0L) + inc
                                     st.elapsed[d] = (st.elapsed[d] ?: 0L) + inc
                                     if (turnStart > rawWatermark) {
-                                        val key = (turnStart / 3_600_000L) to mid
-                                        val rb = rawAccum[key] ?: TokenRawHour(epochHour = key.first, model = key.second)
+                                        val key = (turnStart / RAW_BUCKET_MS) to mid
+                                        val rb = rawAccum[key] ?: TokenRawBucket(epochBucket = key.first, model = key.second)
                                         rawAccum[key] = rb.copy(elapsedMs = rb.elapsedMs + inc)
                                     }
                                 }
@@ -1012,8 +1016,8 @@ val dayKey = day.toString()
                             sessionTokens.getOrPut(s.id) { mutableMapOf() }[sMid] =
                                 (sessionTokens[s.id]?.get(sMid) ?: TokenDay()) + costFrag
                             if (sesLatest > rawWatermark && sesLatest > 0L) {
-                                val key = (sesLatest / 3_600_000L) to sMid
-                                val rb = rawAccum[key] ?: TokenRawHour(epochHour = key.first, model = key.second)
+                                val key = (sesLatest / RAW_BUCKET_MS) to sMid
+                                val rb = rawAccum[key] ?: TokenRawBucket(epochBucket = key.first, model = key.second)
                                 rawAccum[key] = rb.copy(cost = rb.cost + sessionCost)
                             }
                         }
@@ -1039,8 +1043,8 @@ val dayKey = day.toString()
                             val stEnd = modelStats.getOrPut(midEnd) { MutableTokenModelStats() }
                             stEnd.elapsed[d] = (stEnd.elapsed[d] ?: 0L) + (turnEnd - turnStart)
                             if (turnStart > rawWatermark) {
-                                val key = (turnStart / 3_600_000L) to midEnd
-                                val rb = rawAccum[key] ?: TokenRawHour(epochHour = key.first, model = key.second)
+                                val key = (turnStart / RAW_BUCKET_MS) to midEnd
+                                val rb = rawAccum[key] ?: TokenRawBucket(epochBucket = key.first, model = key.second)
                                 rawAccum[key] = rb.copy(elapsedMs = rb.elapsedMs + (turnEnd - turnStart))
                             }
                         }
@@ -1068,8 +1072,8 @@ val dayKey = day.toString()
                     _tokenModelStats.value = modelOut
                     _sessionModelTokens.value = sessionTokens
                     _tokenSync.value = maxMsgMs
-                    val rawOut = rawAccum.values.sortedWith(compareBy({ it.epochHour }, { it.model }))
-                    _tokenRawHours.value = rawOut
+                    val rawOut = rawAccum.values.sortedWith(compareBy({ it.epochBucket }, { it.model }))
+                    _tokenRawBuckets.value = rawOut
                     _tokenRawSync.value = maxRawMs
                     if (coroutineContext.isActive) {
                         val syncedAtMs = System.currentTimeMillis()
@@ -1078,7 +1082,7 @@ val dayKey = day.toString()
                         settings.saveTokenCalendar(monthOut, weekOut, dayOut, maxMsgMs, syncedAtMs)
                         settings.saveTokenModelStats(modelOut)
                         settings.saveSessionModelTokens(sessionTokens)
-                        settings.saveTokenRawHours(rawOut)
+                        settings.saveTokenRawBuckets(rawOut)
                         settings.saveTokenRawSync(maxRawMs)
                     }
                 }

@@ -113,7 +113,13 @@ private enum class EmptyPeriodMode(val labelRes: Int) {
 internal fun effectiveStatsZone(offsetMinutes: Int?): ZoneId =
     offsetMinutes?.let { ZoneOffset.ofTotalSeconds(it * 60) } ?: ZoneId.systemDefault()
 
-private fun utcOffsetLabel(hours: Int): String = if (hours >= 0) "UTC+$hours" else "UTC$hours"
+private fun utcOffsetLabel(minutes: Int): String {
+    val sign = if (minutes < 0) "-" else "+"
+    val abs = kotlin.math.abs(minutes)
+    val h = abs / 60
+    val m = abs % 60
+    return "UTC$sign$h" + if (m == 0) "" else ":$m"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -256,7 +262,7 @@ fun TokenCalendarScreen(
                     Box {
                         Text(
                             if (dayStartOffset == null) stringResource(R.string.calendar_day_start_follow_system)
-                            else utcOffsetLabel(dayStartOffset!! / 60),
+                            else utcOffsetLabel(dayStartOffset!!),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -274,11 +280,11 @@ fun TokenCalendarScreen(
                                     dayStartMenu = false
                                 },
                             )
-                            (-12..14).forEach { h ->
+                            (-720..840 step 15).forEach { min ->
                                 DropdownMenuItem(
-                                    text = { Text(utcOffsetLabel(h), fontFamily = MonoFontFamily) },
+                                    text = { Text(utcOffsetLabel(min), fontFamily = MonoFontFamily) },
                                     onClick = {
-                                        viewModel.setDayStartOffset(h * 60)
+                                        viewModel.setDayStartOffset(min)
                                         dayStartMenu = false
                                     },
                                 )

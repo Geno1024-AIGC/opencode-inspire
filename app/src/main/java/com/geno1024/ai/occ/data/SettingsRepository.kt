@@ -91,7 +91,7 @@ class SettingsRepository(private val context: Context) {
         val SESSION_MODEL_TOKENS = stringPreferencesKey("session_model_tokens")
         val TOKEN_SYNC = longPreferencesKey("token_sync")
         val TOKEN_SYNC_AT = longPreferencesKey("token_sync_at")
-        val TOKEN_RAW_HOURS = stringPreferencesKey("token_raw_hours")
+        val TOKEN_RAW_BUCKETS = stringPreferencesKey("token_raw_buckets")
         val TOKEN_RAW_SYNC = longPreferencesKey("token_raw_sync")
         val DAY_START_OFFSET_MIN = intPreferencesKey("day_start_offset_min")
         val DOWNLOADED_APK = stringPreferencesKey("downloaded_apk")
@@ -208,9 +208,9 @@ class SettingsRepository(private val context: Context) {
     }
     val tokenSync: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC] ?: 0L }
     val tokenSyncedAt: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_SYNC_AT] ?: 0L }
-    val tokenRawHours: Flow<List<TokenRawHour>> = context.dataStore.data.map { prefs ->
-        prefs[Keys.TOKEN_RAW_HOURS]?.let { raw ->
-            runCatching { json.decodeFromString<List<TokenRawHour>>(raw) }.getOrNull()
+    val tokenRawBuckets: Flow<List<TokenRawBucket>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.TOKEN_RAW_BUCKETS]?.let { raw ->
+            runCatching { json.decodeFromString<List<TokenRawBucket>>(raw) }.getOrNull()
         } ?: emptyList()
     }
     val tokenRawSync: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_RAW_SYNC] ?: 0L }
@@ -365,9 +365,9 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.SESSION_MODEL_TOKENS] = json.encodeToString(stats) }
     }
 
-    suspend fun saveTokenRawHours(list: List<TokenRawHour>) {
+    suspend fun saveTokenRawBuckets(list: List<TokenRawBucket>) {
         context.dataStore.edit {
-            it[Keys.TOKEN_RAW_HOURS] = json.encodeToString(ListSerializer(TokenRawHour.serializer()), list)
+            it[Keys.TOKEN_RAW_BUCKETS] = json.encodeToString(ListSerializer(TokenRawBucket.serializer()), list)
         }
     }
 

@@ -195,8 +195,8 @@ data class TokenDay(
 }
 
 @Serializable
-data class TokenRawHour(
-    val epochHour: Long = 0L,
+data class TokenRawBucket(
+    val epochBucket: Long = 0L,
     val model: String = "",
     val total: Long = 0L,
     val input: Long = 0L,
@@ -210,8 +210,8 @@ data class TokenRawHour(
     val cost: Double = 0.0,
     val elapsedMs: Long = 0L,
 ) {
-    operator fun plus(other: TokenRawHour): TokenRawHour = TokenRawHour(
-        epochHour = epochHour,
+    operator fun plus(other: TokenRawBucket): TokenRawBucket = TokenRawBucket(
+        epochBucket = epochBucket,
         model = model,
         total = total + other.total,
         input = input + other.input,
