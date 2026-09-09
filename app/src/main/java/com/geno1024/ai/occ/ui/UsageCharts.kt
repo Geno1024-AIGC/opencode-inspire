@@ -234,11 +234,11 @@ fun DailyTrendChart(
                         topLeft = Offset(lx, labelTop),
                     )
                 } else {
-                    val lx = (barCenterX - layout.size.height / 2f).coerceIn(0f, size.width - 1f)
-                    rotate(degrees = -90f, pivot = Offset(lx, labelTop)) {
+                    val pivotX = (barCenterX - layout.size.height / 2f).coerceIn(0f, size.width - 1f)
+                    rotate(degrees = -90f, pivot = Offset(pivotX, labelTop)) {
                         drawText(
                             textLayoutResult = layout,
-                            topLeft = Offset(lx, labelTop),
+                            topLeft = Offset(pivotX - layout.size.width, labelTop),
                         )
                     }
                 }
