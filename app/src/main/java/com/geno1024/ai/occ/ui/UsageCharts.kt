@@ -226,15 +226,15 @@ fun DailyTrendChart(
             }
             for ((index, label) in shownLabels) {
                 val layout = measurer.measure(label, labelStyle)
-                val centerX = 6f + index * barW + barW / 2f
+                val barCenterX = 6f + index * barW + barW * 0.72f / 2f
                 if (horizontal) {
-                    val lx = (centerX - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width)
+                    val lx = (barCenterX - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width)
                     drawText(
                         textLayoutResult = layout,
                         topLeft = Offset(lx, labelTop),
                     )
                 } else {
-                    val lx = (centerX - layout.size.height / 2f).coerceIn(0f, size.width - 1f)
+                    val lx = (barCenterX - layout.size.height / 2f).coerceIn(0f, size.width - 1f)
                     rotate(degrees = -90f, pivot = Offset(lx, labelTop)) {
                         drawText(
                             textLayoutResult = layout,
