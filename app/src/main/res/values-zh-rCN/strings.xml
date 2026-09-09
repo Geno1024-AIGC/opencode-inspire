@@ -245,8 +245,9 @@
     <string name="calendar_stats_metric_label">显示:</string>
     <string name="calendar_model_label">模型:</string>
     <string name="model_all">全部</string>
-    <string name="calendar_day_start_label">每日起点:</string>
     <string name="calendar_day_start_follow_system">跟随系统时区</string>
+    <string name="settings_day_start">每日统计起点</string>
+    <string name="settings_day_start_sub">日历与用量统计中“一天”的开始对应时区（例如匹配提供商的重置时刻）</string>
     <string name="calendar_cat_token">token</string>
     <string name="calendar_cat_msgs">msgs</string>
     <string name="calendar_token_total">total</string>

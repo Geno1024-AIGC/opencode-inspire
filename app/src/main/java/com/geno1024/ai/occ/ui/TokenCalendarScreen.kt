@@ -113,7 +113,7 @@ private enum class EmptyPeriodMode(val labelRes: Int) {
 internal fun effectiveStatsZone(offsetMinutes: Int?): ZoneId =
     offsetMinutes?.let { ZoneOffset.ofTotalSeconds(it * 60) } ?: ZoneId.systemDefault()
 
-private fun utcOffsetLabel(minutes: Int): String {
+internal fun utcOffsetLabel(minutes: Int): String {
     val sign = if (minutes < 0) "-" else "+"
     val abs = kotlin.math.abs(minutes)
     val h = abs / 60
@@ -170,7 +170,6 @@ fun TokenCalendarScreen(
     var shownMonth by remember { mutableStateOf(YearMonth.now(zone)) }
     var selected by remember { mutableStateOf<LocalDate?>(today) }
     var tab by remember { mutableIntStateOf(0) }
-    var dayStartMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -249,49 +248,9 @@ fun TokenCalendarScreen(
                         }
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(R.string.calendar_day_start_label),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Box {
-                        Text(
-                            if (dayStartOffset == null) stringResource(R.string.calendar_day_start_follow_system)
-                            else utcOffsetLabel(dayStartOffset!!),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontFamily = MonoFontFamily,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable { dayStartMenu = true }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
-                        DropdownMenu(expanded = dayStartMenu, onDismissRequest = { dayStartMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.calendar_day_start_follow_system), fontFamily = MonoFontFamily) },
-                                onClick = {
-                                    viewModel.setDayStartOffset(null)
-                                    dayStartMenu = false
-                                },
-                            )
-                            (-720..840 step 15).forEach { min ->
-                                DropdownMenuItem(
-                                    text = { Text(utcOffsetLabel(min), fontFamily = MonoFontFamily) },
-                                    onClick = {
-                                        viewModel.setDayStartOffset(min)
-                                        dayStartMenu = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
+                
+                
+                
                 val monthDay = viewHistory.filterKeys { isInMonth(it, shownMonth) }.values.fold(TokenDay()) { acc, t -> acc + t }
                 val monthElapsed = viewElapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
                 SummaryTable(

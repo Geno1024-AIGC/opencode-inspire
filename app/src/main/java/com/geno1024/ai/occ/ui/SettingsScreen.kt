@@ -102,6 +102,7 @@ fun SettingsScreen(
     BackHandler(onBack = onBack)
 
     val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
+    val dayStartOffset by viewModel.dayStartOffset.collectAsStateWithLifecycle()
     val theme by viewModel.theme.collectAsStateWithLifecycle()
     val themePreset by viewModel.themePreset.collectAsStateWithLifecycle()
     val customThemeColorsJson by viewModel.customThemeColors.collectAsStateWithLifecycle()
@@ -402,6 +403,16 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
+                    SectionLabel(R.string.settings_day_start, small = true)
+                    DropdownSetting(
+                        options = listOf("system" to stringResource(R.string.calendar_day_start_follow_system)) +
+                            (-720..840 step 15).map { min -> min.toString() to utcOffsetLabel(min) },
+                        selected = dayStartOffset?.toString() ?: "system",
+                        onSelect = { value ->
+                            viewModel.setDayStartOffset(if (value == "system") null else value.toInt())
+                        },
+                        title = stringResource(R.string.settings_day_start_sub),
+                    )
                 }
             }
 
