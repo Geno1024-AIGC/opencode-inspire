@@ -351,6 +351,7 @@ data class Message(
     @SerialName("modelID") val modelID: String? = null,
     val tokens: Tokens? = null,
     val time: MessageTime? = null,
+    val error: JsonElement? = null,
 )
 
 @Serializable

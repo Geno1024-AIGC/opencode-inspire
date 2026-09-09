@@ -70,6 +70,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -87,6 +88,7 @@ data class ChatMessage(
     val tokens: Tokens? = null,
     val time: Long = 0L,
     val cumulativeTokens: Long = 0L,
+    val error: String? = null,
 )
 
 data class PartUi(
@@ -191,6 +193,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _activeSession = MutableStateFlow<Session?>(null)
     val activeSession: StateFlow<Session?> = _activeSession.asStateFlow()
     private val titleRefreshPending = mutableSetOf<String>()
+    private val _childSessions = MutableStateFlow<List<Session>>(emptyList())
+    val childSessions: StateFlow<List<Session>> = _childSessions.asStateFlow()
     private val _sessionDrafts = MutableStateFlow<Map<String, String>>(emptyMap())
     val sessionDrafts: StateFlow<Map<String, String>> = _sessionDrafts.asStateFlow()
 
@@ -1637,6 +1641,7 @@ private fun sessionTitle(sid: String): String {
                     }
                 activateSession(s)
                 rollSessionStats(c, id)
+                refreshChildSessions()
                 _workspaceState.value = UiState.Idle
             } catch (e: Exception) {
                 _workspaceState.value = UiState.Error(e.message ?: getAppString(R.string.open_session_error))
@@ -1780,7 +1785,25 @@ private fun sessionTitle(sid: String): String {
             tokens = tokens,
             time = serverTimeToMillis(msg.time?.created),
             cumulativeTokens = 0L,
+            error = describeMessageError(msg.error, parts),
         )
+    }
+
+    private fun describeMessageError(messageError: JsonElement?, parts: List<Part>): String? {
+        val fromMessage = describeErrorElement(messageError)
+        if (!fromMessage.isNullOrBlank()) return fromMessage
+        val errorPart = parts.firstOrNull { it.type == "error" || it.error.isNullOrBlank().not() }
+        val text = errorPart?.error?.takeIf { it.isNotBlank() } ?: errorPart?.text?.takeIf { it.isNotBlank() }
+        return text
+    }
+
+    private fun describeErrorElement(el: JsonElement?): String? {
+        if (el == null) return null
+        return when (el) {
+            is JsonPrimitive -> el.contentOrNull?.takeIf { it.isNotBlank() }
+            is JsonObject -> describeSessionError(el)
+            else -> el.toString()
+        }
     }
 
     private fun derivePromptTokens() {
@@ -2698,6 +2721,12 @@ text = e.message ?: getAppString(R.string.send_failed),
                         delay(4000)
                     }
                 }
+                launch {
+                    while (true) {
+                        refreshChildSessions()
+                        delay(4000)
+                    }
+                }
                 while (true) {
                     try {
                         c.eventStream().collect { raw -> handleEvent(raw) }
@@ -2708,6 +2737,16 @@ text = e.message ?: getAppString(R.string.send_failed),
                 }
             }
         }
+    }
+
+    private suspend fun refreshChildSessions() {
+        val c = client ?: return
+        val activeId = _activeSession.value?.id ?: return
+        val children = runCatching { withContext(Dispatchers.IO) { c.sessions() } }
+            .getOrNull()
+            ?.filter { it.parentId == activeId }
+            ?: return
+        _childSessions.value = children
     }
 
     private suspend fun refreshPendingQuestions() {
@@ -2862,6 +2901,7 @@ text = e.message ?: getAppString(R.string.send_failed),
                 if (sid != active) return
                 val mid = info["id"]?.jsonPrimitive?.contentOrNull ?: return
                 val role = info["role"]?.jsonPrimitive?.contentOrNull ?: "assistant"
+                val errorText = describeErrorElement(info["error"])
                 if (role != "user" && _messages.value.none { it.id == mid }) {
                     val model = info["modelID"]?.jsonPrimitive?.contentOrNull
                     val tokens = info["tokens"]?.let {
@@ -2881,7 +2921,13 @@ text = e.message ?: getAppString(R.string.send_failed),
                         tokens = tokens,
                         time = serverTimeToMillis(created),
                         cumulativeTokens = _cumulativeTokens.value,
+                        error = errorText,
                     )
+                } else if (role != "user" && _messages.value.any { it.id == mid } && errorText != null) {
+                    _messages.value = _messages.value.map {
+                        if (it.id != mid) it
+                        else it.copy(error = errorText)
+                    }
                 }
             }
             "message.part.updated" -> {
@@ -2945,6 +2991,7 @@ text = e.message ?: getAppString(R.string.send_failed),
         eventJob = null
         stopHeartbeat()
         _activeSession.value = null
+        _childSessions.value = emptyList()
         _messages.value = emptyList()
         viewModelScope.launch { settings.setLastSessionId(null) }
     }

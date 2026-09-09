@@ -163,6 +163,9 @@
     <string name="providers_method_oauth">OAuth</string>
     <string name="message_collapse_toggle">折叠/展开消息</string>
     <string name="message_collapsed">消息已折叠</string>
+    <string name="message_error">消息失败</string>
+    <string name="agent_session_created">新建 %1$s 会话，点击查看</string>
+    <string name="parent_session_back">返回父会话</string>
     <string name="message_raw">查看原始消息</string>
     <string name="message_raw_title">原始消息</string>
 

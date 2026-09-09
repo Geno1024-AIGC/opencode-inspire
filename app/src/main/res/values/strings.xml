@@ -163,6 +163,9 @@
     <string name="providers_method_oauth">OAuth</string>
     <string name="message_collapse_toggle">Collapse/expand message</string>
     <string name="message_collapsed">Message collapsed</string>
+    <string name="message_error">Message failed</string>
+    <string name="agent_session_created">New %1$s session — tap to open</string>
+    <string name="parent_session_back">Back to parent session</string>
     <string name="message_raw">View raw message</string>
     <string name="message_raw_title">Raw message</string>
 

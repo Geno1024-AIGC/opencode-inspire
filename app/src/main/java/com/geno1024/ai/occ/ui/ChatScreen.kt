@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Info
@@ -161,6 +162,7 @@ fun ChatScreen(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val sending by viewModel.sending.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
+    val childSessions by viewModel.childSessions.collectAsStateWithLifecycle()
     val serverAlive by viewModel.serverAlive.collectAsStateWithLifecycle()
     val sessionDrafts by viewModel.sessionDrafts.collectAsStateWithLifecycle()
     val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
@@ -643,6 +645,32 @@ fun ChatScreen(
                 ) {
                     if (sending) {
                         item(key = "sending") { SendingIndicator() }
+                    }
+                    val parentId = activeSession?.parentId
+                    if (parentId != null) {
+                        item(key = "back-parent") {
+                            AgentBanner(
+                                label = stringResource(R.string.parent_session_back),
+                                subtitle = parentId.takeLast(8),
+                                onClick = { viewModel.openSession(parentId) },
+                            )
+                        }
+                    } else if (childSessions.isNotEmpty()) {
+                        item(key = "agent-children") {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                childSessions.forEach { child ->
+                                    val agentName = child.agent?.replaceFirstChar { it.uppercase() } ?: "agent"
+                                    AgentBanner(
+                                        label = stringResource(R.string.agent_session_created, agentName),
+                                        subtitle = child.title.ifBlank { child.id.takeLast(8) },
+                                        onClick = { viewModel.openSession(child.id) },
+                                    )
+                                }
+                            }
+                        }
                     }
                     itemsIndexed(filteredMessages, key = { idx, item -> item.id }) { index, msg ->
                     val prevCumulative = if (index + 1 < reversedMessages.size) reversedMessages[index + 1].cumulativeTokens else null
@@ -1745,7 +1773,7 @@ private fun MessageBubble(
     }
     val background = when {
         isUser -> custom ?: MaterialTheme.colorScheme.primaryContainer
-        isError -> MaterialTheme.colorScheme.errorContainer
+        isError || msg.error != null -> MaterialTheme.colorScheme.errorContainer
         else -> custom ?: MaterialTheme.colorScheme.surfaceVariant
     }
     val onBackground = if (custom != null) {
@@ -1863,6 +1891,25 @@ private fun MessageBubble(
                         }
                     }
                 }
+                if (!msg.error.isNullOrBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.Warning,
+                            contentDescription = stringResource(R.string.message_error),
+                            modifier = Modifier.size(14.dp).padding(top = 1.dp),
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                        Text(
+                            text = msg.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
                 val links = extractMarkdownLinks(msg.text)
                 if (links.isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
@@ -1928,6 +1975,58 @@ private fun MessageBubble(
                     .padding(top = 2.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun AgentBanner(
+    label: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(MaterialTheme.colorScheme.tertiary, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Filled.Info,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onTertiary,
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            "→",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+        )
     }
 }
 
