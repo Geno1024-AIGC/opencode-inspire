@@ -12,6 +12,13 @@ data class CachedSession(
     val savedAt: Long = 0L,
 )
 
+@Serializable
+data class CachedWorkspace(
+    val projects: List<Project> = emptyList(),
+    val sessions: List<Session> = emptyList(),
+    val savedAt: Long = 0L,
+)
+
 class SessionCache(private val context: Context) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -33,6 +40,23 @@ class SessionCache(private val context: Context) {
             val file = File(dir, "$sessionId.json")
             if (!file.exists()) null
             else json.decodeFromString(CachedSession.serializer(), file.readText())
+        }.getOrNull()
+    }
+
+    fun saveWorkspace(projects: List<Project>, sessions: List<Session>) {
+        runCatching {
+            dir.mkdirs()
+            prune()
+            val file = File(dir, "_workspace.json")
+            file.writeText(json.encodeToString(CachedWorkspace.serializer(), CachedWorkspace(projects, sessions, System.currentTimeMillis())))
+        }
+    }
+
+    fun loadWorkspace(): CachedWorkspace? {
+        return runCatching {
+            val file = File(dir, "_workspace.json")
+            if (!file.exists()) null
+            else json.decodeFromString(CachedWorkspace.serializer(), file.readText())
         }.getOrNull()
     }
 

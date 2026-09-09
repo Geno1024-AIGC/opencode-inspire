@@ -67,6 +67,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -173,6 +174,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _connectionState = MutableStateFlow<UiState>(UiState.Idle)
     val connectionState: StateFlow<UiState> = _connectionState.asStateFlow()
+
+    private val _serverAlive = MutableStateFlow(false)
+    val serverAlive: StateFlow<Boolean> = _serverAlive.asStateFlow()
 
     private val _workspaceState = MutableStateFlow<UiState>(UiState.Idle)
     val workspaceState: StateFlow<UiState> = _workspaceState.asStateFlow()
@@ -286,6 +290,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val json = Json { ignoreUnknownKeys = true }
 
     private var eventJob: Job? = null
+    private var heartbeatJob: Job? = null
 
     private val _authUsername = MutableStateFlow<String?>(null)
     val authUsername: StateFlow<String?> = _authUsername.asStateFlow()
@@ -1367,19 +1372,21 @@ private fun sessionTitle(sid: String): String {
                 if (client == null) {
                     val saved = _serverUrl.value
                     if (saved == null) {
+                        _serverAlive.value = false
                         _connectionState.value = UiState.Error(getAppString(R.string.error_no_server))
                         return@launch
                     }
                     val cli = OpenCodeClient(saved, _authUsername.value, _authPassword.value)
-                    _serverVersion.value = cli.health().version
                     client = cli
                     probeCapabilities(cli)
                 }
+                _serverAlive.value = runCatching { pingHealth(client) }.getOrDefault(false)
                 observeEvents()
                 loadWorkspace()
+                startHeartbeat()
                 val last = settings.getLastSessionId()
-                if (last != null) {
-                    openSession(last)
+                if (last != null && _activeSession.value == null) {
+                    runCatching { openSession(last) }
                 }
                 _connectionState.value = UiState.Idle
                 onDone()
@@ -1389,10 +1396,40 @@ private fun sessionTitle(sid: String): String {
         }
     }
 
+    private fun startHeartbeat() {
+        if (heartbeatJob?.isActive == true) return
+        heartbeatJob = viewModelScope.launch {
+            while (true) {
+                _serverAlive.value = client != null && runCatching { pingHealth(client) }.getOrDefault(false)
+                delay(10_000)
+            }
+        }
+    }
+
+    private suspend fun pingHealth(c: AgentClient?): Boolean =
+        c != null && withTimeoutOrNull(5_000) { c.health() } != null
+
     private suspend fun loadWorkspace() {
         val c = client ?: return
-        val rawProjects = withContext(Dispatchers.IO) { c.projects() }
-        val allSessions = withContext(Dispatchers.IO) { c.sessions() }
+        var fromCache = false
+        val fetched = runCatching {
+            val p = withContext(Dispatchers.IO) { c.projects() }
+            val s = withContext(Dispatchers.IO) { c.sessions() }
+            p to s
+        }.getOrElse { e ->
+            val cached = withContext(Dispatchers.IO) { sessionCache.loadWorkspace() }
+            if (cached != null && cached.savedAt > 0L) {
+                fromCache = true
+                cached.projects to cached.sessions
+            } else {
+                throw e
+            }
+        }
+        val rawProjects = fetched.first
+        val allSessions = fetched.second
+        if (!fromCache) {
+            runCatching { withContext(Dispatchers.IO) { sessionCache.saveWorkspace(rawProjects, allSessions) } }
+        }
         _projects.value = groupProjects(rawProjects, allSessions)
         if (_selectedProjectId.value == null && _projects.value.isNotEmpty()) {
             _selectedProjectId.value = _projects.value.first().id
@@ -1579,7 +1616,12 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch {
             _workspaceState.value = UiState.Loading()
             try {
-                val s = withContext(Dispatchers.IO) { c.session(id) }
+                val s = runCatching { withContext(Dispatchers.IO) { c.session(id) } }
+                    .getOrElse { e ->
+                        withContext(Dispatchers.IO) { sessionCache.loadWorkspace() }
+                            ?.sessions?.firstOrNull { it.id == id }
+                            ?: throw e
+                    }
                 activateSession(s)
                 rollSessionStats(c, id)
                 _workspaceState.value = UiState.Idle
@@ -2886,9 +2928,18 @@ text = e.message ?: getAppString(R.string.send_failed),
     }
 
     fun reset() {
+        eventJob?.cancel()
+        eventJob = null
+        stopHeartbeat()
         _activeSession.value = null
         _messages.value = emptyList()
         viewModelScope.launch { settings.setLastSessionId(null) }
+    }
+
+    private fun stopHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = null
+        _serverAlive.value = false
     }
 }
 

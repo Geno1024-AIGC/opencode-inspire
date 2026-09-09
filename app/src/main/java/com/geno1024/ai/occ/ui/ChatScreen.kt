@@ -161,7 +161,7 @@ fun ChatScreen(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val sending by viewModel.sending.collectAsStateWithLifecycle()
     val activeSession by viewModel.activeSession.collectAsStateWithLifecycle()
-    val connectionState by viewModel.connectionState.collectAsStateWithLifecycle()
+    val serverAlive by viewModel.serverAlive.collectAsStateWithLifecycle()
     val sessionDrafts by viewModel.sessionDrafts.collectAsStateWithLifecycle()
     val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
     val sessionCost by viewModel.sessionCost.collectAsStateWithLifecycle()
@@ -497,7 +497,7 @@ fun ChatScreen(
                                 )
                                 if (activeSession != null) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        StatusDot(connected = connectionState !is UiState.Error, sending = sending)
+                                        StatusDot(connected = serverAlive, sending = sending)
                                         if (agents.isNotEmpty()) {
                                             Spacer(Modifier.width(6.dp))
                                             AgentSwitcher(
