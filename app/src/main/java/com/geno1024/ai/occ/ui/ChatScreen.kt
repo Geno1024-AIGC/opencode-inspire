@@ -477,14 +477,15 @@ fun ChatScreen(
     }
 
     val anchoredChildren = remember(childSessions, messages) {
-        val map = LinkedHashMap<String?, MutableList<Session>>()
+        val map = LinkedHashMap<String, MutableList<Session>>()
         for (child in childSessions) {
             val created = millisOfRaw(child.time?.created)
-            val anchor = if (created > 0L) {
-                messages.lastOrNull { it.time > 0L && it.time <= created && it.role == "user" && it.text.isNotBlank() }
-                    ?: messages.lastOrNull { it.time > 0L && it.time <= created }
-            } else null
-            map.getOrPut(anchor?.id ?: "__end") { mutableListOf() }.add(child)
+            if (created <= 0L) continue
+            val next = messages.indexOfFirst { it.time > created }
+            if (next <= 0) continue
+            val prev = messages[next - 1]
+            if (prev.time >= created) continue
+            map.getOrPut(prev.id) { mutableListOf() }.add(child)
         }
         map
     }
@@ -673,17 +674,6 @@ fun ChatScreen(
                                 subtitle = parentId.takeLast(8),
                                 onClick = { viewModel.openSession(parentId) },
                             )
-                        }
-                    } else if (anchoredChildren["__end"].isNullOrEmpty().not()) {
-                        item(key = "agent-children") {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                            ) {
-                                anchoredChildren["__end"]?.forEach { child ->
-                                    AgentSessionRow(child = child, onClick = { viewModel.openSession(child.id) })
-                                }
-                            }
                         }
                     }
                     itemsIndexed(filteredMessages, key = { idx, item -> item.id }) { index, msg ->
