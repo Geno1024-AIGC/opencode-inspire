@@ -22,6 +22,7 @@ import com.geno1024.ai.occ.data.CapabilityCatalog
 import com.geno1024.ai.occ.data.CapabilityReport
 import com.geno1024.ai.occ.data.Command
 import com.geno1024.ai.occ.data.FeatureStatus
+import com.geno1024.ai.occ.data.HealthResponse
 import com.geno1024.ai.occ.data.Message
 import com.geno1024.ai.occ.data.ModelInfo
 import com.geno1024.ai.occ.data.AgentInfo
@@ -1380,7 +1381,13 @@ private fun sessionTitle(sid: String): String {
                     client = cli
                     probeCapabilities(cli)
                 }
-                _serverAlive.value = runCatching { pingHealth(client) }.getOrDefault(false)
+                val health = runCatching { pingHealth(client) }.getOrNull()
+                if (health != null) {
+                    _serverAlive.value = true
+                    _serverVersion.value = health.version
+                } else {
+                    _serverAlive.value = false
+                }
                 observeEvents()
                 loadWorkspace()
                 startHeartbeat()
@@ -1400,14 +1407,20 @@ private fun sessionTitle(sid: String): String {
         if (heartbeatJob?.isActive == true) return
         heartbeatJob = viewModelScope.launch {
             while (true) {
-                _serverAlive.value = client != null && runCatching { pingHealth(client) }.getOrDefault(false)
+                val health = runCatching { pingHealth(client) }.getOrNull()
+                if (health != null) {
+                    _serverAlive.value = true
+                    _serverVersion.value = health.version
+                } else {
+                    _serverAlive.value = false
+                }
                 delay(10_000)
             }
         }
     }
 
-    private suspend fun pingHealth(c: AgentClient?): Boolean =
-        c != null && withTimeoutOrNull(5_000) { c.health() } != null
+    private suspend fun pingHealth(c: AgentClient?): HealthResponse? =
+        if (c == null) null else withTimeoutOrNull(5_000) { c.health() }
 
     private suspend fun loadWorkspace() {
         val c = client ?: return
