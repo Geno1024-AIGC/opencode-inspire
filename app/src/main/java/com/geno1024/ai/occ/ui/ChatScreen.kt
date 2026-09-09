@@ -153,6 +153,12 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+private fun millisOfRaw(value: Long?): Long = when {
+    value == null || value <= 0L -> 0L
+    value < 10_000_000_000L -> value * 1000L
+    else -> value
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -470,6 +476,19 @@ fun ChatScreen(
         }
     }
 
+    val anchoredChildren = remember(childSessions, messages) {
+        val map = LinkedHashMap<String?, MutableList<Session>>()
+        for (child in childSessions) {
+            val created = millisOfRaw(child.time?.created)
+            val anchor = if (created > 0L) {
+                messages.lastOrNull { it.time > 0L && it.time <= created && it.role == "user" && it.text.isNotBlank() }
+                    ?: messages.lastOrNull { it.time > 0L && it.time <= created }
+            } else null
+            map.getOrPut(anchor?.id ?: "__end") { mutableListOf() }.add(child)
+        }
+        map
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.statusBarsPadding(),
@@ -655,66 +674,69 @@ fun ChatScreen(
                                 onClick = { viewModel.openSession(parentId) },
                             )
                         }
-                    } else if (childSessions.isNotEmpty()) {
+                    } else if (anchoredChildren["__end"].isNullOrEmpty().not()) {
                         item(key = "agent-children") {
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                childSessions.forEach { child ->
-                                    val agentName = child.agent?.replaceFirstChar { it.uppercase() } ?: "agent"
-                                    AgentBanner(
-                                        label = stringResource(R.string.agent_session_created, agentName),
-                                        subtitle = child.title.ifBlank { child.id.takeLast(8) },
-                                        onClick = { viewModel.openSession(child.id) },
-                                    )
+                                anchoredChildren["__end"]?.forEach { child ->
+                                    AgentSessionRow(child = child, onClick = { viewModel.openSession(child.id) })
                                 }
                             }
                         }
                     }
                     itemsIndexed(filteredMessages, key = { idx, item -> item.id }) { index, msg ->
-                    val prevCumulative = if (index + 1 < reversedMessages.size) reversedMessages[index + 1].cumulativeTokens else null
-                    val responseTime = if (sending && index == 0 && msg.role == "assistant" && lastUserTime > 0L) {
-                        (now - lastUserTime).coerceAtLeast(0L)
-                    } else if (msg.role == "assistant" && msg.time > 0L) {
-                        val precedingUserTime = (index + 1 until reversedMessages.size)
-                            .firstOrNull { reversedMessages[it].role == "user" && reversedMessages[it].time > 0L }
-                            ?.let { reversedMessages[it].time }
-                        if (precedingUserTime != null && msg.time > precedingUserTime) msg.time - precedingUserTime else null
-                    } else null
-                    val precedingUserText = (index + 1 until reversedMessages.size)
-                        .firstOrNull { reversedMessages[it].role == "user" }
-                        ?.let { reversedMessages[it].text }
-                    val clipboard = LocalClipboardManager.current
-                    MessageBubble(
-                        msg = msg,
-                        cumulativeTokens = if (msg.cumulativeTokens > 0) msg.cumulativeTokens else null,
-                        deltaTokens = if (msg.cumulativeTokens > 0) {
-                            if (prevCumulative != null) (msg.cumulativeTokens - prevCumulative).coerceAtLeast(0L) else msg.cumulativeTokens
-                        } else null,
-                        sessionElapsed = if (index == 0) sessionElapsed else null,
-                        responseTime = responseTime,
-                        userColor = userBubbleColor,
-                        assistantColor = assistantBubbleColor,
-                        collapsed = msg.id in collapsedMessageIds,
-                        highlighted = msg.id == highlightedId,
-                        onToggleCollapse = { viewModel.toggleMessageCollapsed(msg.id) },
-                        onShowRaw = { rawMessage = msg },
-                        onRegenerate = { (precedingUserText ?: msg.text).let { viewModel.send(it) } },
-                        onCopyText = { clipboard.setText(AnnotatedString(stripMarkdown(msg.text))) },
-                        onCopyMarkdown = { clipboard.setText(AnnotatedString(msg.text)) },
-                        onOpenLink = { previewUrl = it },
-                        selectMode = selectMode,
-                        selected = msg.id in selectedIds,
-                        onSelect = { selectMessage(msg.id) },
-                        onEnterSelectMode = {
-                            if (!selectMode) {
-                                selectMode = true
-                                selectedIds = setOf(msg.id)
-                                rangeAnchorId = null
-                            }
-                        },
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        val prevCumulative = if (index + 1 < reversedMessages.size) reversedMessages[index + 1].cumulativeTokens else null
+                        val responseTime = if (sending && index == 0 && msg.role == "assistant" && lastUserTime > 0L) {
+                            (now - lastUserTime).coerceAtLeast(0L)
+                        } else if (msg.role == "assistant" && msg.time > 0L) {
+                            val precedingUserTime = (index + 1 until reversedMessages.size)
+                                .firstOrNull { reversedMessages[it].role == "user" && reversedMessages[it].time > 0L }
+                                ?.let { reversedMessages[it].time }
+                            if (precedingUserTime != null && msg.time > precedingUserTime) msg.time - precedingUserTime else null
+                        } else null
+                        val precedingUserText = (index + 1 until reversedMessages.size)
+                            .firstOrNull { reversedMessages[it].role == "user" }
+                            ?.let { reversedMessages[it].text }
+                        val clipboard = LocalClipboardManager.current
+                        MessageBubble(
+                            msg = msg,
+                            cumulativeTokens = if (msg.cumulativeTokens > 0) msg.cumulativeTokens else null,
+                            deltaTokens = if (msg.cumulativeTokens > 0) {
+                                if (prevCumulative != null) (msg.cumulativeTokens - prevCumulative).coerceAtLeast(0L) else msg.cumulativeTokens
+                            } else null,
+                            sessionElapsed = if (index == 0) sessionElapsed else null,
+                            responseTime = responseTime,
+                            userColor = userBubbleColor,
+                            assistantColor = assistantBubbleColor,
+                            collapsed = msg.id in collapsedMessageIds,
+                            highlighted = msg.id == highlightedId,
+                            onToggleCollapse = { viewModel.toggleMessageCollapsed(msg.id) },
+                            onShowRaw = { rawMessage = msg },
+                            onRegenerate = { (precedingUserText ?: msg.text).let { viewModel.send(it) } },
+                            onCopyText = { clipboard.setText(AnnotatedString(stripMarkdown(msg.text))) },
+                            onCopyMarkdown = { clipboard.setText(AnnotatedString(msg.text)) },
+                            onOpenLink = { previewUrl = it },
+                            selectMode = selectMode,
+                            selected = msg.id in selectedIds,
+                            onSelect = { selectMessage(msg.id) },
+                            onEnterSelectMode = {
+                                if (!selectMode) {
+                                    selectMode = true
+                                    selectedIds = setOf(msg.id)
+                                    rangeAnchorId = null
+                                }
+                            },
+                        )
+                        anchoredChildren[msg.id]?.forEach { child ->
+                            AgentSessionRow(child = child, onClick = { viewModel.openSession(child.id) })
+                        }
+                    }
                 }
                 if (!searchActive && !selectMode && hasOlderHistory && searchQuery.isBlank()) {
                     item(key = "load-older") {
@@ -1976,6 +1998,19 @@ private fun MessageBubble(
             )
         }
     }
+}
+
+@Composable
+private fun AgentSessionRow(
+    child: Session,
+    onClick: () -> Unit,
+) {
+    val agentName = child.agent?.replaceFirstChar { it.uppercase() } ?: "agent"
+    AgentBanner(
+        label = stringResource(R.string.agent_session_created, agentName),
+        subtitle = child.title.ifBlank { child.id.takeLast(8) },
+        onClick = onClick,
+    )
 }
 
 @Composable
