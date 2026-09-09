@@ -82,6 +82,14 @@ import com.geno1024.ai.occ.ui.theme.PresetDarkSchemes
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.serializer
 
+private val realUtcOffsetMinutes = listOf(
+    -720, -660, -600, -570, -540, -480, -420, -360, -300, -240,
+    -210, -180, -150, -120, -60,
+    0, 60, 120, 180, 210, 240, 270, 300, 330, 345,
+    360, 390, 420, 480, 525, 540, 570, 600, 630,
+    660, 720, 765, 780, 825, 840,
+)
+
 private val presetColors = listOf(
     0xFFFB8C00L, 0xFFF44A6AL, 0xFFEC407AL, 0xFFE91E63L,
     0xFFAB47BFL, 0xFF7E57C2L, 0xFF5C6BC0L, 0xFF42A5F5L,
@@ -406,7 +414,7 @@ fun SettingsScreen(
                     SectionLabel(R.string.settings_day_start, small = true)
                     DropdownSetting(
                         options = listOf("system" to stringResource(R.string.calendar_day_start_follow_system)) +
-                            (-720..840 step 15).map { min -> min.toString() to utcOffsetLabel(min) },
+                            realUtcOffsetMinutes.map { min -> min.toString() to utcOffsetLabel(min) },
                         selected = dayStartOffset?.toString() ?: "system",
                         onSelect = { value ->
                             viewModel.setDayStartOffset(if (value == "system") null else value.toInt())
