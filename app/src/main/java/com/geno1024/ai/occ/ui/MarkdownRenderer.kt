@@ -217,7 +217,7 @@ private fun parseInlineInternal(
                     }
                     i = end + 3
                 } else {
-                    builder.append(ch); i++
+                    i += 3
                 }
             }
             matchAt(i, "`") -> {
@@ -232,7 +232,7 @@ private fun parseInlineInternal(
                         builder.append("`"); i++
                     }
                 } else {
-                    builder.append(ch); i++
+                    i++
                 }
             }
             matchAt(i, "~~") -> {
@@ -344,7 +344,7 @@ private fun AnnotatedString.Builder.appendInlineNested(
                         append(ch); i++
                     }
                 } else {
-                    append(ch); i++
+                    i++
                 }
             }
             matchAt(i, "~~") -> {
