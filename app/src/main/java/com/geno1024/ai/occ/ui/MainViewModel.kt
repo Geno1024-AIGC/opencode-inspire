@@ -268,6 +268,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val hourByDay: StateFlow<Map<String, Map<Int, TokenDay>>> = _hourByDay.asStateFlow()
     private val _tokenModelStats = MutableStateFlow<Map<String, TokenModelStats>>(emptyMap())
     val tokenModelStats: StateFlow<Map<String, TokenModelStats>> = _tokenModelStats.asStateFlow()
+    private val _tokenProjectStats = MutableStateFlow<Map<String, TokenModelStats>>(emptyMap())
+    val tokenProjectStats: StateFlow<Map<String, TokenModelStats>> = _tokenProjectStats.asStateFlow()
     private val _sessionModelTokens = MutableStateFlow<Map<String, Map<String, TokenDay>>>(emptyMap())
     val sessionModelTokens: StateFlow<Map<String, Map<String, TokenDay>>> = _sessionModelTokens.asStateFlow()
 
@@ -516,6 +518,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.tokenModelStats.collect { _tokenModelStats.value = it }
+        }
+        viewModelScope.launch {
+            settings.tokenProjectStats.collect { _tokenProjectStats.value = it }
         }
         viewModelScope.launch {
             settings.sessionModelTokens.collect { _sessionModelTokens.value = it }
@@ -891,15 +896,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 st.hourByMonth.forEach { (k, m) -> hourByMonth[k] = m.toMutableMap() }
                             }
                         }.toMutableMap()
+                    val projectStats = (if (incremental) _tokenProjectStats.value else emptyMap())
+                        .mapValues { (_, st) ->
+                            MutableTokenModelStats().apply {
+                                history.putAll(st.history)
+                                elapsed.putAll(st.elapsed)
+                                st.hourByDay.forEach { (k, m) -> hourByDay[k] = m.toMutableMap() }
+                                st.hourByWeek.forEach { (k, m) -> hourByWeek[k] = m.toMutableMap() }
+                                st.hourByMonth.forEach { (k, m) -> hourByMonth[k] = m.toMutableMap() }
+                            }
+                        }.toMutableMap()
                     val sessionTokens = (if (incremental) _sessionModelTokens.value else emptyMap())
                         .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
 
                     var maxMsgMs = baseSync
 
                     val rawWatermark = if (incremental) _tokenRawSync.value else 0L
-                    val rawAccum: MutableMap<Pair<Long, String>, TokenRawBucket> = if (incremental) {
-                        mutableMapOf<Pair<Long, String>, TokenRawBucket>().apply {
-                            _tokenRawBuckets.value.forEach { put(it.epochBucket to it.model, it) }
+                    val rawAccum: MutableMap<Triple<Long, String, String>, TokenRawBucket> = if (incremental) {
+                        mutableMapOf<Triple<Long, String, String>, TokenRawBucket>().apply {
+                            _tokenRawBuckets.value.forEach {
+                                val p = it.projectId
+                                put(Triple(it.epochBucket, it.model, if (p.isBlank()) "unknown" else p), it)
+                            }
                         }
                     } else mutableMapOf()
                     var maxRawMs = if (incremental) _tokenRawSync.value else 0L
@@ -922,6 +940,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         var sesAssistant = 0L
                         var sesTools = 0L
                         var sesLatest = 0L
+                        val pKey = s.projectId.ifBlank { "unknown" }
                         for ((msg, parts) in messages) {
                             coroutineContext.ensureActive()
                             val created = serverTimeToMillis(msg.time?.created)
@@ -980,12 +999,22 @@ val dayKey = day.toString()
                                 st.hourByWeek.getOrPut(ws) { mutableMapOf() }[hour] =
                                     (st.hourByWeek[ws]?.get(hour) ?: TokenDay()) + frag
                             }
+                            val ps = projectStats.getOrPut(pKey) { MutableTokenModelStats() }
+                            ps.history[dayKey] = (ps.history[dayKey] ?: TokenDay()) + frag
+                            ps.hourByDay.getOrPut(dayKey) { mutableMapOf() }[hour] =
+                                (ps.hourByDay[dayKey]?.get(hour) ?: TokenDay()) + frag
+                            ps.hourByMonth.getOrPut(mKey) { mutableMapOf() }[hour] =
+                                (ps.hourByMonth[mKey]?.get(hour) ?: TokenDay()) + frag
+                            if (ws in weekStartSet) {
+                                ps.hourByWeek.getOrPut(ws) { mutableMapOf() }[hour] =
+                                    (ps.hourByWeek[ws]?.get(hour) ?: TokenDay()) + frag
+                            }
                             sessionTokens.getOrPut(s.id) { mutableMapOf() }[mid] =
                                 (sessionTokens[s.id]?.get(mid) ?: TokenDay()) + frag
                             if (created > rawWatermark) {
-                                val key = (created / RAW_BUCKET_MS) to mid
+                                val key = Triple(created / RAW_BUCKET_MS, mid, pKey)
                                 rawAccum[key] = (rawAccum[key]
-                                    ?: TokenRawBucket(epochBucket = key.first, model = key.second)) + TokenRawBucket(
+                                    ?: TokenRawBucket(epochBucket = key.first, model = key.second, projectId = key.third)) + TokenRawBucket(
                                     total = frag.total,
                                     input = frag.input,
                                     output = frag.output,
@@ -1005,9 +1034,11 @@ val dayKey = day.toString()
                                     val d = java.time.Instant.ofEpochMilli(turnStart).atZone(zone).toLocalDate().toString()
                                     elapsed[d] = (elapsed[d] ?: 0L) + inc
                                     st.elapsed[d] = (st.elapsed[d] ?: 0L) + inc
+                                    ps.elapsed[d] = (ps.elapsed[d] ?: 0L) + inc
                                     if (turnStart > rawWatermark) {
-                                        val key = (turnStart / RAW_BUCKET_MS) to mid
-                                        val rb = rawAccum[key] ?: TokenRawBucket(epochBucket = key.first, model = key.second)
+                                        val key = Triple(turnStart / RAW_BUCKET_MS, mid, pKey)
+                                        val rb = rawAccum[key]
+                                            ?: TokenRawBucket(epochBucket = key.first, model = key.second, projectId = key.third)
                                         rawAccum[key] = rb.copy(elapsedMs = rb.elapsedMs + inc)
                                     }
                                 }
@@ -1023,11 +1054,14 @@ val dayKey = day.toString()
                             tokens[lastDayKey] = (tokens[lastDayKey] ?: TokenDay()) + costFrag
                             val stS = modelStats.getOrPut(sMid) { MutableTokenModelStats() }
                             stS.history[lastDayKey] = (stS.history[lastDayKey] ?: TokenDay()) + costFrag
+                            val psS = projectStats.getOrPut(pKey) { MutableTokenModelStats() }
+                            psS.history[lastDayKey] = (psS.history[lastDayKey] ?: TokenDay()) + costFrag
                             sessionTokens.getOrPut(s.id) { mutableMapOf() }[sMid] =
                                 (sessionTokens[s.id]?.get(sMid) ?: TokenDay()) + costFrag
                             if (sesLatest > rawWatermark && sesLatest > 0L) {
-                                val key = (sesLatest / RAW_BUCKET_MS) to sMid
-                                val rb = rawAccum[key] ?: TokenRawBucket(epochBucket = key.first, model = key.second)
+                                val key = Triple(sesLatest / RAW_BUCKET_MS, sMid, pKey)
+                                val rb = rawAccum[key]
+                                    ?: TokenRawBucket(epochBucket = key.first, model = key.second, projectId = key.third)
                                 rawAccum[key] = rb.copy(cost = rb.cost + sessionCost)
                             }
                         }
@@ -1052,9 +1086,12 @@ val dayKey = day.toString()
                             val midEnd = s.model?.id?.ifBlank { null } ?: "unknown"
                             val stEnd = modelStats.getOrPut(midEnd) { MutableTokenModelStats() }
                             stEnd.elapsed[d] = (stEnd.elapsed[d] ?: 0L) + (turnEnd - turnStart)
+                            val psEnd = projectStats.getOrPut(pKey) { MutableTokenModelStats() }
+                            psEnd.elapsed[d] = (psEnd.elapsed[d] ?: 0L) + (turnEnd - turnStart)
                             if (turnStart > rawWatermark) {
-                                val key = (turnStart / RAW_BUCKET_MS) to midEnd
-                                val rb = rawAccum[key] ?: TokenRawBucket(epochBucket = key.first, model = key.second)
+                                val key = Triple(turnStart / RAW_BUCKET_MS, midEnd, pKey)
+                                val rb = rawAccum[key]
+                                    ?: TokenRawBucket(epochBucket = key.first, model = key.second, projectId = key.third)
                                 rawAccum[key] = rb.copy(elapsedMs = rb.elapsedMs + (turnEnd - turnStart))
                             }
                         }
@@ -1073,6 +1110,15 @@ val dayKey = day.toString()
                             hourByMonth = b.hourByMonth.filterKeys { it in monthKeys },
                         )
                     }
+                    val projOut = projectStats.mapValues { (_, b) ->
+                        TokenModelStats(
+                            history = b.history,
+                            elapsed = b.elapsed,
+                            hourByDay = b.hourByDay,
+                            hourByWeek = b.hourByWeek.filterKeys { it in weekStartDatesStr },
+                            hourByMonth = b.hourByMonth.filterKeys { it in monthKeys },
+                        )
+                    }
 
                     _tokenHistory.value = tokens
                     _tokenElapsed.value = elapsed
@@ -1080,9 +1126,10 @@ val dayKey = day.toString()
                     _hourByWeek.value = weekOut
                     _hourByDay.value = dayOut
                     _tokenModelStats.value = modelOut
+                    _tokenProjectStats.value = projOut
                     _sessionModelTokens.value = sessionTokens
                     _tokenSync.value = maxMsgMs
-                    val rawOut = rawAccum.values.sortedWith(compareBy({ it.epochBucket }, { it.model }))
+                    val rawOut = rawAccum.values.sortedWith(compareBy({ it.epochBucket }, { it.model }, { it.projectId }))
                     _tokenRawBuckets.value = rawOut
                     _tokenRawSync.value = maxRawMs
                     if (coroutineContext.isActive) {
@@ -1091,6 +1138,7 @@ val dayKey = day.toString()
                         settings.saveTokenHistory(tokens, elapsed)
                         settings.saveTokenCalendar(monthOut, weekOut, dayOut, maxMsgMs, syncedAtMs)
                         settings.saveTokenModelStats(modelOut)
+                        settings.saveTokenProjectStats(projOut)
                         settings.saveSessionModelTokens(sessionTokens)
                         settings.saveTokenRawBuckets(rawOut)
                         settings.saveTokenRawSync(maxRawMs)

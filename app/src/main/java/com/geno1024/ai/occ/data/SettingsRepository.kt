@@ -88,6 +88,7 @@ class SettingsRepository(private val context: Context) {
         val TOKEN_WEEK = stringPreferencesKey("token_week")
         val TOKEN_DAY_HOURS = stringPreferencesKey("token_day_hours")
         val TOKEN_MODEL_STATS = stringPreferencesKey("token_model_stats")
+        val TOKEN_PROJECT_STATS = stringPreferencesKey("token_project_stats")
         val SESSION_MODEL_TOKENS = stringPreferencesKey("session_model_tokens")
         val TOKEN_SYNC = longPreferencesKey("token_sync")
         val TOKEN_SYNC_AT = longPreferencesKey("token_sync_at")
@@ -227,6 +228,11 @@ class SettingsRepository(private val context: Context) {
             runCatching { json.decodeFromString<Map<String, TokenModelStats>>(raw) }.getOrNull()
         } ?: emptyMap()
     }
+    val tokenProjectStats: Flow<Map<String, TokenModelStats>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.TOKEN_PROJECT_STATS]?.let { raw ->
+            runCatching { json.decodeFromString<Map<String, TokenModelStats>>(raw) }.getOrNull()
+        } ?: emptyMap()
+    }
     val sessionModelTokens: Flow<Map<String, Map<String, TokenDay>>> = context.dataStore.data.map { prefs ->
         prefs[Keys.SESSION_MODEL_TOKENS]?.let { raw ->
             runCatching { json.decodeFromString<Map<String, Map<String, TokenDay>>>(raw) }.getOrNull()
@@ -359,6 +365,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun saveTokenModelStats(stats: Map<String, TokenModelStats>) {
         context.dataStore.edit { it[Keys.TOKEN_MODEL_STATS] = json.encodeToString(stats) }
+    }
+
+    suspend fun saveTokenProjectStats(stats: Map<String, TokenModelStats>) {
+        context.dataStore.edit { it[Keys.TOKEN_PROJECT_STATS] = json.encodeToString(stats) }
     }
 
     suspend fun saveSessionModelTokens(stats: Map<String, Map<String, TokenDay>>) {

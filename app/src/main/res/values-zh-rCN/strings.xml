@@ -247,6 +247,7 @@
     <string name="calendar_table_msgs_rcv">助手</string>
     <string name="calendar_stats_metric_label">显示:</string>
     <string name="calendar_model_label">模型:</string>
+    <string name="calendar_project_label">项目:</string>
     <string name="model_all">全部</string>
     <string name="calendar_day_start_follow_system">跟随系统时区</string>
     <string name="settings_day_start">每日统计起点</string>

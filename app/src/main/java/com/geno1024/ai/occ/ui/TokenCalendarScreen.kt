@@ -135,6 +135,8 @@ fun TokenCalendarScreen(
     val hourByWeek by viewModel.hourByWeek.collectAsStateWithLifecycle()
     val hourByDay by viewModel.hourByDay.collectAsStateWithLifecycle()
     val tokenModelStats by viewModel.tokenModelStats.collectAsStateWithLifecycle()
+    val tokenProjectStats by viewModel.tokenProjectStats.collectAsStateWithLifecycle()
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
     val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
@@ -150,17 +152,29 @@ fun TokenCalendarScreen(
     var emptyModeName by rememberSaveable { mutableStateOf(EmptyPeriodMode.HIDE_EMPTY.name) }
     var modelMenu by remember { mutableStateOf(false) }
     var modelName by rememberSaveable { mutableStateOf("all") }
+    var projectMenu by remember { mutableStateOf(false) }
+    var projectName by rememberSaveable { mutableStateOf("all") }
     val category = TokenCategory.valueOf(categoryName)
     val tokenMetric = TokenMetric.valueOf(tokenMetricName)
     val msgMetric = MsgMetric.valueOf(msgMetricName)
 
     val modelIds = remember(tokenModelStats) { tokenModelStats.keys.sorted() }
     val activeModel = if (modelName in modelIds) modelName else "all"
-    val viewHistory = if (activeModel == "all") history else (tokenModelStats[activeModel]?.history ?: emptyMap())
-    val viewElapsed = if (activeModel == "all") elapsed else (tokenModelStats[activeModel]?.elapsed ?: emptyMap())
-    val viewHourByDay = if (activeModel == "all") hourByDay else (tokenModelStats[activeModel]?.hourByDay ?: emptyMap())
-    val viewHourByWeek = if (activeModel == "all") hourByWeek else (tokenModelStats[activeModel]?.hourByWeek ?: emptyMap())
-    val viewHourByMonth = if (activeModel == "all") hourByMonth else (tokenModelStats[activeModel]?.hourByMonth ?: emptyMap())
+    val projectIds = remember(tokenProjectStats) { tokenProjectStats.keys.sorted() }
+    val activeProject = if (projectName in projectIds) projectName else "all"
+    val projectNames = remember(projects) {
+        projects.associate { it.id to (it.name.ifBlank { it.worktree }.ifBlank { it.id }) }
+    }
+    val projHistory = if (activeProject == "all") history else (tokenProjectStats[activeProject]?.history ?: emptyMap())
+    val projElapsed = if (activeProject == "all") elapsed else (tokenProjectStats[activeProject]?.elapsed ?: emptyMap())
+    val projHourByDay = if (activeProject == "all") hourByDay else (tokenProjectStats[activeProject]?.hourByDay ?: emptyMap())
+    val projHourByWeek = if (activeProject == "all") hourByWeek else (tokenProjectStats[activeProject]?.hourByWeek ?: emptyMap())
+    val projHourByMonth = if (activeProject == "all") hourByMonth else (tokenProjectStats[activeProject]?.hourByMonth ?: emptyMap())
+    val viewHistory = if (activeModel == "all") projHistory else (tokenModelStats[activeModel]?.history ?: emptyMap())
+    val viewElapsed = if (activeModel == "all") projElapsed else (tokenModelStats[activeModel]?.elapsed ?: emptyMap())
+    val viewHourByDay = if (activeModel == "all") projHourByDay else (tokenModelStats[activeModel]?.hourByDay ?: emptyMap())
+    val viewHourByWeek = if (activeModel == "all") projHourByWeek else (tokenModelStats[activeModel]?.hourByWeek ?: emptyMap())
+    val viewHourByMonth = if (activeModel == "all") projHourByMonth else (tokenModelStats[activeModel]?.hourByMonth ?: emptyMap())
 
     val totalDay = viewHistory.values.fold(TokenDay()) { acc, t -> acc + t }
     val totalElapsed = viewElapsed.values.sum()
@@ -217,6 +231,41 @@ fun TokenCalendarScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
+                        stringResource(R.string.calendar_project_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        Text(
+                            if (activeProject == "all") stringResource(R.string.model_all) else (projectNames[activeProject] ?: activeProject),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { projectMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = projectMenu, onDismissRequest = { projectMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.model_all)) },
+                                onClick = { projectName = "all"; projectMenu = false },
+                            )
+                            projectIds.forEach { id ->
+                                DropdownMenuItem(
+                                    text = { Text(projectNames[id] ?: id) },
+                                    onClick = { projectName = id; modelName = "all"; projectMenu = false },
+                                )
+                            }
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
                         stringResource(R.string.calendar_model_label),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -237,12 +286,12 @@ fun TokenCalendarScreen(
                         DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.model_all), fontFamily = MonoFontFamily) },
-                                onClick = { modelName = "all"; modelMenu = false },
+                                onClick = { modelName = "all"; projectName = "all"; modelMenu = false },
                             )
                             modelIds.forEach { id ->
                                 DropdownMenuItem(
                                     text = { Text(id, fontFamily = MonoFontFamily) },
-                                    onClick = { modelName = id; modelMenu = false },
+                                    onClick = { modelName = id; projectName = "all"; modelMenu = false },
                                 )
                             }
                         }

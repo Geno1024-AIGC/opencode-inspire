@@ -198,6 +198,7 @@ data class TokenDay(
 data class TokenRawBucket(
     val epochBucket: Long = 0L,
     val model: String = "",
+    val projectId: String = "",
     val total: Long = 0L,
     val input: Long = 0L,
     val output: Long = 0L,
@@ -213,6 +214,7 @@ data class TokenRawBucket(
     operator fun plus(other: TokenRawBucket): TokenRawBucket = TokenRawBucket(
         epochBucket = epochBucket,
         model = model,
+        projectId = projectId,
         total = total + other.total,
         input = input + other.input,
         output = output + other.output,
