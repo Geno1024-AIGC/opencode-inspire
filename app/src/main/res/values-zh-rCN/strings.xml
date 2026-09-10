@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">OpenCode 客户端</string>
+    <string name="app_name">Inspire</string>
     <string name="cancel">取消</string>
 
     <!-- Connect / servers -->
-    <string name="connect_title">OpenCode 客户端</string>
-    <string name="connect_subtitle">选择服务器或添加新服务器</string>
-    <string name="connect_guide_title">如何启动 OpenCode 服务器</string>
-    <string name="connect_guide_step1">在安装了 OpenCode 的机器上打开终端，运行：</string>
-    <string name="connect_guide_cmd">opencode serve --hostname 0.0.0.0 --port 4096</string>
+<string name="connect_title">Inspire</string>
+    <string name="connect_subtitle">选择服务器或添加新的</string>
+    <string name="connect_guide_title">如何启动 AI 代理服务器</string>
+    <string name="connect_guide_step1">在运行 AI 代理服务器的机器上打开终端并启动它，使其能被手机访问：</string>
+    <string name="connect_guide_cmd">agent serve --hostname 0.0.0.0 --port 4096</string>
     <string name="connect_guide_point1">记下那台机器的局域网 IP，在下方服务器地址填入该 IP（端口默认 4096）。</string>
     <string name="connect_guide_point2">省略 --port 时，服务器使用 4096 端口；若被占用，则改用随机空闲端口。</string>
     <string name="connect_guide_point3">不传 --hostname 0.0.0.0 时仅监听 127.0.0.1，手机无法连接。</string>
-    <string name="connect_guide_point4">如需登录验证，先设置环境变量再运行 serve：OPENCODE_SERVER_PASSWORD 为登录密码，OPENCODE_SERVER_USERNAME 为用户名（不设置时默认 opencode）。随后在下方输入该密码，用户名留空则使用默认 opencode。</string>
+    <string name="connect_guide_point4">如需登录验证，请按服务器自身的文档配置凭据，然后在下方输入；用户名留空则使用默认值。</string>
     <string name="connect_add">添加服务器</string>
     <string name="connect_save">连接并保存</string>
     <string name="connect_cancel">取消</string>
@@ -23,7 +23,7 @@
     <string name="port_hint_default">4096</string>
     <string name="username_label_optional">用户名（可选）</string>
     <string name="password_label_optional">密码（可选）</string>
-    <string name="username_hint_default">opencode</string>
+    <string name="username_hint_default">默认</string>
     <string name="connecting">正在连接…</string>
     <string name="loading">正在加载…</string>
     <string name="error_no_server">未配置服务器</string>
@@ -124,7 +124,7 @@
     <string name="clone_project_error">克隆仓库失败</string>
 
     <!-- Chat -->
-    <string name="chat_placeholder">给 OpenCode 发送消息…</string>
+    <string name="chat_placeholder">发送消息…</string>
     <string name="chat_select_mode">选择消息</string>
     <string name="chat_selected_count">已选 %d 条</string>
     <string name="chat_select_range">范围选择</string>
@@ -135,7 +135,7 @@
     <string name="chat_select_range_down">选择以下对话</string>
     <string name="chat_select_range_up">选择以上对话</string>
     <string name="export_none_selected">未选择消息</string>
-    <string name="chat_erase_title">OpenCode 提问</string>
+    <string name="chat_erase_title">代理提问</string>
     <string name="chat_custom_answer">自定义回答</string>
     <string name="chat_submit">提交</string>
     <string name="chat_reject">拒绝</string>
@@ -149,7 +149,7 @@
     <string name="chat_refresh">刷新</string>
     <string name="chat_agent">代理</string>
     <string name="agent_label">智能体</string>
-    <string name="providers_hint">在此为 AI 提供商填入 API 密钥进行连接。服务器端通过 opencode.json 配置的自定义提供商已会出现在模型选择器中。</string>
+    <string name="providers_hint">在此为 AI 提供商填入 API 密钥进行连接。服务器端配置的提供商已会出现在模型选择器中。</string>
     <string name="providers_empty">暂无可用提供商。服务器可能不支持该接口。</string>
     <string name="providers_no_key">仅支持 OAuth——请在服务器端连接</string>
     <string name="providers_key_hint">请输入 %1$s 的 API 密钥</string>
@@ -303,7 +303,7 @@
     <string name="settings_updates">更新</string>
     <string name="settings_about">关于</string>
     <string name="about_repo">开源仓库</string>
-    <string name="about_subtitle">一个开源的 Android OpenCode 客户端</string>
+    <string name="about_subtitle">一个开源的 AI 代理 Android 客户端</string>
     <string name="about_credit">作者：Geno1024</string>
     <string name="about_issue">报告问题</string>
     <string name="about_license">许可证</string>
@@ -485,7 +485,7 @@
     <string name="rename_placeholder">新标题</string>
     <string name="save">保存</string>
     <string name="close">关闭</string>
-    <string name="notify_poll_title">OpenCode</string>
+    <string name="notify_poll_title">Inspire</string>
     <string name="notify_poll_channel">会话通知</string>
     <string name="notify_poll_starting">已开启后台通知</string>
     <string name="notify_poll_running">检查更新中 · 上次检查 %1$s</string>
@@ -495,7 +495,7 @@
     <plurals name="widget_questions">
         <item quantity="other">%1$d 个提问待处理</item>
     </plurals>
-    <string name="widget_title">OpenCode</string>
+    <string name="widget_title">Inspire</string>
     <string name="widget_description">显示当前会话与待处理提问</string>
     <plurals name="notify_questions">
         <item quantity="other">有 %1$d 个提问等待你处理</item>
@@ -526,7 +526,7 @@
 
     <!-- Notification -->
     <string name="notify_session_done">会话已完成</string>
-    <string name="notify_streaming_title">OpenCode 工作中</string>
+    <string name="notify_streaming_title">Inspire 工作中</string>
     <string name="notify_streaming">助手正在回复…</string>
     <string name="permission_notif_title">允许发送通知吗？</string>
     <string name="permission_notif_message">允许通知，以便在助手完成长时间任务时提醒你。你可以随时在系统设置中更改。</string>

@@ -139,7 +139,7 @@ class SessionPollService : Service() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         val notification = android.app.Notification.Builder(this, POLL_CHANNEL)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setContentTitle(getString(R.string.notify_new_messages_title, title.ifBlank { "OpenCode" }))
+            .setContentTitle(getString(R.string.notify_new_messages_title, title.ifBlank { getString(R.string.app_name) }))
             .setContentText(getString(R.string.notify_new_messages))
             .setContentIntent(openAppPendingIntent())
             .setAutoCancel(true)
@@ -151,7 +151,7 @@ class SessionPollService : Service() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         val notification = android.app.Notification.Builder(this, POLL_CHANNEL)
             .setSmallIcon(android.R.drawable.stat_notify_more)
-            .setContentTitle(getString(R.string.notify_questions_title, title.ifBlank { "OpenCode" }))
+            .setContentTitle(getString(R.string.notify_questions_title, title.ifBlank { getString(R.string.app_name) }))
             .setContentText(resources.getQuantityString(R.plurals.notify_questions, count, count))
             .setContentIntent(openAppPendingIntent())
             .setAutoCancel(true)
@@ -163,7 +163,7 @@ class SessionPollService : Service() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         val notification = android.app.Notification.Builder(this, POLL_CHANNEL)
             .setSmallIcon(android.R.drawable.stat_notify_error)
-            .setContentTitle(getString(R.string.notify_permissions_title, title.ifBlank { "OpenCode" }))
+            .setContentTitle(getString(R.string.notify_permissions_title, title.ifBlank { getString(R.string.app_name) }))
             .setContentText(resources.getQuantityString(R.plurals.notify_permissions, count, count))
             .setContentIntent(openAppPendingIntent())
             .setAutoCancel(true)

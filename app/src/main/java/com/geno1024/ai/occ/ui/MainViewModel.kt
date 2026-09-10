@@ -643,7 +643,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun notifySessionDone(sid: String, tokens: Long = 0L) {
         val context = getApplication<Application>()
-        val title = sessionTitle(sid).ifBlank { "OpenCode" }
+        val title = sessionTitle(sid).ifBlank { getAppString(R.string.app_name) }
         val notification = android.app.Notification.Builder(context, "session_status")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle("$title finished")
