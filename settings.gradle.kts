@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "OpenCodeClient"
 include(":app")
+include(":markdown")

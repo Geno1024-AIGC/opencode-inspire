@@ -1,14 +1,16 @@
 package com.geno1024.ai.occ.ui
 
 import com.geno1024.ai.occ.R
+import com.geno1024.markdown.BlockMarkdown
+import com.geno1024.markdown.InlineMarkdown
+import com.geno1024.markdown.parseInlines
+import com.geno1024.markdown.parseMarkdown
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -45,32 +47,19 @@ import androidx.compose.ui.unit.sp
 import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
-import android.text.method.LinkMovementMethod
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.TextView
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
-import io.noties.markwon.AbstractMarkwonPlugin
-import io.noties.markwon.Markwon
-import io.noties.markwon.core.MarkwonTheme
-import io.noties.markwon.ext.latex.JLatexMathPlugin
-import io.noties.markwon.ext.tables.TablePlugin
-import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private data class MdSpan(val start: Int, val end: Int, val style: SpanStyle?)
-private data class MdLine(val type: String, val content: String, val level: Int = 0, val lang: String = "", val num: Int = 0)
-private data class MdTable(val headers: List<String>, val rows: List<List<String>>)
 private const val InlineCodeFontScale = 0.85f
 
 private fun highlightCode(code: String, colorScheme: androidx.compose.material3.ColorScheme): AnnotatedString {
@@ -89,9 +78,7 @@ private fun highlightCode(code: String, colorScheme: androidx.compose.material3.
     val commentColor = colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
     val typeColor = colorScheme.secondary
 
-    val quotedSet = mutableSetOf<Char>()
     val builder = AnnotatedString.Builder()
-
     var i = 0
     val n = code.length
     while (i < n) {
@@ -101,10 +88,10 @@ private fun highlightCode(code: String, colorScheme: androidx.compose.material3.
             val start = i
             i++
             while (i < n && code[i] != quote) {
-                if (code[i] == '\\' && i + 1 < n) i++ // skip escaped char
+                if (code[i] == '\\' && i + 1 < n) i++
                 i++
             }
-            i++ // closing quote (or end)
+            i++
             builder.withStyle(SpanStyle(color = stringColor)) {
                 append(code, start, i.coerceAtMost(n))
             }
@@ -138,7 +125,6 @@ private fun highlightCode(code: String, colorScheme: androidx.compose.material3.
                     append(word)
                 }
             } else {
-                // Try to classify types (capitalized)
                 if (word.firstOrNull()?.isUpperCase() == true) {
                     builder.withStyle(SpanStyle(color = typeColor)) { append(word) }
                 } else {
@@ -160,9 +146,45 @@ private fun highlightCode(code: String, colorScheme: androidx.compose.material3.
     return builder.toAnnotatedString()
 }
 
+private fun AnnotatedString.Builder.appendInline(
+    nodes: List<InlineMarkdown>,
+    linkColor: androidx.compose.ui.graphics.Color?,
+    codeStyle: SpanStyle?,
+) {
+    for (node in nodes) {
+        when (node) {
+            is InlineMarkdown.Text -> append(node.text)
+            is InlineMarkdown.Code -> {
+                val style = codeStyle ?: SpanStyle(fontFamily = MonoFontFamily)
+                withStyle(style) { append(node.text) }
+            }
+            is InlineMarkdown.Bold -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                appendInline(node.children, linkColor, codeStyle)
+            }
+            is InlineMarkdown.Italic -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                appendInline(node.children, linkColor, codeStyle)
+            }
+            is InlineMarkdown.Strikethrough -> withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) {
+                appendInline(node.children, linkColor, codeStyle)
+            }
+            is InlineMarkdown.Link -> {
+                val start = length
+                appendInline(node.children, linkColor, codeStyle)
+                if (node.url.isNotEmpty()) {
+                    val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
+                    val linkStyle = if (color != androidx.compose.ui.graphics.Color.Unspecified)
+                        SpanStyle(color = color) else null
+                    addLink(LinkAnnotation.Url(node.url, TextLinkStyles(style = linkStyle)), start, length)
+                }
+            }
+            is InlineMarkdown.Image -> append(node.alt)
+        }
+    }
+}
+
 @Composable
-private fun InlineMarkdownText(
-    content: String,
+private fun InlineMarkdownNodes(
+    nodes: List<InlineMarkdown>,
     style: TextStyle,
     modifier: Modifier = Modifier,
     linkColor: androidx.compose.ui.graphics.Color? = null,
@@ -174,391 +196,16 @@ private fun InlineMarkdownText(
         fontSize = baseFontSize * InlineCodeFontScale,
         background = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
     )
-    val parsed = remember(content, linkColor, style, codeStyle) { parseInlineInternal(content, linkColor, codeStyle) }
-    val annotated = remember(parsed, prefix) {
-        if (prefix != null) {
-            buildAnnotatedString {
-                append(prefix)
-                append(parsed)
-            }
-        } else {
-            parsed
+    val annotated = remember(nodes, prefix) {
+        buildAnnotatedString {
+            if (prefix != null) append(prefix)
+            appendInline(nodes, linkColor, codeStyle)
         }
     }
     Text(
         annotated,
         style = style,
         modifier = modifier,
-    )
-}
-
-private fun parseInlineInternal(
-    text: String,
-    linkColor: androidx.compose.ui.graphics.Color? = null,
-    codeStyle: SpanStyle? = null,
-): AnnotatedString {
-    val builder = AnnotatedString.Builder()
-    val stack = ArrayDeque<SpanStyle>()
-    var i = 0
-    val n = text.length
-
-    fun matchAt(index: Int, token: String): Boolean = text.startsWith(token, index)
-
-    while (i < n) {
-        val ch = text[i]
-        when {
-            matchAt(i, "```") -> {
-                val end = text.indexOf("```", i + 3)
-                if (end > i) {
-                    val code = text.substring(i + 3, end)
-                    if (code.isNotEmpty()) {
-                        val style = codeStyle ?: SpanStyle(fontFamily = MonoFontFamily)
-                        builder.withStyle(style) { append(code) }
-                    }
-                    i = end + 3
-                } else {
-                    i += 3
-                }
-            }
-            matchAt(i, "`") -> {
-                val end = text.indexOf("`", i + 1)
-                if (end > i) {
-                    val code = text.substring(i + 1, end)
-                    if (code.isNotEmpty()) {
-                        val style = codeStyle ?: SpanStyle(fontFamily = MonoFontFamily)
-                        builder.withStyle(style) { append(code) }
-                        i = end + 1
-                    } else {
-                        builder.append("`"); i++
-                    }
-                } else {
-                    i++
-                }
-            }
-            matchAt(i, "~~") -> {
-                val token = "~~"
-                val close = text.indexOf(token, i + 2)
-                if (close > i) {
-                    stack.addLast(SpanStyle(textDecoration = TextDecoration.LineThrough))
-                    builder.withStyle(stack.last()) {
-                        appendInlineNested(text, i + 2, close, codeStyle, linkColor, stack)
-                    }
-                    i = close + 2
-                } else {
-                    builder.append(ch); i++
-                }
-            }
-            matchAt(i, "**") || matchAt(i, "__") -> {
-                val token = if (matchAt(i, "**")) "**" else "__"
-                val close = text.indexOf(token, i + 2)
-                if (close > 0) {
-                    stack.addLast(SpanStyle(fontWeight = FontWeight.Bold))
-                    builder.withStyle(stack.last()) {
-                        appendInlineNested(text, i + 2, close, codeStyle, linkColor, stack)
-                    }
-                    i = close + 2
-                } else {
-                    builder.append(ch); i++
-                }
-            }
-            (matchAt(i, "*") || matchAt(i, "_")) && !(i + 1 < n && (text[i + 1] == '*' || text[i + 1] == '_')) -> {
-                val token = ch.toString()
-                val close = text.indexOf(token, i + 1)
-                if (close > i + 1) {
-                    stack.addLast(SpanStyle(fontStyle = FontStyle.Italic))
-                    builder.withStyle(stack.last()) {
-                        appendInlineNested(text, i + 1, close, codeStyle, linkColor, stack)
-                    }
-                    i = close + 1
-                } else {
-                    builder.append(ch); i++
-                }
-            }
-            matchAt(i, "![") -> {
-                val closeBracket = text.indexOf("]", i + 2)
-                val openParen = if (closeBracket > 0) text.indexOf("(", closeBracket + 1) else -1
-                val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
-                if (closeBracket > 0 && openParen == closeBracket + 1 && closeParen > openParen) {
-                    val alt = text.substring(i + 2, closeBracket)
-                    if (alt.isNotEmpty()) builder.append(alt)
-                    i = closeParen + 1
-                } else {
-                    builder.append(ch); i++
-                }
-            }
-            matchAt(i, "[") -> {
-                val closeBracket = text.indexOf("]", i)
-                val openParen = if (closeBracket > 0) text.indexOf("(", closeBracket) else -1
-                val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
-                if (closeBracket > 0 && openParen == closeBracket + 1 && closeParen > openParen) {
-                    val linkText = text.substring(i + 1, closeBracket)
-                    val url = text.substring(openParen + 1, closeParen)
-                    val start = builder.length
-                    builder.append(parseInlineInternal(linkText, linkColor, codeStyle))
-                    if (url.isNotEmpty()) {
-                        val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
-                        val linkStyle = if (color != androidx.compose.ui.graphics.Color.Unspecified)
-                            SpanStyle(color = color) else null
-                        builder.addLink(LinkAnnotation.Url(url, TextLinkStyles(style = linkStyle)), start, builder.length)
-                    }
-                    i = closeParen + 1
-                } else {
-                    builder.append(ch); i++
-                }
-            }
-            else -> {
-                builder.append(ch); i++
-            }
-        }
-    }
-    return builder.toAnnotatedString()
-}
-
-private fun AnnotatedString.Builder.appendInlineNested(
-    text: String,
-    start: Int,
-    end: Int,
-    codeStyle: SpanStyle?,
-    linkColor: androidx.compose.ui.graphics.Color?,
-    stack: ArrayDeque<SpanStyle>,
-) {
-    var i = start
-    val n = end
-    fun matchAt(index: Int, token: String): Boolean = index + token.length <= n && text.startsWith(token, index)
-    while (i < n) {
-        val ch = text[i]
-        when {
-            matchAt(i, "`") -> {
-                val end2 = text.indexOf("`", i + 1)
-                if (end2 > i && end2 < n) {
-                    val code = text.substring(i + 1, end2)
-                    if (code.isNotEmpty()) {
-                        val style = codeStyle ?: SpanStyle(fontFamily = MonoFontFamily)
-                        withStyle(style) { append(code) }
-                        i = end2 + 1
-                    } else {
-                        append(ch); i++
-                    }
-                } else {
-                    i++
-                }
-            }
-            matchAt(i, "~~") -> {
-                val token = "~~"
-                val close = text.indexOf(token, i + 2)
-                if (close > i && close < n) {
-                    stack.addLast(SpanStyle(textDecoration = TextDecoration.LineThrough))
-                    this.withStyle(stack.last()) { appendInlineNested(text, i + 2, close, codeStyle, linkColor, stack) }
-                    i = close + 2
-                } else {
-                    append(ch); i++
-                }
-            }
-            matchAt(i, "**") -> {
-                val token = "**"
-                val close = text.indexOf(token, i + 2)
-                if (close > i && close < n) {
-                    stack.addLast(SpanStyle(fontWeight = FontWeight.Bold))
-                    this.withStyle(stack.last()) { appendInlineNested(text, i + 2, close, codeStyle, linkColor, stack) }
-                    i = close + 2
-                } else {
-                    append(ch); i++
-                }
-            }
-            matchAt(i, "*") && !(i + 1 < n && text[i + 1] == '*') -> {
-                val close = text.indexOf("*", i + 1)
-                if (close > i && close < n) {
-                    stack.addLast(SpanStyle(fontStyle = FontStyle.Italic))
-                    this.withStyle(stack.last()) { appendInlineNested(text, i + 1, close, codeStyle, linkColor, stack) }
-                    i = close + 1
-                } else {
-                    append(ch); i++
-                }
-            }
-            matchAt(i, "![") -> {
-                val closeBracket = text.indexOf("]", i + 2)
-                val openParen = if (closeBracket > 0) text.indexOf("(", closeBracket + 1) else -1
-                val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
-                if (closeBracket > 0 && openParen == closeBracket + 1 && closeParen > openParen) {
-                    val alt = text.substring(i + 2, closeBracket)
-                    if (alt.isNotEmpty()) append(alt)
-                    i = closeParen + 1
-                } else {
-                    append(ch); i++
-                }
-            }
-            matchAt(i, "[") -> {
-                val closeBracket = text.indexOf("]", i)
-                val openParen = if (closeBracket > 0) text.indexOf("(", closeBracket) else -1
-                val closeParen = if (openParen > closeBracket && openParen > 0) text.indexOf(")", openParen) else -1
-                if (closeBracket > 0 && closeBracket < n && openParen == closeBracket + 1 && closeParen > openParen && closeParen < n) {
-                    val linkText = text.substring(i + 1, closeBracket)
-                    val url = text.substring(openParen + 1, closeParen)
-                    val start = length
-                    append(parseInlineInternal(linkText, linkColor, codeStyle))
-                    if (url.isNotEmpty()) {
-                        val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
-                        val linkStyle = if (color != androidx.compose.ui.graphics.Color.Unspecified)
-                            SpanStyle(color = color) else null
-                        addLink(LinkAnnotation.Url(url, TextLinkStyles(style = linkStyle)), start, length)
-                    }
-                    i = closeParen + 1
-                } else {
-                    append(ch); i++
-                }
-            }
-            else -> {
-                append(ch); i++
-            }
-        }
-    }
-}
-
-private fun parseMarkdown(text: String): List<Any> {
-    val lines = text.split("\n")
-    val result = mutableListOf<Any>()
-    var inCodeBlock = false
-    var fenceLang = ""
-    val codeBuffer = StringBuilder()
-
-    var i = 0
-    while (i < lines.size) {
-        val line = lines[i]
-        when {
-            line.startsWith("```") -> {
-                if (inCodeBlock) {
-                    result.add(MdLine("code", codeBuffer.toString().trimEnd(), lang = fenceLang))
-                    codeBuffer.clear()
-                    inCodeBlock = false
-                    fenceLang = ""
-                } else {
-                    inCodeBlock = true
-                    fenceLang = line.drop(3).trim().substringBefore(" ").substringBefore("\t")
-                }
-            }
-            inCodeBlock -> {
-                if (codeBuffer.isNotEmpty()) codeBuffer.append("\n")
-                codeBuffer.append(line)
-            }
-            line.trimStart().startsWith("|") && i + 1 < lines.size && lines[i + 1].trimStart().startsWith("|") -> {
-                val headers = line.split("|").map { it.trim() }.filter { it.isNotEmpty() }
-                i++
-                i++
-                val rows = mutableListOf<List<String>>()
-                while (i < lines.size && lines[i].trimStart().startsWith("|")) {
-                    rows.add(lines[i].split("|").map { it.trim() }.filter { it.isNotEmpty() })
-                    i++
-                }
-                result.add(MdTable(headers, rows))
-                continue
-            }
-            line.startsWith("# ") -> result.add(MdLine("h1", line.removePrefix("# ")))
-            line.startsWith("## ") -> result.add(MdLine("h2", line.removePrefix("## ")))
-            line.startsWith("### ") -> result.add(MdLine("h3", line.removePrefix("### ")))
-            line.startsWith("#### ") -> result.add(MdLine("h4", line.removePrefix("#### ")))
-            line.startsWith("##### ") -> result.add(MdLine("h5", line.removePrefix("##### ")))
-            line.startsWith("###### ") -> result.add(MdLine("h6", line.removePrefix("###### ")))
-            line.matches(Regex("^\\s*[-*]\\s\\[x\\]\\s.*")) -> {
-                val indent = line.length - line.trimStart().length
-                val content = line.trimStart().removePrefix("- ").removePrefix("* ").removePrefix("[x] ")
-                result.add(MdLine("task_checked", content, indent / 2))
-            }
-            line.matches(Regex("^\\s*[-*]\\s\\[ \\]\\s.*")) -> {
-                val indent = line.length - line.trimStart().length
-                val content = line.trimStart().removePrefix("- ").removePrefix("* ").removePrefix("[ ] ")
-                result.add(MdLine("task_unchecked", content, indent / 2))
-            }
-            line.matches(Regex("^\\s*[-*]\\s.*")) -> {
-                val indent = line.length - line.trimStart().length
-                val content = line.trimStart().removePrefix("- ").removePrefix("* ")
-                result.add(MdLine("bullet", content, indent / 2))
-            }
-            line.matches(Regex("^\\s*\\d+\\.\\s.*")) -> {
-                val indent = line.length - line.trimStart().length
-                val num = Regex("^\\d+").find(line.trimStart())?.value?.toIntOrNull() ?: 0
-                val content = line.trimStart().replace(Regex("^\\d+\\.\\s+"), "")
-                result.add(MdLine("ordered", content, indent / 2, num = num))
-            }
-            line.startsWith("> ") -> result.add(MdLine("quote", line.removePrefix("> ")))
-            line.matches(Regex("^\\s*[-*_]{3,}\\s*$")) -> result.add(MdLine("hr", ""))
-            line.isBlank() -> result.add(MdLine("blank", ""))
-            else -> result.add(MdLine("text", line))
-        }
-        i++
-    }
-    if (inCodeBlock && codeBuffer.isNotEmpty()) {
-        result.add(MdLine("code", codeBuffer.toString().trimEnd(), lang = fenceLang))
-    }
-    return result
-}
-
-private data class MdSegment(val kind: String, val text: String)
-
-private fun splitMermaidBlocks(content: String): List<MdSegment> {
-    val regex = Regex("(?<![`])```\\s*mermaid\\s*\\n(.*?)```\\s*\\n?", RegexOption.DOT_MATCHES_ALL)
-    val segments = mutableListOf<MdSegment>()
-    var cursor = 0
-    for (m in regex.findAll(content)) {
-        if (m.range.first > cursor) segments += MdSegment("md", content.substring(cursor, m.range.first))
-        segments += MdSegment("mermaid", m.groupValues[1].trim())
-        cursor = m.range.last + 1
-    }
-    if (cursor < content.length) segments += MdSegment("md", content.substring(cursor))
-    return segments.ifEmpty { listOf(MdSegment("md", content)) }
-}
-
-@Composable
-private fun rememberMarkwon(textColor: Int): Markwon {
-    val context = LocalContext.current
-    val textSizePx = with(LocalDensity.current) { 14.sp.toPx() }
-    return remember(textColor) {
-        Markwon.builder(context)
-            .usePlugin(
-                object : AbstractMarkwonPlugin() {
-                    override fun configureTheme(builder: MarkwonTheme.Builder) {
-                        builder
-                            .codeTypeface(monoAndroidTypeface())
-                            .codeBlockTypeface(monoAndroidTypeface())
-                    }
-                },
-            )
-            .usePlugin(MarkwonInlineParserPlugin.create())
-            .usePlugin(
-                JLatexMathPlugin.create(
-                    textSizePx,
-                    object : JLatexMathPlugin.BuilderConfigure {
-                        override fun configureBuilder(builder: JLatexMathPlugin.Builder) {
-                            builder.inlinesEnabled(true)
-                            builder.theme().textColor(textColor)
-                        }
-                    },
-                ),
-            )
-            .usePlugin(TablePlugin.create(context))
-            .build()
-    }
-}
-
-@Composable
-private fun MarkwonText(content: String) {
-    val textColor = LocalContentColor.current.toArgb()
-    val markwon = rememberMarkwon(textColor)
-    val spanned = remember(content, textColor) { markwon.toMarkdown(content) }
-    AndroidView(
-        factory = { ctx ->
-            TextView(ctx).apply {
-                textSize = 14f
-                setTextColor(textColor)
-                movementMethod = LinkMovementMethod.getInstance()
-                setTextIsSelectable(true)
-                text = spanned
-            }
-        },
-        update = { tv ->
-            tv.setTextColor(textColor)
-            tv.text = spanned
-        },
-        modifier = Modifier.fillMaxWidth(),
     )
 }
 
@@ -642,13 +289,36 @@ private fun MermaidBlock(source: String) {
 
 @Composable
 fun MarkdownMessage(content: String) {
-    val segments = remember(content) { splitMermaidBlocks(content) }
-    Column(Modifier.fillMaxWidth()) {
-        segments.forEach { segment ->
-            if (segment.kind == "mermaid") {
-                MermaidBlock(segment.text)
+    val blocks = remember(content) { parseMarkdown(content) }
+    // Split blocks into runs: each run is either a list of non-mermaid blocks,
+    // or a single mermaid block.
+    val runs = remember(blocks) {
+        val result = mutableListOf<List<BlockMarkdown>>()
+        var current = mutableListOf<BlockMarkdown>()
+        for (b in blocks) {
+            if (b is BlockMarkdown.Mermaid) {
+                if (current.isNotEmpty()) {
+                    result += current
+                    current = mutableListOf()
+                }
+                result += listOf(b)
             } else {
-                MarkdownMessageCustom(segment.text)
+                current += b
+            }
+        }
+        if (current.isNotEmpty()) result += current
+        result
+    }
+    Column(Modifier.fillMaxWidth()) {
+        for (run in runs) {
+            if (run.size == 1 && run[0] is BlockMarkdown.Mermaid) {
+                MermaidBlock((run[0] as BlockMarkdown.Mermaid).source)
+            } else {
+                SelectionContainer {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        for (b in run) BlockContent(b)
+                    }
+                }
             }
         }
     }
@@ -656,112 +326,84 @@ fun MarkdownMessage(content: String) {
 
 @Composable
 fun MarkdownMessageCustom(content: String) {
-    val items = remember(content) { parseMarkdown(content) }
-
+    val blocks = remember(content) { parseMarkdown(content) }
     SelectionContainer {
         Column(modifier = Modifier.fillMaxWidth()) {
-            for (item in items) {
-                when (item) {
-                    is MdTable -> TableRenderer(item)
-                    is MdLine -> {
-                        val indent = (item.level * 16).dp
-                        when (item.type) {
-                            "h1" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.headlineLarge,
-                                Modifier.padding(vertical = 8.dp),
-                                MaterialTheme.colorScheme.primary,
-                            )
-                            "h2" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.headlineMedium,
-                                Modifier.padding(vertical = 6.dp),
-                                MaterialTheme.colorScheme.primary,
-                            )
-                            "h3" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.headlineSmall,
-                                Modifier.padding(vertical = 4.dp),
-                                MaterialTheme.colorScheme.primary,
-                            )
-                            "h4" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.titleLarge,
-                                Modifier.padding(vertical = 4.dp),
-                                MaterialTheme.colorScheme.primary,
-                            )
-                            "h5" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.titleMedium,
-                                Modifier.padding(vertical = 2.dp),
-                                MaterialTheme.colorScheme.primary,
-                            )
-                            "h6" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.titleSmall,
-                                Modifier.padding(vertical = 2.dp),
-                                MaterialTheme.colorScheme.primary,
-                            )
-                            "bullet" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.bodyLarge,
-                                Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
-                                MaterialTheme.colorScheme.primary,
-                                prefix = "•  ",
-                            )
-                            "ordered" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.bodyLarge,
-                                Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
-                                MaterialTheme.colorScheme.primary,
-                                prefix = "${item.num}.  ",
-                            )
-                            "task_checked" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.bodyLarge,
-                                Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
-                                MaterialTheme.colorScheme.primary,
-                                prefix = "☑  ",
-                            )
-                            "task_unchecked" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.bodyLarge,
-                                Modifier.padding(start = 16.dp + indent, top = 2.dp, bottom = 2.dp),
-                                MaterialTheme.colorScheme.primary,
-                                prefix = "☐  ",
-                            )
-                            "quote" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.bodyMedium,
-                                Modifier
-                                    .padding(start = 16.dp, top = 2.dp, bottom = 2.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                        RoundedCornerShape(4.dp)
-                                    )
-                                    .padding(8.dp),
-                                MaterialTheme.colorScheme.primary,
-                            )
-                            "code" -> CodeBlockRenderer(item.content, item.lang)
-                            "hr" -> Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
-                                    .height(1.dp)
-                                    .background(MaterialTheme.colorScheme.outlineVariant)
-                            )
-                            "text" -> InlineMarkdownText(
-                                item.content,
-                                MaterialTheme.typography.bodyLarge,
-                                Modifier.padding(vertical = 2.dp),
-                                MaterialTheme.colorScheme.primary,
-                            )
-                            "blank" -> Spacer(Modifier.height(6.dp))
-                        }
-                    }
-                }
-            }
+            for (b in blocks) BlockContent(b)
         }
+    }
+}
+
+@Composable
+private fun BlockContent(block: BlockMarkdown) {
+    when (block) {
+        is BlockMarkdown.Heading -> {
+            val (style, padding) = when (block.hLevel) {
+                1 -> MaterialTheme.typography.headlineLarge to 8.dp
+                2 -> MaterialTheme.typography.headlineMedium to 6.dp
+                3 -> MaterialTheme.typography.headlineSmall to 4.dp
+                4 -> MaterialTheme.typography.titleLarge to 4.dp
+                5 -> MaterialTheme.typography.titleMedium to 2.dp
+                6 -> MaterialTheme.typography.titleSmall to 2.dp
+                else -> MaterialTheme.typography.bodyLarge to 2.dp
+            }
+            InlineMarkdownNodes(
+                nodes = block.content,
+                style = style,
+                modifier = Modifier.padding(vertical = padding),
+                linkColor = MaterialTheme.colorScheme.primary,
+            )
+        }
+        is BlockMarkdown.Paragraph -> InlineMarkdownNodes(
+            nodes = block.content,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(vertical = 2.dp),
+            linkColor = MaterialTheme.colorScheme.primary,
+        )
+        is BlockMarkdown.Bullet -> InlineMarkdownNodes(
+            nodes = block.content,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(start = 16.dp + (block.level * 16).dp, top = 2.dp, bottom = 2.dp),
+            linkColor = MaterialTheme.colorScheme.primary,
+            prefix = "•  ",
+        )
+        is BlockMarkdown.Ordered -> InlineMarkdownNodes(
+            nodes = block.content,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(start = 16.dp + (block.level * 16).dp, top = 2.dp, bottom = 2.dp),
+            linkColor = MaterialTheme.colorScheme.primary,
+            prefix = "${block.num}.  ",
+        )
+        is BlockMarkdown.Task -> InlineMarkdownNodes(
+            nodes = block.content,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(start = 16.dp + (block.level * 16).dp, top = 2.dp, bottom = 2.dp),
+            linkColor = MaterialTheme.colorScheme.primary,
+            prefix = if (block.checked) "☑  " else "☐  ",
+        )
+        is BlockMarkdown.Quote -> InlineMarkdownNodes(
+            nodes = block.content,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier
+                .padding(start = 16.dp, top = 2.dp, bottom = 2.dp)
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    RoundedCornerShape(4.dp)
+                )
+                .padding(8.dp),
+            linkColor = MaterialTheme.colorScheme.primary,
+        )
+        is BlockMarkdown.CodeFence -> CodeBlockRenderer(block.code, block.lang)
+        is BlockMarkdown.Table -> TableRenderer(block)
+        is BlockMarkdown.Hr -> Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant)
+        )
+        is BlockMarkdown.Blank -> Spacer(Modifier.height(6.dp))
+        is BlockMarkdown.Mermaid -> MermaidBlock(block.source)
     }
 }
 
@@ -842,17 +484,16 @@ private fun CodeBlockRenderer(code: String, lang: String) {
 }
 
 @Composable
-private fun TableRenderer(table: MdTable) {
+private fun TableRenderer(table: BlockMarkdown.Table) {
     val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
     val colCount = (listOf(table.headers.size) + table.rows.map { it.size }).maxOrNull()?.coerceAtLeast(1) ?: 1
     val headerBg = MaterialTheme.colorScheme.surfaceVariant
     val cellBg = MaterialTheme.colorScheme.surface
 
-    // Per-column min width based on the longest cell, so wide tables scroll instead of squeezing.
     val colWidths = remember(table, colCount) {
         FloatArray(colCount) { c ->
-            var maxLen = table.headers.getOrNull(c)?.length ?: 0
-            for (r in table.rows) maxLen = maxOf(maxLen, r.getOrNull(c)?.length ?: 0)
+            var maxLen = table.headers.getOrNull(c)?.sumOf { it.plainLength } ?: 0
+            for (r in table.rows) maxLen = maxOf(maxLen, r.getOrNull(c)?.sumOf { it.plainLength } ?: 0)
             (maxLen + 4).coerceAtLeast(8) * 8f
         }
     }
@@ -878,9 +519,9 @@ private fun TableRenderer(table: MdTable) {
                                 .background(headerBg)
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            InlineMarkdownText(
-                                header,
-                                MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            InlineMarkdownNodes(
+                                nodes = header,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                                 linkColor = MaterialTheme.colorScheme.primary,
                             )
                         }
@@ -903,9 +544,9 @@ private fun TableRenderer(table: MdTable) {
                                     .background(cellBg)
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                InlineMarkdownText(
-                                    cell,
-                                    MaterialTheme.typography.bodyMedium,
+                                InlineMarkdownNodes(
+                                    nodes = cell,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     linkColor = MaterialTheme.colorScheme.primary,
                                 )
                             }
