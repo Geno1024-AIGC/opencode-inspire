@@ -1,0 +1,1319 @@
+package com.geno1024.ai.inspire.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.geno1024.ai.inspire.R
+import com.geno1024.ai.inspire.data.TokenDay
+import com.geno1024.ai.inspire.data.TokenFormat
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.time.temporal.WeekFields
+import java.util.Locale
+import kotlinx.coroutines.launch
+
+private enum class TokenCategory(val labelRes: Int) {
+    TOKEN(R.string.calendar_cat_token),
+    MSGS(R.string.calendar_cat_msgs),
+}
+
+private enum class TokenMetric(val labelRes: Int) {
+    TOTAL(R.string.calendar_token_total),
+    FRESH(R.string.calendar_token_fresh),
+    INPUT(R.string.calendar_token_in),
+    OUTPUT(R.string.calendar_token_out),
+    REASONING(R.string.calendar_token_infer),
+    CACHE_READ(R.string.calendar_token_crd),
+    CACHE_WRITE(R.string.calendar_token_cwr),
+}
+
+private enum class MsgMetric(val labelRes: Int) {
+    TOTAL(R.string.calendar_msgs_total),
+    USER(R.string.calendar_msgs_user),
+    ASSISTANT(R.string.calendar_msgs_assistant),
+}
+
+private enum class EmptyPeriodMode(val labelRes: Int) {
+    SHOW_ALL(R.string.calendar_period_show_all),
+    HIDE_EMPTY(R.string.calendar_period_hide_empty),
+}
+
+internal fun effectiveStatsZone(offsetMinutes: Int?): ZoneId =
+    offsetMinutes?.let { ZoneOffset.ofTotalSeconds(it * 60) } ?: ZoneId.systemDefault()
+
+internal fun utcOffsetLabel(minutes: Int): String {
+    val sign = if (minutes < 0) "-" else "+"
+    val abs = kotlin.math.abs(minutes)
+    val h = abs / 60
+    val m = abs % 60
+    return "UTC$sign$h" + if (m == 0) "" else ":$m"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TokenCalendarScreen(
+    viewModel: MainViewModel,
+    onBack: () -> Unit,
+    onOpenExport: (YearMonth) -> Unit = {},
+) {
+    BackHandler(onBack = onBack)
+    val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
+    val elapsed by viewModel.tokenElapsed.collectAsStateWithLifecycle()
+    val hourByMonth by viewModel.hourByMonth.collectAsStateWithLifecycle()
+    val hourByWeek by viewModel.hourByWeek.collectAsStateWithLifecycle()
+    val hourByDay by viewModel.hourByDay.collectAsStateWithLifecycle()
+    val tokenModelStats by viewModel.tokenModelStats.collectAsStateWithLifecycle()
+    val tokenProjectStats by viewModel.tokenProjectStats.collectAsStateWithLifecycle()
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
+    val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
+    val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
+    val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
+    val timeFormat by viewModel.tableTimeFormat.collectAsStateWithLifecycle()
+    val dayStartOffset by viewModel.dayStartOffset.collectAsStateWithLifecycle()
+    var hiddenSyncAt by remember { mutableStateOf(false) }
+    var categoryName by rememberSaveable { mutableStateOf(TokenCategory.TOKEN.name) }
+    var tokenMetricName by rememberSaveable { mutableStateOf(TokenMetric.TOTAL.name) }
+    var msgMetricName by rememberSaveable { mutableStateOf(MsgMetric.TOTAL.name) }
+    var catMenu by remember { mutableStateOf(false) }
+    var metricMenu by remember { mutableStateOf(false) }
+    var emptyModeMenu by remember { mutableStateOf(false) }
+    var emptyModeName by rememberSaveable { mutableStateOf(EmptyPeriodMode.HIDE_EMPTY.name) }
+    var modelMenu by remember { mutableStateOf(false) }
+    var modelName by rememberSaveable { mutableStateOf("all") }
+    var projectMenu by remember { mutableStateOf(false) }
+    var projectName by rememberSaveable { mutableStateOf("all") }
+    val category = TokenCategory.valueOf(categoryName)
+    val tokenMetric = TokenMetric.valueOf(tokenMetricName)
+    val msgMetric = MsgMetric.valueOf(msgMetricName)
+
+    val modelIds = remember(tokenModelStats) { tokenModelStats.keys.sorted() }
+    val activeModel = if (modelName in modelIds) modelName else "all"
+    val projectIds = remember(tokenProjectStats) { tokenProjectStats.keys.sorted() }
+    val activeProject = if (projectName in projectIds) projectName else "all"
+    val projectNames = remember(projects) {
+        projects.associate { it.id to (it.name.ifBlank { it.worktree }.ifBlank { it.id }) }
+    }
+    val projHistory = if (activeProject == "all") history else (tokenProjectStats[activeProject]?.history ?: emptyMap())
+    val projElapsed = if (activeProject == "all") elapsed else (tokenProjectStats[activeProject]?.elapsed ?: emptyMap())
+    val projHourByDay = if (activeProject == "all") hourByDay else (tokenProjectStats[activeProject]?.hourByDay ?: emptyMap())
+    val projHourByWeek = if (activeProject == "all") hourByWeek else (tokenProjectStats[activeProject]?.hourByWeek ?: emptyMap())
+    val projHourByMonth = if (activeProject == "all") hourByMonth else (tokenProjectStats[activeProject]?.hourByMonth ?: emptyMap())
+    val viewHistory = if (activeModel == "all") projHistory else (tokenModelStats[activeModel]?.history ?: emptyMap())
+    val viewElapsed = if (activeModel == "all") projElapsed else (tokenModelStats[activeModel]?.elapsed ?: emptyMap())
+    val viewHourByDay = if (activeModel == "all") projHourByDay else (tokenModelStats[activeModel]?.hourByDay ?: emptyMap())
+    val viewHourByWeek = if (activeModel == "all") projHourByWeek else (tokenModelStats[activeModel]?.hourByWeek ?: emptyMap())
+    val viewHourByMonth = if (activeModel == "all") projHourByMonth else (tokenModelStats[activeModel]?.hourByMonth ?: emptyMap())
+
+    val totalDay = viewHistory.values.fold(TokenDay()) { acc, t -> acc + t }
+    val totalElapsed = viewElapsed.values.sum()
+    val locale = Locale.getDefault()
+    val zone = remember(dayStartOffset) { effectiveStatsZone(dayStartOffset) }
+    val today = remember(zone) { LocalDate.now(zone) }
+    var shownMonth by remember { mutableStateOf(YearMonth.now(zone)) }
+    var selected by remember { mutableStateOf<LocalDate?>(today) }
+    var tab by remember { mutableIntStateOf(0) }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.calendar_title), fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.drawer_close)) }
+                },
+                actions = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = {
+                            hiddenSyncAt = true
+                            viewModel.incrementTokenHistory()
+                        }) {
+                            Text(stringResource(R.string.calendar_incremental))
+                        }
+                        TextButton(onClick = {
+                            hiddenSyncAt = true
+                            viewModel.loadTokenHistory()
+                        }) {
+                            Text(stringResource(R.string.calendar_full))
+                        }
+                        IconButton(onClick = { onOpenExport(shownMonth) }) {
+                            Icon(Icons.Filled.Share, stringResource(R.string.calendar_export))
+                        }
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            val viewportH = maxHeight
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.calendar_project_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        Text(
+                            if (activeProject == "all") stringResource(R.string.model_all) else (projectNames[activeProject] ?: activeProject),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { projectMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = projectMenu, onDismissRequest = { projectMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.model_all)) },
+                                onClick = { projectName = "all"; projectMenu = false },
+                            )
+                            projectIds.forEach { id ->
+                                DropdownMenuItem(
+                                    text = { Text(projectNames[id] ?: id) },
+                                    onClick = { projectName = id; modelName = "all"; projectMenu = false },
+                                )
+                            }
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.calendar_model_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        Text(
+                            if (activeModel == "all") stringResource(R.string.model_all) else activeModel,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { modelMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.model_all), fontFamily = MonoFontFamily) },
+                                onClick = { modelName = "all"; projectName = "all"; modelMenu = false },
+                            )
+                            modelIds.forEach { id ->
+                                DropdownMenuItem(
+                                    text = { Text(id, fontFamily = MonoFontFamily) },
+                                    onClick = { modelName = id; projectName = "all"; modelMenu = false },
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                
+                
+                val monthDay = viewHistory.filterKeys { isInMonth(it, shownMonth) }.values.fold(TokenDay()) { acc, t -> acc + t }
+                val monthElapsed = viewElapsed.filterKeys { isInMonth(it, shownMonth) }.values.sum()
+                SummaryTable(
+                    month = monthDay,
+                    total = totalDay,
+                    monthElapsed = monthElapsed,
+                    totalElapsed = totalElapsed,
+                    format = tokenFormat,
+                    timeFormat = timeFormat,
+                    onCycleTime = { viewModel.cycleTableTimeFormat() },
+                )
+                if (syncedAt > 0L && !hiddenSyncAt) {
+                    Text(
+                        stringResource(
+                            R.string.calendar_last_updated,
+                            java.time.Instant.ofEpochMilli(syncedAt)
+                                .atZone(java.time.ZoneId.systemDefault())
+                                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", locale)),
+                        ),
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                }
+                if (loading) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.calendar_stats_metric_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        Text(
+                            stringResource(category.labelRes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { catMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = catMenu, onDismissRequest = { catMenu = false }) {
+                            TokenCategory.entries.forEach { c ->
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(c.labelRes), fontFamily = MonoFontFamily) },
+                                    onClick = { categoryName = c.name; catMenu = false },
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        val currentMetricRes = when (TokenCategory.valueOf(categoryName)) {
+                            TokenCategory.TOKEN -> TokenMetric.valueOf(tokenMetricName).labelRes
+                            TokenCategory.MSGS -> MsgMetric.valueOf(msgMetricName).labelRes
+                        }
+                        Text(
+                            stringResource(currentMetricRes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { metricMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = metricMenu, onDismissRequest = { metricMenu = false }) {
+                            when (TokenCategory.valueOf(categoryName)) {
+                                TokenCategory.TOKEN -> TokenMetric.entries.forEach { m ->
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(m.labelRes), fontFamily = MonoFontFamily) },
+                                        onClick = { tokenMetricName = m.name; metricMenu = false },
+                                    )
+                                }
+                                TokenCategory.MSGS -> MsgMetric.entries.forEach { m ->
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(m.labelRes), fontFamily = MonoFontFamily) },
+                                        onClick = { msgMetricName = m.name; metricMenu = false },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.calendar_period_mode_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        Text(
+                            stringResource(EmptyPeriodMode.valueOf(emptyModeName).labelRes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = MonoFontFamily,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { emptyModeMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                        DropdownMenu(expanded = emptyModeMenu, onDismissRequest = { emptyModeMenu = false }) {
+                            EmptyPeriodMode.entries.forEach { m ->
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(m.labelRes), fontFamily = MonoFontFamily) },
+                                    onClick = { emptyModeName = m.name; emptyModeMenu = false },
+                                )
+                            }
+                        }
+                    }
+                }
+                PrimaryTabRow(selectedTabIndex = tab) {
+                    Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.stats_tab_calendar)) })
+                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.stats_tab_day)) })
+                    Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text(stringResource(R.string.stats_tab_weekly)) })
+                    Tab(selected = tab == 3, onClick = { tab = 3 }, text = { Text(stringResource(R.string.stats_tab_monthly)) })
+                }
+                when (tab) {
+                    0 -> DailyCalendarTab(
+                        history = viewHistory,
+                        elapsed = viewElapsed,
+                        shownMonth = shownMonth,
+                        selected = selected,
+                        locale = locale,
+                        today = today,
+                        tokenFormat = tokenFormat,
+                        category = category,
+                        tokenMetric = tokenMetric,
+                        msgMetric = msgMetric,
+                        onPrev = { shownMonth = shownMonth.minusMonths(1) },
+                        onNext = { shownMonth = shownMonth.plusMonths(1) },
+                        onSelect = { selected = it },
+                    )
+                    1 -> DayColumnCard(
+                        buckets = viewHourByDay,
+                        locale = locale,
+                        today = today,
+                        category = category,
+                        tokenMetric = tokenMetric,
+                        msgMetric = msgMetric,
+                        hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY,
+                        modifier = Modifier.fillMaxWidth().height(viewportH),
+                    )
+                    2 -> WeekColumnCard(buckets = viewHourByWeek, locale = locale, today = today, category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY, modifier = Modifier.fillMaxWidth().height(viewportH))
+                    3 -> MonthColumnCard(buckets = viewHourByMonth, locale = locale, nowMonth = YearMonth.from(today), category = category, tokenMetric = tokenMetric, msgMetric = msgMetric, hideEmpty = EmptyPeriodMode.valueOf(emptyModeName) == EmptyPeriodMode.HIDE_EMPTY, modifier = Modifier.fillMaxWidth().height(viewportH))
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyCalendarTab(
+    history: Map<String, TokenDay>,
+    elapsed: Map<String, Long>,
+    shownMonth: YearMonth,
+    selected: LocalDate?,
+    locale: Locale,
+    today: LocalDate,
+    tokenFormat: TokenFormat,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onSelect: (LocalDate) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onPrev) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                shownMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            IconButton(onClick = onNext) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        CalendarGrid(
+            history = history,
+            elapsed = elapsed,
+            shownMonth = shownMonth,
+            selected = selected,
+            locale = locale,
+            today = today,
+            category = category,
+            tokenMetric = tokenMetric,
+            msgMetric = msgMetric,
+            onSelect = onSelect,
+        )
+        HorizontalDivider()
+        val selDate = selected
+        if (selDate == null) {
+            Text(
+                stringResource(R.string.calendar_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        } else {
+            val d = selDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", locale))
+            val selDay = history[selDate.toString()] ?: TokenDay()
+            val selElapsed = elapsed[selDate.toString()] ?: 0L
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Text(
+                    d,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontFamily = MonoFontFamily,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.calendar_day_detail_tokens, fmtTokens(selectMetric(selDay, category, tokenMetric, msgMetric), tokenFormat)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = MonoFontFamily,
+                )
+                Text(
+                    "${stringResource(R.string.calendar_day_detail_in, fmtTokens(selDay.input, tokenFormat))} · " +
+                        "${stringResource(R.string.calendar_day_detail_out, fmtTokens(selDay.output, tokenFormat))} · " +
+                        "${stringResource(R.string.calendar_day_detail_reasoning, fmtTokens(selDay.reasoning, tokenFormat))} · " +
+                        "${stringResource(R.string.calendar_day_detail_cache_read, fmtTokens(selDay.cacheRead, tokenFormat))} · " +
+                        "${stringResource(R.string.calendar_day_detail_cache_write, fmtTokens(selDay.cacheWrite, tokenFormat))}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = MonoFontFamily,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.calendar_day_detail_elapsed, formatSeconds(selElapsed), formatClock(selElapsed)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = MonoFontFamily,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayColumnCard(
+    buckets: Map<String, Map<Int, TokenDay>>,
+    locale: Locale,
+    today: LocalDate,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
+    hideEmpty: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    val sorted = buckets.toSortedMap()
+    val labels: MutableList<String> = mutableListOf()
+    val periods: List<Pair<String, Map<Int, TokenDay>>> = buildList {
+        if (sorted.isNotEmpty()) {
+            var d = LocalDate.parse(sorted.firstKey())
+            val last = today
+            while (!d.isAfter(last)) {
+                val key = d.toString()
+                add(key to (sorted[key] ?: emptyMap()))
+                labels.add(d.format(DateTimeFormatter.ofPattern("MM-dd", locale)))
+                d = d.plusDays(1)
+            }
+        }
+    }
+    PeriodColumns(
+        periods = periods,
+        labels = labels,
+        category = category,
+        tokenMetric = tokenMetric,
+        msgMetric = msgMetric,
+        hideEmpty = hideEmpty,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun MonthColumnCard(
+    buckets: Map<String, Map<Int, TokenDay>>,
+    locale: Locale,
+    nowMonth: YearMonth,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
+    hideEmpty: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    val sorted = buckets.toSortedMap()
+    val labels: MutableList<String> = mutableListOf()
+    val periods: List<Pair<String, Map<Int, TokenDay>>> = buildList {
+        if (sorted.isNotEmpty()) {
+            var m = YearMonth.parse(sorted.firstKey())
+            val last = nowMonth
+            while (!m.isAfter(last)) {
+                val key = m.toString()
+                add(key to (sorted[key] ?: emptyMap()))
+                labels.add(m.format(DateTimeFormatter.ofPattern("yyyy-MM", locale)))
+                m = m.plusMonths(1)
+            }
+        }
+    }
+    PeriodColumns(
+        periods = periods,
+        labels = labels,
+        category = category,
+        tokenMetric = tokenMetric,
+        msgMetric = msgMetric,
+        hideEmpty = hideEmpty,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun WeekColumnCard(
+    buckets: Map<String, Map<Int, TokenDay>>,
+    locale: Locale,
+    today: LocalDate,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
+    hideEmpty: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    val sorted = buckets.toSortedMap()
+    var clickedWeek by remember { mutableStateOf<LocalDate?>(null) }
+    val firstDow = WeekFields.of(locale).firstDayOfWeek.value
+    val labels: MutableList<String> = mutableListOf()
+    val periods: List<Pair<String, Map<Int, TokenDay>>> = buildList {
+        if (sorted.isNotEmpty()) {
+            var d = LocalDate.parse(sorted.firstKey())
+                .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow)))
+            val todayStart = today
+                .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow)))
+            while (!d.isAfter(todayStart)) {
+                val key = d.toString()
+                add(key to (sorted[key] ?: emptyMap()))
+                val week = d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+                labels.add("%d-W%02d".format(Locale.ROOT, d.year, week))
+                d = d.plusDays(7)
+            }
+        }
+    }
+    PeriodColumns(
+        periods = periods,
+        labels = labels,
+        category = category,
+        tokenMetric = tokenMetric,
+        msgMetric = msgMetric,
+        hideEmpty = hideEmpty,
+        modifier = modifier,
+        onLabelClick = { _, key ->
+            runCatching { clickedWeek = LocalDate.parse(key) }
+        },
+    )
+    clickedWeek?.let { start ->
+        val days = (0 until 7).map { start.plusDays(it.toLong()) }
+        AlertDialog(
+            onDismissRequest = { clickedWeek = null },
+            title = {
+                val week = start.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+                Text(stringResource(R.string.stats_week_dialog_title, start.year, week), fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    days.forEach { d ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                d.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale),
+                                fontFamily = MonoFontFamily,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(30.dp),
+                            )
+                            Text(
+                                d.format(DateTimeFormatter.ofPattern("yyyy-MM-dd", locale)),
+                                fontFamily = MonoFontFamily,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { clickedWeek = null }) { Text(stringResource(R.string.drawer_close)) }
+            },
+        )
+    }
+}
+
+private val PeriodHeaderH = 20.dp
+
+@Composable
+private fun PeriodColumns(
+    periods: List<Pair<String, Map<Int, TokenDay>>>,
+    labels: List<String>,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
+    hideEmpty: Boolean = false,
+    modifier: Modifier = Modifier,
+    onLabelClick: ((index: Int, key: String) -> Unit)? = null,
+) {
+    val mono = MonoFontFamily
+    val primary = MaterialTheme.colorScheme.primary
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+    val totals = LongArray(24)
+    val columnTotals = LongArray(periods.size)
+    var max = 0L
+    for ((i, entry) in periods.withIndex()) {
+        val m = entry.second
+        var sum = 0L
+        for (h in 0 until 24) {
+            val v = m[h]?.let { selectMetric(it, category, tokenMetric, msgMetric) } ?: 0L
+            totals[h] += v
+            sum += v
+            if (v > max) max = v
+        }
+        columnTotals[i] = sum
+    }
+    max = max.coerceAtLeast(1L)
+    val totalsMax = (totals.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    val columnTotalsMax = (columnTotals.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    val grandTotal = columnTotals.sum()
+    var showChart by remember { mutableStateOf(false) }
+
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val gap = 2.dp
+        val vPad = 16.dp
+        val circle = (((maxHeight - PeriodHeaderH - vPad).value - 46f) / 25f).dp.coerceAtLeast(8.dp)
+        Row(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Column(
+            Modifier.width(24.dp),
+            verticalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            Box(Modifier.height(PeriodHeaderH)) {}
+            Box(Modifier.size(circle), contentAlignment = Alignment.CenterStart) {
+                Text(
+                    "Σ",
+                    fontSize = 8.sp,
+                    fontFamily = mono,
+                    color = labelColor,
+                    maxLines = 1,
+                )
+            }
+            for (hour in 0 until 24) {
+                Box(Modifier.height(circle), contentAlignment = Alignment.CenterStart) {
+                    Text(
+                        "%02d".format(Locale.ROOT, hour),
+                        fontSize = 8.sp,
+                        fontFamily = mono,
+                        color = labelColor,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.width(4.dp))
+        Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+            Row(verticalAlignment = Alignment.Top) {
+                periods.forEachIndexed { index, (key, m) ->
+                    if (hideEmpty && columnTotals[index] == 0L) return@forEachIndexed
+                    Column(
+                        Modifier.padding(end = 3.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        val labelModifier = if (onLabelClick != null) {
+                            Modifier.clickable(enabled = true) { onLabelClick(index, key) }
+                        } else Modifier
+                        Box(modifier = labelModifier.height(PeriodHeaderH), contentAlignment = Alignment.Center) {
+                            Text(
+                                labels.getOrElse(index) { "" },
+                                fontSize = 9.sp,
+                                color = if (onLabelClick != null) MaterialTheme.colorScheme.primary else labelColor,
+                                maxLines = 1,
+                            )
+                        }
+                        HourCircle(
+                            value = columnTotals[index],
+                            max = columnTotalsMax,
+                            size = circle,
+                            gap = gap,
+                            primary = primary,
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                            for (hour in 0 until 24) {
+                                HourCircle(value = m[hour]?.let { selectMetric(it, category, tokenMetric, msgMetric) } ?: 0L, max = max, size = circle, gap = gap, primary = primary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Box(
+            Modifier
+                .width(1.dp)
+                .fillMaxHeight()
+                .background(labelColor.copy(alpha = 0.4f)),
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(
+            Modifier.clickable { showChart = true },
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                stringResource(R.string.stats_total),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.height(PeriodHeaderH),
+            )
+            HourCircle(
+                value = grandTotal,
+                max = grandTotal,
+                size = circle,
+                gap = gap,
+                primary = primary,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                for (hour in 0 until 24) {
+                    HourCircle(value = totals[hour], max = totalsMax, size = circle, gap = gap, primary = primary)
+                }
+            }
+        }
+        }
+    }
+    val shownTotals = if (hideEmpty) {
+        columnTotals.toList().mapIndexedNotNull { i, v -> if (v == 0L) null else v }
+    } else columnTotals.toList()
+    val shownLabels = if (hideEmpty) {
+        labels.mapIndexedNotNull { i, l -> if (columnTotals[i] == 0L) null else l }
+    } else labels
+    if (showChart) {
+        TokenChartDialog(
+            values = shownTotals,
+            labels = shownLabels,
+            onDismiss = { showChart = false },
+        )
+    }
+}
+
+@Composable
+private fun TokenChartDialog(values: List<Long>, labels: List<String>, onDismiss: () -> Unit) {
+    val textMeasurer = rememberTextMeasurer()
+    val primary = MaterialTheme.colorScheme.primary
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val textColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val max = (values.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.calendar_chart_title)) },
+        text = {
+            Canvas(
+                Modifier
+                    .fillMaxWidth()
+                    .height(320.dp)
+                    .padding(top = 8.dp),
+            ) {
+                val left = 40.dp.toPx()
+                val bottom = size.height - 22.dp.toPx()
+                val w = size.width - left
+                val h = bottom
+                for (i in 0..4) {
+                    val y = h * i / 4f
+                    drawLine(gridColor, Offset(left, y), Offset(size.width, y), strokeWidth = 1f)
+                    if (i < 4) {
+                        val labelText = formatTokensCompact((max * (4 - i) / 4).toLong())
+                        drawText(
+                            textMeasurer,
+                            labelText,
+                            topLeft = Offset(0f, y - 8f),
+                            style = androidx.compose.ui.text.TextStyle(color = textColor, fontSize = 9.sp),
+                        )
+                    }
+                }
+                if (values.isNotEmpty()) {
+                    val step = w / values.size
+                    val pts = values.mapIndexed { i, v ->
+                        Offset(left + step * (i + 0.5f), bottom - (v.toDouble() / max * h).toFloat())
+                    }
+                    for (i in 0 until pts.size - 1) {
+                        drawLine(primary, pts[i], pts[i + 1], strokeWidth = 2f)
+                    }
+                    val labelEvery = maxOf(1, (values.size - 1) / 6)
+                    pts.forEachIndexed { i, p ->
+                        drawCircle(primary, radius = 3f, center = p)
+                        if (i % labelEvery == 0 || i == values.size - 1) {
+                            drawText(
+                                textMeasurer,
+                                labels.getOrElse(i) { "" },
+                                topLeft = Offset(p.x - 18f, bottom + 3f),
+                                style = androidx.compose.ui.text.TextStyle(color = textColor, fontSize = 9.sp),
+                            )
+                        }
+                    }
+                    drawText(
+                        textMeasurer,
+                        formatTokensCompact(max),
+                        topLeft = Offset(left, 0f),
+                        style = androidx.compose.ui.text.TextStyle(color = textColor, fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.drawer_close)) }
+        },
+    )
+}
+
+@Composable
+private fun HourCircle(
+    value: Long,
+    max: Long,
+    size: androidx.compose.ui.unit.Dp,
+    gap: androidx.compose.ui.unit.Dp,
+    primary: Color,
+) {
+    val text = if (value > 0L) formatTokensCompact(value) else ""
+    val bg = if (value > 0L) {
+        val frac = (value.toDouble() / max.toDouble()).toFloat().coerceIn(0f, 1f)
+        primary.copy(alpha = (0.18f + 0.72f * frac).coerceIn(0.18f, 0.9f))
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    }
+    Box(
+        Modifier.size(size).padding(gap / 2).background(bg, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (text.isNotEmpty()) {
+            Text(
+                text,
+                fontSize = if (text.length <= 3) 8.sp else 6.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SummaryTable(month: TokenDay, total: TokenDay, monthElapsed: Long, totalElapsed: Long, format: TokenFormat, timeFormat: Int = 0, onCycleTime: (() -> Unit)? = null) {
+    val mono = MonoFontFamily
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.bodyMedium
+    val monthLabel = stringResource(R.string.calendar_table_month)
+    val totalLabel = stringResource(R.string.calendar_table_total)
+    val labels = listOf(
+        stringResource(R.string.calendar_table_time),
+        stringResource(R.string.calendar_table_msgs),
+        stringResource(R.string.calendar_table_msgs_sent),
+        stringResource(R.string.calendar_table_msgs_rcv),
+        stringResource(R.string.calendar_table_token),
+        stringResource(R.string.calendar_table_in),
+        stringResource(R.string.calendar_table_out),
+        stringResource(R.string.calendar_table_reasoning),
+        stringResource(R.string.calendar_table_cache_read),
+        stringResource(R.string.calendar_table_cache_write),
+        stringResource(R.string.usage_cost),
+    )
+    val labelWidth = with(LocalDensity.current) {
+        labels.maxOfOrNull {
+            textMeasurer.measure(AnnotatedString(it), style = labelStyle).size.width.toDp()
+        } ?: 0.dp
+    } + 8.dp
+    var timeFormatLocal by rememberSaveable { mutableIntStateOf(0) }
+    val fmtTime = { ms: Long ->
+        when (timeFormat) {
+            1 -> formatClock(ms)
+            2 -> formatClockDays(ms)
+            else -> formatSeconds(ms)
+        }
+    }
+    val cycleTime = { (onCycleTime ?: { timeFormatLocal = (timeFormatLocal + 1) % 3 })() }
+    var showCostInfo by rememberSaveable { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            Text("", modifier = Modifier.width(labelWidth))
+            Text(
+                monthLabel,
+                fontWeight = FontWeight.Bold,
+                color = onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                totalLabel,
+                fontWeight = FontWeight.Bold,
+                color = onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Text(
+                labels[0],
+                color = labelColor,
+                maxLines = 1,
+                modifier = Modifier.width(labelWidth),
+            )
+            Text(
+                fmtTime(monthElapsed),
+                fontFamily = mono,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clickable { cycleTime() },
+            )
+            Text(
+                fmtTime(totalElapsed),
+                fontFamily = mono,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clickable { cycleTime() },
+            )
+        }
+        SummaryRow(labelWidth, labels[1], fmtTokens(month.msgs, format), fmtTokens(total.msgs, format), mono, labelColor, topLine = 2.dp)
+        SummaryRow(labelWidth, labels[2], fmtTokens(month.msgsSent, format), fmtTokens(total.msgsSent, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[3], fmtTokens(month.msgsReceived, format), fmtTokens(total.msgsReceived, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[4], fmtTokens(month.total, format), fmtTokens(total.total, format), mono, labelColor, topLine = 1.dp)
+        SummaryRow(labelWidth, labels[5], fmtTokens(month.input, format), fmtTokens(total.input, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[6], fmtTokens(month.output, format), fmtTokens(total.output, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[7], fmtTokens(month.reasoning, format), fmtTokens(total.reasoning, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[8], fmtTokens(month.cacheRead, format), fmtTokens(total.cacheRead, format), mono, labelColor)
+        SummaryRow(labelWidth, labels[9], fmtTokens(month.cacheWrite, format), fmtTokens(total.cacheWrite, format), mono, labelColor)
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Text(
+                labels[10],
+                color = labelColor,
+                maxLines = 1,
+                modifier = Modifier.width(labelWidth),
+            )
+            Text(
+                "--",
+                fontFamily = mono,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clickable { showCostInfo = true },
+            )
+            Text(
+                formatCost(total.cost),
+                fontFamily = mono,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+        }
+    }
+    if (showCostInfo) {
+        AlertDialog(
+            onDismissRequest = { showCostInfo = false },
+            title = { Text(stringResource(R.string.calendar_cost_info_title)) },
+            text = { Text(stringResource(R.string.calendar_cost_info_msg)) },
+            confirmButton = {
+                TextButton(onClick = { showCostInfo = false }) { Text(stringResource(R.string.ok)) }
+            },
+        )
+    }
+}
+
+@Composable
+private fun SummaryRow(
+    labelWidth: androidx.compose.ui.unit.Dp,
+    label: String,
+    month: String,
+    total: String,
+    mono: androidx.compose.ui.text.font.FontFamily,
+    labelColor: Color,
+    topLine: androidx.compose.ui.unit.Dp = 0.dp,
+) {
+    val lineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    val lineWidthPx = with(LocalDensity.current) { topLine.toPx() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (topLine > 0.dp) Modifier.drawBehind {
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(0f, lineWidthPx / 2f),
+                        end = Offset(size.width, lineWidthPx / 2f),
+                        strokeWidth = lineWidthPx,
+                    )
+                } else Modifier
+            )
+            .padding(top = 4.dp),
+    ) {
+        Text(
+            label,
+            color = labelColor,
+            maxLines = 1,
+            modifier = Modifier.width(labelWidth),
+        )
+        Text(month, fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth().weight(1f), maxLines = 1)
+        Text(total, fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.fillMaxWidth().weight(1f), maxLines = 1)
+    }
+}
+
+private fun isInMonth(day: String, month: YearMonth): Boolean =
+    runCatching {
+        val d = LocalDate.parse(day)
+        d.year == month.year && d.month == month.month
+    }.getOrDefault(false)
+
+@Composable
+private fun CalendarGrid(
+    history: Map<String, TokenDay>,
+    elapsed: Map<String, Long>,
+    shownMonth: YearMonth,
+    selected: LocalDate?,
+    locale: Locale,
+    today: LocalDate,
+    category: TokenCategory,
+    tokenMetric: TokenMetric,
+    msgMetric: MsgMetric,
+    onSelect: (LocalDate) -> Unit,
+) {
+    val firstDayOfWeek = WeekFields.of(locale).firstDayOfWeek.value
+    val first = shownMonth.atDay(1)
+    val leading = (first.dayOfWeek.value - firstDayOfWeek + 7) % 7
+    val gridStart = first.minusDays(leading.toLong())
+
+    val monthTokens = history
+        .filterKeys { runCatching { LocalDate.parse(it).let { d -> d.year == shownMonth.year && d.month == shownMonth.month } }.getOrDefault(false) }
+        .values
+        .map { selectMetric(it, category, tokenMetric, msgMetric) }
+    val monthMax = (monthTokens.maxOrNull() ?: 0L).coerceAtLeast(1L)
+
+    val startDow = DayOfWeek.of(firstDayOfWeek)
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            repeat(7) { i ->
+                Text(
+                    startDow.plus(i.toLong()).getDisplayName(TextStyle.SHORT, locale),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f).padding(vertical = 4.dp),
+                )
+            }
+        }
+        for (r in 0 until 6) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                for (c in 0 until 7) {
+                    val date = gridStart.plusDays((r * 7 + c).toLong())
+                    val inMonth = date.month == first.month && date.year == first.year
+                    val tokens = history[date.toString()]?.let { selectMetric(it, category, tokenMetric, msgMetric) } ?: 0L
+                    val dayElapsed = elapsed[date.toString()] ?: 0L
+                    CalendarDayCell(
+                        date = date,
+                        inMonth = inMonth,
+                        tokens = tokens,
+                        dayElapsed = dayElapsed,
+                        selected = date == selected,
+                        isToday = date == today,
+                        intensity = if (tokens > 0L) tokens.toDouble() / monthMax else 0.0,
+                        onClick = { onSelect(date) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarDayCell(
+    date: LocalDate,
+    inMonth: Boolean,
+    tokens: Long,
+    dayElapsed: Long,
+    selected: Boolean,
+    isToday: Boolean,
+    intensity: Double,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val bg = when {
+        isToday -> MaterialTheme.colorScheme.primary
+        inMonth && tokens > 0L -> MaterialTheme.colorScheme.primary.copy(alpha = (0.12f + 0.55f * intensity).toFloat().coerceIn(0.12f, 0.67f))
+        else -> Color.Transparent
+    }
+    Column(
+        modifier = modifier
+            .aspectRatio(1f)
+            .padding(1.dp)
+            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier)
+            .background(
+                if (inMonth || isToday) bg else Color.Transparent,
+                CircleShape,
+            )
+            .clickable(enabled = inMonth, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            date.dayOfMonth.toString(),
+            style = MaterialTheme.typography.labelMedium,
+            color = when {
+                !inMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                isToday -> MaterialTheme.colorScheme.onPrimary
+                tokens > 0L || selected -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            fontWeight = if (isToday || tokens > 0L || selected) FontWeight.Bold else FontWeight.Normal,
+            maxLines = 1,
+            fontSize = 15.sp,
+            lineHeight = 16.sp,
+        )
+        if (inMonth && tokens > 0L) {
+            Text(
+                formatTokensCompact(tokens),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, lineHeight = 9.sp),
+                color = if (isToday) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+            )
+        }
+        if (inMonth && dayElapsed > 0L) {
+            Text(
+                formatClock(dayElapsed),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp, lineHeight = 8.sp),
+                color = if (isToday) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+            )
+        }
+    }
+}
+
+private fun selectMetric(d: TokenDay, cat: TokenCategory, token: TokenMetric, msg: MsgMetric): Long = when (cat) {
+    TokenCategory.TOKEN -> when (token) {
+        TokenMetric.TOTAL -> d.total
+        TokenMetric.FRESH -> d.fresh
+        TokenMetric.INPUT -> d.input
+        TokenMetric.OUTPUT -> d.output
+        TokenMetric.REASONING -> d.reasoning
+        TokenMetric.CACHE_READ -> d.cacheRead
+        TokenMetric.CACHE_WRITE -> d.cacheWrite
+    }
+    TokenCategory.MSGS -> when (msg) {
+        MsgMetric.TOTAL -> d.msgs
+        MsgMetric.USER -> d.msgsSent
+        MsgMetric.ASSISTANT -> d.msgsReceived
+    }
+}
+
+private fun fmtTokens(n: Long, format: TokenFormat): String = format.format(n)
+
+private fun formatTokensCompact(n: Long): String = when {
+    n >= 1_000_000_000_000L -> trim1(n / 1_000_000_000_000f) + "T"
+    n >= 1_000_000_000L -> trim1(n / 1_000_000_000f) + "G"
+    n >= 1_000_000L -> trim1(n / 1_000_000f) + "M"
+    n >= 1_000L -> trim1(n / 1_000f) + "k"
+    else -> n.toString()
+}
+
+private fun trim1(v: Float): String =
+    if (v % 1f == 0f) v.toInt().toString() else "%.1f".format(Locale.ROOT, v)
+
+private fun formatSeconds(ms: Long): String =
+    "%.1f".format(Locale.ROOT, ms / 1000.0) + " s"
+
+private fun formatClock(ms: Long): String {
+    val totalTenths = ms / 100
+    val h = totalTenths / 36000
+    val m = (totalTenths % 36000) / 600
+    val s = (totalTenths % 600) / 10
+    val d = totalTenths % 10
+    return "%d:%02d:%02d.%d".format(Locale.ROOT, h, m, s, d)
+}
+
+private fun formatClockDays(ms: Long): String {
+    val totalTenths = ms / 100
+    val days = totalTenths / 864000
+    val h = (totalTenths % 864000) / 36000
+    val m = (totalTenths % 36000) / 600
+    val s = (totalTenths % 600) / 10
+    val d = totalTenths % 10
+    return "%d.%02d:%02d:%02d.%d".format(Locale.ROOT, days, h, m, s, d)
+}
+
