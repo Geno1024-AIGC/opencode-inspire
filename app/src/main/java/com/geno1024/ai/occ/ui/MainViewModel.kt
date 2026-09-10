@@ -28,7 +28,7 @@ import com.geno1024.ai.occ.data.ModelInfo
 import com.geno1024.ai.occ.data.AgentInfo
 import com.geno1024.ai.occ.data.IntegrationInfo
 import com.geno1024.ai.occ.data.AgentClient
-import com.geno1024.ai.occ.data.OpenCodeClient
+import com.geno1024.ai.occ.data.AgentClientRegistry
 import com.geno1024.ai.occ.data.Part
 import com.geno1024.ai.occ.data.PermissionRequest
 import com.geno1024.ai.occ.data.Project
@@ -1171,7 +1171,7 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch {
             _connectionState.value = UiState.Loading(getAppString(R.string.connecting))
             try {
-                val cli = OpenCodeClient(serverUrl, username, password)
+                val cli = AgentClientRegistry.create(serverUrl, username, password)
                 val health = withContext(Dispatchers.IO) { cli.health() }
                 if (!health.healthy) throw IllegalStateException("Server is not healthy")
                 _serverVersion.value = health.version
@@ -1429,7 +1429,7 @@ private fun sessionTitle(sid: String): String {
                         _connectionState.value = UiState.Error(getAppString(R.string.error_no_server))
                         return@launch
                     }
-                    val cli = OpenCodeClient(saved, _authUsername.value, _authPassword.value)
+                    val cli = AgentClientRegistry.create(saved, _authUsername.value, _authPassword.value)
                     client = cli
                     probeCapabilities(cli)
                 }

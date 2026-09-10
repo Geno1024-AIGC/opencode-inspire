@@ -9,7 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.IBinder
-import com.geno1024.ai.occ.data.OpenCodeClient
+import com.geno1024.ai.occ.data.AgentClientRegistry
 import com.geno1024.ai.occ.data.SettingsRepository
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -70,7 +70,7 @@ class SessionPollService : Service() {
         }
         val username = withContext(Dispatchers.IO) { settings.authUsername.first() }
         val password = withContext(Dispatchers.IO) { settings.authPassword.first() }
-        val client = OpenCodeClient(url, username, password)
+        val client = AgentClientRegistry.create(url, username, password)
         var newMessageTime = 0L
         var sessionTitle = ""
         var questions = 0
