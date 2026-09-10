@@ -35,14 +35,14 @@ buildCounterFile.writeText((counterNow + 1).toString())
 val tokensFile = File(rootProject.projectDir, "tokens.txt")
 val tokenLines = runCatching { tokensFile.readLines() }.getOrDefault(emptyList())
 fun tokenAt(index: Int): Long = tokenLines.getOrNull(index)?.trim()?.toLongOrNull() ?: 0L
-val tokensTotal = tokenAt(0)
-val tokensInput = tokenAt(1)
-val tokensOutput = tokenAt(2)
-val tokensReasoning = tokenAt(3)
-val tokensCacheRead = tokenAt(4)
-val tokensCacheWrite = tokenAt(5)
-val tokensMsgs = tokenAt(6)
-val tokensModels = tokenLines.drop(7).joinToString("\n") { it.trim() }.trim('\n')
+val tokensInput = tokenAt(0)
+val tokensOutput = tokenAt(1)
+val tokensReasoning = tokenAt(2)
+val tokensCacheRead = tokenAt(3)
+val tokensCacheWrite = tokenAt(4)
+val tokensMsgs = tokenAt(5)
+val tokensTotal = tokensInput + tokensOutput + tokensReasoning + tokensCacheRead + tokensCacheWrite
+val tokensModels = tokenLines.drop(6).joinToString("\n") { it.trim() }.trim('\n')
 
 val appVersionName = "0.1.$pack.$build.$commitSha"
 

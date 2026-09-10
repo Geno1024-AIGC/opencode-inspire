@@ -14,18 +14,18 @@
 
 ## tokens.txt —— 每次提交前必须刷新
 - 在 **每次** commit（`git add`）之前刷新 `tokens.txt`，无论代码是否有改动。
-- 刷新方式：读取 OpenCode 应用数据库（SQLite）`~/.local/share/opencode/opencode.db`，并**仅限本项目**：`project_id = d8b3f3c991927ab17d475b9ccd2fa060fbe74456`（仓库 `Geno1024-AIGenerated/opencode-inspire`）。
+- 刷新方式：读取 OpenCode 应用数据库（SQLite）`~/.local/share/opencode/opencode.db`，并**仅限本项目**：`project_id = d8b3f3c991927ab17d475b9ccd2fa060fbe74456`（仓库 `Geno1024-AIGenerated/opencode-inspire`）。刷新脚本：`scripts/gen_tokens.py`（已固定 DB 与 project_id）。
 - 文件格式（由 `app/build.gradle.kts` 消费）：
-  - 第 0 行：token 总数（input+output+reasoning+cacheRead+cacheWrite）
-  - 第 1 行：input
-  - 第 2 行：output
-  - 第 3 行：reasoning
-  - 第 4 行：cacheRead
-  - 第 5 行：cacheWrite
-  - 第 6 行：消息数（user+assistant 消息）
-  - 第 7 行起：每个模型一行 `[*]model:input:output:reasoning:cacheRead:cacheWrite:msgs`
+  - 第 0 行：input
+  - 第 1 行：output
+  - 第 2 行：reasoning
+  - 第 3 行：cacheRead
+  - 第 4 行：cacheWrite
+  - 第 5 行：消息数（user+assistant 消息）
+  - 第 6 行起：每个模型一行 `[*]model:input:output:reasoning:cacheRead:cacheWrite:msgs:cost`
     - `*` 前缀 = 名字加粗显示（对于贡献大、Token 消耗大的模型进行标记）
-    - 按总数降序排列；本项目不存在某模型数据时省略该行（不得伪造）
+    - 按 input+output+reasoning+cacheRead+cacheWrite 总数降序排列；本项目不存在某模型数据时省略该行（不得伪造）
+  - token 总数（= input+output+reasoning+cacheRead+cacheWrite）由 `build.gradle.kts` 计算，文件中不单独一行
 - 模型 id = `session.model.id`（JSON 字段）；各行列来自聚合 `session.tokens_*` 列；消息数来自 `message.data.role in ("user","assistant")`。
 - 绝不凭空构想或估算数字，文件必须与数据库一致。
 
