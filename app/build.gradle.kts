@@ -123,9 +123,4 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
     implementation("androidx.datastore:datastore-preferences:1.2.1")
-
-    implementation("io.noties.markwon:core:4.6.2")
-    implementation("io.noties.markwon:ext-tables:4.6.2")
-    implementation("io.noties.markwon:ext-latex:4.6.2")
-    implementation("io.noties.markwon:inline-parser:4.6.2")
 }
