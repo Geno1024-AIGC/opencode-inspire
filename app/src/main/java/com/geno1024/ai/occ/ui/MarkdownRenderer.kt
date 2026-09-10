@@ -293,16 +293,12 @@ private fun parseInlineInternal(
                 if (closeBracket > 0 && openParen == closeBracket + 1 && closeParen > openParen) {
                     val linkText = text.substring(i + 1, closeBracket)
                     val url = text.substring(openParen + 1, closeParen)
-                    val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
-                    val linkStyle = if (color != androidx.compose.ui.graphics.Color.Unspecified)
-                        SpanStyle(color = color) else null
                     val start = builder.length
-                    if (linkStyle != null) {
-                        builder.withStyle(linkStyle) { builder.append(linkText) }
-                    } else {
-                        builder.append(linkText)
-                    }
+                    builder.append(parseInlineInternal(linkText, linkColor, codeStyle))
                     if (url.isNotEmpty()) {
+                        val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
+                        val linkStyle = if (color != androidx.compose.ui.graphics.Color.Unspecified)
+                            SpanStyle(color = color) else null
                         builder.addLink(LinkAnnotation.Url(url, TextLinkStyles(style = linkStyle)), start, builder.length)
                     }
                     i = closeParen + 1
@@ -398,17 +394,13 @@ private fun AnnotatedString.Builder.appendInlineNested(
                 if (closeBracket > 0 && closeBracket < n && openParen == closeBracket + 1 && closeParen > openParen && closeParen < n) {
                     val linkText = text.substring(i + 1, closeBracket)
                     val url = text.substring(openParen + 1, closeParen)
-                    val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
-                    val linkStyle = if (color != androidx.compose.ui.graphics.Color.Unspecified)
-                        SpanStyle(color = color) else null
                     val start = length
-                    if (linkStyle != null) {
-                        withStyle(linkStyle) { append(linkText) }
-                    } else {
-                        append(linkText)
-                    }
+                    append(parseInlineInternal(linkText, linkColor, codeStyle))
                     if (url.isNotEmpty()) {
-                        addLink(LinkAnnotation.Url(url, TextLinkStyles(style = linkStyle)), start, start + linkText.length)
+                        val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
+                        val linkStyle = if (color != androidx.compose.ui.graphics.Color.Unspecified)
+                            SpanStyle(color = color) else null
+                        addLink(LinkAnnotation.Url(url, TextLinkStyles(style = linkStyle)), start, length)
                     }
                     i = closeParen + 1
                 } else {
