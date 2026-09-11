@@ -428,21 +428,19 @@ fun ChatScreen(
 
     LaunchedEffect(listState) {
         snapshotFlow {
-            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
-        }.collect { (firstIndex, offset) ->
-            userScrolledAway = !(firstIndex == 0 && offset == 0)
+            Triple(
+                listState.firstVisibleItemIndex,
+                listState.firstVisibleItemScrollOffset,
+                messages.size,
+            )
+        }.collect { (firstIndex, offset, _) ->
+            val atNewest = firstIndex == 0 && offset == 0
+            if (userScrolledAway == atNewest) userScrolledAway = !atNewest
+            if (atNewest && messages.isNotEmpty()) {
+                listState.scrollToItem(0)
+            }
         }
     }
-
-     LaunchedEffect(
-        messages.size,
-        sending,
-        userScrolledAway,
-    ) {
-        if (!userScrolledAway && messages.isNotEmpty()) {
-            listState.scrollToItem(0)
-        }
-     }
 
     LaunchedEffect(exportMarkdown) {
         exportMarkdown?.let { markdown ->
