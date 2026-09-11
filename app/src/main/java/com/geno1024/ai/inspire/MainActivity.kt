@@ -155,7 +155,7 @@ class MainActivity : ComponentActivity() {
                                         viewModel.showDownloadDialog()
                                         downloadJob = scope.launch {
                                             val startTime = System.currentTimeMillis()
-                                            val fileName = "opencodeclient-${info.version}.apk"
+                                            val fileName = "inspire-${info.version}.apk"
                                             val uri = runCatching {
                                                 withContext(Dispatchers.IO) {
                                                     val conn = (java.net.URL(info.url).openConnection() as java.net.HttpURLConnection).apply {

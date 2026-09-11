@@ -187,7 +187,7 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
         scope.launch {
             val bmp = withContext(Dispatchers.Default) { buildUsageShareBitmap(data) }
             val uri = withContext(Dispatchers.IO) {
-                val file = java.io.File(context.cacheDir, "opencodeclient-usage.png")
+                val file = java.io.File(context.cacheDir, "inspire-usage.png")
                 file.outputStream().use { out -> bmp.compress(Bitmap.CompressFormat.PNG, 100, out) }
                 FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
             }

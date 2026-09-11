@@ -807,7 +807,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 ignoreUnknownKeys = true
                 encodeDefaults = true
             }.encodeToString(com.geno1024.ai.inspire.data.SettingsBackup.serializer(), backup)
-            saveTextFileToDownloads(getApplication(), "opencodeclient-settings-backup.json", text)
+            saveTextFileToDownloads(getApplication(), "inspire-settings-backup.json", text)
         }.getOrDefault(false)
     }
 
@@ -822,20 +822,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun exportUsage(): UsageExportResult? = withContext(Dispatchers.IO) {
         val ctx = getApplication<Application>()
-        val okCsv = saveTextFileToDownloads(ctx, "opencodeclient-usage.csv", buildUsageCsv(_tokenHistory.value))
-        val okJson = saveTextFileToDownloads(ctx, "opencodeclient-usage.json", buildUsageJson(usageDoc()))
-        if (okCsv && okJson) UsageExportResult("opencodeclient-usage.csv", "opencodeclient-usage.json") else null
+        val okCsv = saveTextFileToDownloads(ctx, "inspire-usage.csv", buildUsageCsv(_tokenHistory.value))
+        val okJson = saveTextFileToDownloads(ctx, "inspire-usage.json", buildUsageJson(usageDoc()))
+        if (okCsv && okJson) UsageExportResult("inspire-usage.csv", "inspire-usage.json") else null
     }
 
     suspend fun exportUsageCsv(): String? = withContext(Dispatchers.IO) {
         val ctx = getApplication<Application>()
-        val name = "opencodeclient-usage.csv"
+        val name = "inspire-usage.csv"
         if (saveTextFileToDownloads(ctx, name, buildUsageCsv(_tokenHistory.value))) name else null
     }
 
     suspend fun exportUsageJson(): String? = withContext(Dispatchers.IO) {
         val ctx = getApplication<Application>()
-        val name = "opencodeclient-usage.json"
+        val name = "inspire-usage.json"
         if (saveTextFileToDownloads(ctx, name, buildUsageJson(usageDoc()))) name else null
     }
 

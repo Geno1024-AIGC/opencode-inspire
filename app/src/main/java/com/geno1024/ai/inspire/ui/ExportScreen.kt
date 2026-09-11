@@ -291,7 +291,7 @@ fun ExportScreen(
                     // Share card
                     Section(stringResource(R.string.export_section_card)) {
                         Preview(cardBitmap, commonTransparent, cardData.background)
-                        Button(onClick = { save("opencodeclient-usage-card.png", cardBitmap) }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { save("inspire-usage-card.png", cardBitmap) }, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.export_save))
                         }
                     }
@@ -359,7 +359,7 @@ fun ExportScreen(
                             }
                         }
                         Preview(calBitmap, commonTransparent, null)
-                        Button(onClick = { save("opencodeclient-calendar-${if (calRange == 4) "custom" else monthCounts[calRange].let { if (it == Int.MAX_VALUE) "all" else it } }m.png", calBitmap) }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { save("inspire-calendar-${if (calRange == 4) "custom" else monthCounts[calRange].let { if (it == Int.MAX_VALUE) "all" else it } }m.png", calBitmap) }, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.export_save))
                         }
                     }
@@ -400,7 +400,7 @@ fun ExportScreen(
                         Button(onClick = {
                             val modeName = if (punchMode == PunchMode.HOURLY) "hourly" else "daily"
                             val dirName = if (punchOrientation == PunchOrientation.HORIZONTAL) "h" else "v"
-                            save("opencodeclient-punchcard-$modeName-$dirName.png", punchBitmap)
+                            save("inspire-punchcard-$modeName-$dirName.png", punchBitmap)
                         }, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.export_save))
                         }

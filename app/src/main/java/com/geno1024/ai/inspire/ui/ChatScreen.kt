@@ -393,7 +393,7 @@ fun ChatScreen(
                 Toast.makeText(context, R.string.export_none_selected, Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            val fileName = "opencodeclient-chat-selection.png"
+            val fileName = "inspire-chat-selection.png"
             val uri = withContext(Dispatchers.IO) {
                 saveBitmapToDownloads(context, fileName, bmp)
                 val file = java.io.File(context.cacheDir, fileName)
