@@ -136,6 +136,7 @@ fun TokenCalendarScreen(
     val hourByDay by viewModel.hourByDay.collectAsStateWithLifecycle()
     val tokenModelStats by viewModel.tokenModelStats.collectAsStateWithLifecycle()
     val tokenProjectStats by viewModel.tokenProjectStats.collectAsStateWithLifecycle()
+    val tokenProjectDirs by viewModel.tokenProjectDirs.collectAsStateWithLifecycle()
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
@@ -162,7 +163,7 @@ fun TokenCalendarScreen(
     val activeModel = if (modelName in modelIds) modelName else "all"
     val projectIds = remember(tokenProjectStats) { tokenProjectStats.keys.sorted() }
     val activeProject = if (projectName in projectIds) projectName else "all"
-    val projectNames = remember(projects) {
+    val projectNames = remember(projects, tokenProjectDirs) {
         val map = mutableMapOf<String, String>()
         for (p in projects) {
             val display = p.name
@@ -170,7 +171,11 @@ fun TokenCalendarScreen(
                 .ifBlank { p.worktree }
                 .ifBlank { p.id }
             map[p.id] = display
+            if (p.serverId.isNotBlank()) map[p.serverId] = display
             if (p.worktree.isNotBlank()) map[p.worktree] = display
+        }
+        for ((pid, dir) in tokenProjectDirs) {
+            map[pid] = dir.substringAfterLast('/').ifBlank { dir }
         }
         map
     }
@@ -248,16 +253,20 @@ fun TokenCalendarScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.width(8.dp))
-                    Box {
+                    Box(
+                        Modifier
+                            .weight(1f, fill = false)
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { projectMenu = true }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
                         Text(
                             if (activeProject == "all") stringResource(R.string.model_all) else projectDisplayName(activeProject),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable { projectMenu = true }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         DropdownMenu(expanded = projectMenu, onDismissRequest = { projectMenu = false }) {
                             DropdownMenuItem(
@@ -272,28 +281,28 @@ fun TokenCalendarScreen(
                             }
                         }
                     }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                    Spacer(Modifier.width(16.dp))
                     Text(
                         stringResource(R.string.calendar_model_label),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.width(8.dp))
-                    Box {
+                    Box(
+                        Modifier
+                            .weight(1f, fill = false)
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { modelMenu = true }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
                         Text(
                             if (activeModel == "all") stringResource(R.string.model_all) else activeModel,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
                             fontFamily = MonoFontFamily,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable { modelMenu = true }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
                             DropdownMenuItem(

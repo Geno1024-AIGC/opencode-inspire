@@ -138,6 +138,7 @@ data class TodoUi(
 
 data class ProjectUi(
     val id: String,
+    val serverId: String = "",
     val worktree: String,
     val name: String,
     val sessions: List<Session> = emptyList(),
@@ -273,6 +274,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val tokenModelStats: StateFlow<Map<String, TokenModelStats>> = _tokenModelStats.asStateFlow()
     private val _tokenProjectStats = MutableStateFlow<Map<String, TokenModelStats>>(emptyMap())
     val tokenProjectStats: StateFlow<Map<String, TokenModelStats>> = _tokenProjectStats.asStateFlow()
+    private val _tokenProjectDirs = MutableStateFlow<Map<String, String>>(emptyMap())
+    val tokenProjectDirs: StateFlow<Map<String, String>> = _tokenProjectDirs.asStateFlow()
     private val _sessionModelTokens = MutableStateFlow<Map<String, Map<String, TokenDay>>>(emptyMap())
     val sessionModelTokens: StateFlow<Map<String, Map<String, TokenDay>>> = _sessionModelTokens.asStateFlow()
 
@@ -911,6 +914,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }.toMutableMap()
                     val sessionTokens = (if (incremental) _sessionModelTokens.value else emptyMap())
                         .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
+                    val dirByProj = mutableMapOf<String, String>()
 
                     var maxMsgMs = baseSync
 
@@ -944,6 +948,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         var sesTools = 0L
                         var sesLatest = 0L
                         val pKey = s.projectId.ifBlank { "unknown" }
+                        if (s.directory.isNotBlank()) dirByProj[pKey] = s.directory
                         for ((msg, parts) in messages) {
                             coroutineContext.ensureActive()
                             val created = serverTimeToMillis(msg.time?.created)
@@ -1130,6 +1135,7 @@ val dayKey = day.toString()
                     _hourByDay.value = dayOut
                     _tokenModelStats.value = modelOut
                     _tokenProjectStats.value = projOut
+                    _tokenProjectDirs.value = dirByProj
                     _sessionModelTokens.value = sessionTokens
                     _tokenSync.value = maxMsgMs
                     val rawOut = rawAccum.values.sortedWith(compareBy({ it.epochBucket }, { it.model }, { it.projectId }))
@@ -1574,6 +1580,7 @@ private fun sessionTitle(sid: String): String {
             result.add(
                 ProjectUi(
                     id = "dir-$dir",
+                    serverId = proj?.id.orEmpty(),
                     worktree = dir,
                     name = dir.substringAfterLast('/').ifBlank { dir },
                     sessions = sessions.sortedByDescending { it.time?.created ?: 0L },
