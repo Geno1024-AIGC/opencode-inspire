@@ -213,6 +213,14 @@ fun ChatScreen(
     }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    fun scrollToBottom() {
+        coroutineScope.launch {
+            val lastIdx = listState.layoutInfo.totalItemsCount - 1
+            if (lastIdx < 0) return@launch
+            listState.scrollToItem(lastIdx)
+            listState.scrollToItem(lastIdx, scrollOffset = Int.MAX_VALUE)
+        }
+    }
     val context = LocalContext.current
     val activeId = activeSession?.id
     val drafts = sessionDrafts
@@ -428,15 +436,16 @@ fun ChatScreen(
         snapshotFlow {
             val info = listState.layoutInfo
             val last = info.visibleItemsInfo.maxByOrNull { it.index }
+            val lastIdx = info.totalItemsCount - 1
             val bottomPinned = last != null &&
-                last.index >= filteredMessages.lastIndex &&
+                last.index >= lastIdx &&
                 last.offset + last.size >= info.viewportEndOffset - listDensity
             bottomPinned to filteredMessages.size
         }.collect { (bottomPinned, _) ->
             val atNewest = bottomPinned && messages.isNotEmpty()
             if (userScrolledAway == atNewest) userScrolledAway = !atNewest
             if (atNewest) {
-                listState.scrollToItem(filteredMessages.lastIndex)
+                scrollToBottom()
             }
         }
     }
@@ -446,7 +455,7 @@ fun ChatScreen(
         if (filteredMessages.isEmpty()) {
             bottomInitialized = false
         } else if (!bottomInitialized) {
-            listState.scrollToItem(filteredMessages.lastIndex)
+            scrollToBottom()
             bottomInitialized = true
         }
     }
@@ -931,7 +940,7 @@ fun ChatScreen(
 
      if (userScrolledAway) {
          FloatingActionButton(
-             onClick = { coroutineScope.launch { listState.scrollToItem(filteredMessages.lastIndex) } },
+             onClick = { scrollToBottom() },
              modifier = Modifier
                  .align(Alignment.BottomEnd)
                  .padding(16.dp),
