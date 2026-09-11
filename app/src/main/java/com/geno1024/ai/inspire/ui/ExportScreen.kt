@@ -88,6 +88,17 @@ fun ExportScreen(
 
     val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
     val hourByDay by viewModel.hourByDay.collectAsStateWithLifecycle()
+    val tokenProjectStats by viewModel.tokenProjectStats.collectAsStateWithLifecycle()
+    val tokenProjectDirs by viewModel.tokenProjectDirs.collectAsStateWithLifecycle()
+    var projectFilter by rememberSaveable { mutableStateOf("all") }
+    val projectIds = remember(tokenProjectStats) { tokenProjectStats.keys.sorted() }
+    val activeProject = if (projectFilter in projectIds) projectFilter else "all"
+    val projectNames = remember(tokenProjectDirs, projectIds) {
+        projectIds.associateWith { tokenProjectDirs[it]?.substringAfterLast('/')?.ifBlank { it } ?: it.substringAfterLast('/').ifBlank { it } }
+    }
+    val effStats = if (activeProject == "all") null else tokenProjectStats[activeProject]
+    val effHistory = effStats?.history ?: history
+    val effHourByDay = effStats?.hourByDay ?: hourByDay
     val commonTransparent by viewModel.exportTransparent.collectAsStateWithLifecycle()
     val author by viewModel.exportAuthor.collectAsStateWithLifecycle()
 
@@ -117,8 +128,8 @@ fun ExportScreen(
     var exportType by rememberSaveable { mutableStateOf(ExportType.IMAGE) }
 
     // ── share card options ──
-    val cardData = remember(history, commonTransparent, authorDraft, startMonth) {
-        val total = history.values.fold(TokenDay()) { a, b -> a + b }
+    val cardData = remember(effHistory, commonTransparent, authorDraft, startMonth) {
+        val total = effHistory.values.fold(TokenDay()) { a, b -> a + b }
         ShareCardData(
             appName = context.getString(R.string.app_name),
             monthLabel = startMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)),
@@ -158,9 +169,9 @@ fun ExportScreen(
     var customStart by rememberSaveable { mutableStateOf(startMonth.minusMonths(2)) }
     var customEnd by rememberSaveable { mutableStateOf(startMonth) }
     val monthCounts = listOf(1, 3, 6, Int.MAX_VALUE)
-    val allMonths = remember(history, startMonth) {
+    val allMonths = remember(effHistory, startMonth) {
         val end = startMonth
-        val keys = history.keys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+        val keys = effHistory.keys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
         val min = keys.minOfOrNull { YearMonth.from(it) } ?: end.minusMonths(11)
         generateSequence(end) { it.minusMonths(1) }
             .takeWhile { it >= min }.toList().sorted()
@@ -178,10 +189,10 @@ fun ExportScreen(
         sorted.sorted()
     }
     var calBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(history, calMonths, commonTransparent, authorDraft, calMonthFormat, calContinuous, calMetrics) {
+    LaunchedEffect(effHistory, calMonths, commonTransparent, authorDraft, calMonthFormat, calContinuous, calMetrics) {
         calBitmap = withContext(Dispatchers.Default) {
             buildCalendarBitmap(
-                history = history,
+                history = effHistory,
                 months = calMonths,
                 locale = locale,
                 accent = accent,
@@ -201,11 +212,11 @@ fun ExportScreen(
     var punchMode by remember { mutableStateOf(PunchMode.HOURLY) }
     var punchOrientation by remember { mutableStateOf(PunchOrientation.HORIZONTAL) }
     var punchBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(history, hourByDay, punchMode, punchOrientation, commonTransparent, authorDraft) {
+    LaunchedEffect(effHistory, effHourByDay, punchMode, punchOrientation, commonTransparent, authorDraft) {
         punchBitmap = withContext(Dispatchers.Default) {
             buildPunchcardBitmap(
-                history = history,
-                hourByDay = hourByDay,
+                history = effHistory,
+                hourByDay = effHourByDay,
                 mode = punchMode,
                 orientation = punchOrientation,
                 accent = accent,

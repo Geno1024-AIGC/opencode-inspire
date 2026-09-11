@@ -58,6 +58,8 @@
     <string name="share_card_subtitle">Token 用量报告</string>
     <string name="export_title">导出</string>
     <string name="export_section_type">导出类型</string>
+    <string name="export_section_project">项目范围</string>
+    <string name="export_project_all">全部项目</string>
     <string name="export_type_image">图片</string>
     <string name="export_section_common">通用选项</string>
     <string name="export_opt_author">署名（绘制到图片上）</string>

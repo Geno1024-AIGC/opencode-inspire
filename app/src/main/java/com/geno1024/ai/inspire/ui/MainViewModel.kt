@@ -820,27 +820,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }.isSuccess
     }
 
-    suspend fun exportUsage(): UsageExportResult? = withContext(Dispatchers.IO) {
+    suspend fun exportUsage(project: String? = null): UsageExportResult? = withContext(Dispatchers.IO) {
         val ctx = getApplication<Application>()
-        val okCsv = saveTextFileToDownloads(ctx, "inspire-usage.csv", buildUsageCsv(_tokenHistory.value))
-        val okJson = saveTextFileToDownloads(ctx, "inspire-usage.json", buildUsageJson(usageDoc()))
+        val projHistory = scopedTokenHistory(project)
+        val okCsv = saveTextFileToDownloads(ctx, "inspire-usage.csv", buildUsageCsv(projHistory))
+        val okJson = saveTextFileToDownloads(ctx, "inspire-usage.json", buildUsageJson(usageDoc(project)))
         if (okCsv && okJson) UsageExportResult("inspire-usage.csv", "inspire-usage.json") else null
     }
 
-    suspend fun exportUsageCsv(): String? = withContext(Dispatchers.IO) {
+    suspend fun exportUsageCsv(project: String? = null): String? = withContext(Dispatchers.IO) {
         val ctx = getApplication<Application>()
         val name = "inspire-usage.csv"
-        if (saveTextFileToDownloads(ctx, name, buildUsageCsv(_tokenHistory.value))) name else null
+        if (saveTextFileToDownloads(ctx, name, buildUsageCsv(scopedTokenHistory(project)))) name else null
     }
 
-    suspend fun exportUsageJson(): String? = withContext(Dispatchers.IO) {
+    suspend fun exportUsageJson(project: String? = null): String? = withContext(Dispatchers.IO) {
         val ctx = getApplication<Application>()
         val name = "inspire-usage.json"
-        if (saveTextFileToDownloads(ctx, name, buildUsageJson(usageDoc()))) name else null
+        if (saveTextFileToDownloads(ctx, name, buildUsageJson(usageDoc(project)))) name else null
     }
 
-    private fun usageDoc(): UsageExportDoc {
-        val history = _tokenHistory.value
+    private fun scopedTokenHistory(project: String?): Map<String, TokenDay> =
+        if (project == null) _tokenHistory.value else _tokenProjectStats.value[project]?.history ?: emptyMap()
+
+    private fun usageDoc(project: String? = null): UsageExportDoc {
         val modelStats = _tokenModelStats.value
         val sessions = _sessionModelTokens.value
         val titles = _projects.value
@@ -849,7 +852,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return UsageExportDoc(
             exportedAt = java.time.Instant.now().toString(),
             generatedBy = "opencode-inspire ${BuildConfig.VERSION_NAME}",
-            dates = history,
+            dates = scopedTokenHistory(project),
             models = modelStats,
             sessions = sessions,
             sessionTitles = titles,

@@ -58,6 +58,8 @@
     <string name="share_card_subtitle">Token usage report</string>
     <string name="export_title">Export</string>
     <string name="export_section_type">Export type</string>
+    <string name="export_section_project">Project scope</string>
+    <string name="export_project_all">All projects</string>
     <string name="export_type_image">Image</string>
     <string name="export_section_common">Common options</string>
     <string name="export_opt_author">Your name (drawn on image)</string>
