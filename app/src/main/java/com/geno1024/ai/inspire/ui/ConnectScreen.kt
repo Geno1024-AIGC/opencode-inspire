@@ -218,7 +218,7 @@ fun ConnectScreen(
 }
 
 @Composable
-private fun TypeSelector(
+internal fun TypeSelector(
     label: String,
     options: List<Pair<String, String>>,
     selected: String,
@@ -446,4 +446,4 @@ private fun ServerRow(
     }
 }
 
-private const val AUTO_TYPE = "auto"
+internal const val AUTO_TYPE = "auto"

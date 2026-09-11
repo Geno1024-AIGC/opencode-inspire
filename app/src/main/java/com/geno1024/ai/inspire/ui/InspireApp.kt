@@ -1027,6 +1027,14 @@ private fun ServersDialog(
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var adding by rememberSaveable { mutableStateOf(false) }
+    var typeId by rememberSaveable { mutableStateOf(AUTO_TYPE) }
+    val factories = remember { AgentClientRegistry.all() }
+    val detectedFactory = if (typeId == AUTO_TYPE) {
+        factories.firstOrNull { it.supports(url.trim()) }
+    } else {
+        null
+    }
+    val factory = detectedFactory ?: factories.firstOrNull { it.id == typeId } ?: factories.first()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1054,6 +1062,23 @@ private fun ServersDialog(
                 }
                 if (adding) {
                     HorizontalDivider()
+                    TypeSelector(
+                        label = stringResource(R.string.server_type_label),
+                        options = listOf(AUTO_TYPE to stringResource(R.string.server_type_auto)) + factories.map { it.id to it.label },
+                        selected = if (typeId == AUTO_TYPE) AUTO_TYPE else factory.id,
+                        onSelect = { typeId = it },
+                    )
+                    if (typeId == AUTO_TYPE) {
+                        Text(
+                            if (detectedFactory != null) {
+                                stringResource(R.string.server_type_detected, detectedFactory.label)
+                            } else {
+                                stringResource(R.string.server_type_detect_hint)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     OutlinedTextField(
                         value = url,
                         onValueChange = { url = it },
@@ -1078,7 +1103,7 @@ private fun ServersDialog(
                     TextButton(
                         enabled = url.isNotBlank(),
                         onClick = {
-                            viewModel.saveServerProfile(ServerProfile(url.trim(), AgentClientRegistry.all().first().id, username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }))
+                            viewModel.saveServerProfile(ServerProfile(url.trim(), factory.id, username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }))
                             url = ""
                             username = ""
                             password = ""
