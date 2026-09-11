@@ -426,12 +426,16 @@ fun ChatScreen(
 
     LaunchedEffect(listState, filteredMessages.size) {
         snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index to filteredMessages.size
-        }.collect { (lastVisibleIndexOrNull, _) ->
-            val lastVisibleIndex = lastVisibleIndexOrNull ?: -1
-            val atNewest = lastVisibleIndex >= filteredMessages.lastIndex
+            val info = listState.layoutInfo
+            val last = info.visibleItemsInfo.maxByOrNull { it.index }
+            val bottomPinned = last != null &&
+                last.index >= filteredMessages.lastIndex &&
+                last.offset + last.size >= info.viewportEndOffset - listDensity
+            bottomPinned to filteredMessages.size
+        }.collect { (bottomPinned, _) ->
+            val atNewest = bottomPinned && messages.isNotEmpty()
             if (userScrolledAway == atNewest) userScrolledAway = !atNewest
-            if (atNewest && messages.isNotEmpty()) {
+            if (atNewest) {
                 listState.scrollToItem(filteredMessages.lastIndex)
             }
         }
