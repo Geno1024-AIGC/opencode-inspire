@@ -328,7 +328,7 @@ private fun UsageSummaryCard(total: TokenDay, elapsed: Long, format: TokenFormat
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 MetricRow(stringResource(R.string.calendar_token_in), formatTokens(total.input, format))
                 MetricRow(stringResource(R.string.calendar_token_out), formatTokens(total.output, format))
-                MetricRow(stringResource(R.string.calendar_token_infer), formatTokens(total.reasoning, format))
+                MetricRow(stringResource(R.string.calendar_token_reasoning), formatTokens(total.reasoning, format))
                 MetricRow(stringResource(R.string.calendar_token_crd), formatTokens(total.cacheRead, format))
                 MetricRow(stringResource(R.string.calendar_token_cwr), formatTokens(total.cacheWrite, format))
             }
@@ -402,7 +402,7 @@ private fun ModelUsageRow(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 MetricRow(stringResource(R.string.calendar_token_in), formatTokens(day.input, format))
                 MetricRow(stringResource(R.string.calendar_token_out), formatTokens(day.output, format))
-                MetricRow(stringResource(R.string.calendar_token_infer), formatTokens(day.reasoning, format))
+                MetricRow(stringResource(R.string.calendar_token_reasoning), formatTokens(day.reasoning, format))
                 MetricRow(stringResource(R.string.calendar_token_crd), formatTokens(day.cacheRead, format))
                 MetricRow(stringResource(R.string.calendar_token_cwr), formatTokens(day.cacheWrite, format))
             }

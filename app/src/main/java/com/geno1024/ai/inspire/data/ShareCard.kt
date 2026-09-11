@@ -136,7 +136,7 @@ fun buildShareCardBitmap(data: ShareCardData): Bitmap {
     val rows = listOf(
         Triple("INPUT", nf.format(data.input), data.input),
         Triple("OUTPUT", nf.format(data.output), data.output),
-        Triple("INFER", nf.format(data.reasoning), data.reasoning),
+        Triple("REA", nf.format(data.reasoning), data.reasoning),
         Triple("CACHE R", nf.format(data.cacheRead), data.cacheRead),
         Triple("MESSAGES", nf.format(data.messages), data.messages),
         Triple("COST", String.format("$%.4f", data.cost), data.cost),

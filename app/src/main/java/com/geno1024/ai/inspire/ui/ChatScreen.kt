@@ -2652,7 +2652,7 @@ private fun TokenStatsBar(
                 ) {
                     TokenStatLine(label = "in", value = input, format = tokenFormat)
                     TokenStatLine(label = "out", value = output, format = tokenFormat)
-                    TokenStatLine(label = "infer", value = reasoning, format = tokenFormat)
+                    TokenStatLine(label = "rea", value = reasoning, format = tokenFormat)
                     TokenStatLine(label = "crd", value = cacheRead, format = tokenFormat)
                     TokenStatLine(label = "cwr", value = cacheWrite, format = tokenFormat)
                 }

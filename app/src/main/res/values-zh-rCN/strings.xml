@@ -259,7 +259,7 @@
     <string name="calendar_token_fresh">fresh</string>
     <string name="calendar_token_in">in</string>
     <string name="calendar_token_out">out</string>
-    <string name="calendar_token_infer">infer</string>
+    <string name="calendar_token_reasoning">rea</string>
     <string name="calendar_token_crd">crd</string>
     <string name="calendar_token_cwr">cwr</string>
     <string name="calendar_msgs_total">total</string>

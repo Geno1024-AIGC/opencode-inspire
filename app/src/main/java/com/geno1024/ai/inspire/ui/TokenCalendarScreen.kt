@@ -94,7 +94,7 @@ private enum class TokenMetric(val labelRes: Int) {
     FRESH(R.string.calendar_token_fresh),
     INPUT(R.string.calendar_token_in),
     OUTPUT(R.string.calendar_token_out),
-    REASONING(R.string.calendar_token_infer),
+    REASONING(R.string.calendar_token_reasoning),
     CACHE_READ(R.string.calendar_token_crd),
     CACHE_WRITE(R.string.calendar_token_cwr),
 }

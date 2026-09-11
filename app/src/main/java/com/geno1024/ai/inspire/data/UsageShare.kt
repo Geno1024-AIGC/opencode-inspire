@@ -169,7 +169,7 @@ fun buildUsageShareBitmap(data: UsageShareData): Bitmap {
     }
     totalMetric("in", nf.format(data.input))
     totalMetric("out", nf.format(data.output))
-    totalMetric("infer", nf.format(data.reasoning))
+    totalMetric("rea", nf.format(data.reasoning))
     totalMetric("crd", nf.format(data.cacheRead))
     totalMetric("cwr", nf.format(data.cacheWrite))
     totalMetric("msgs", nf.format(data.messages))
@@ -197,7 +197,7 @@ fun buildUsageShareBitmap(data: UsageShareData): Bitmap {
         }
         metricRow("in", nf.format(item.input))
         metricRow("out", nf.format(item.output))
-        metricRow("infer", nf.format(item.reasoning))
+        metricRow("rea", nf.format(item.reasoning))
         metricRow("crd", nf.format(item.cacheRead))
         metricRow("cwr", nf.format(item.cacheWrite))
         val footBaseline = imBottom - cardPadB - labelPaint.descent()

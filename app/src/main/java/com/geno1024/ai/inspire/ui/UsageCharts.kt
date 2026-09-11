@@ -118,7 +118,7 @@ fun ModelUsageChart(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ChartLegend(inColor, stringResource(R.string.calendar_token_in))
             ChartLegend(outColor, stringResource(R.string.calendar_token_out))
-            ChartLegend(reasoningColor, stringResource(R.string.calendar_token_infer))
+            ChartLegend(reasoningColor, stringResource(R.string.calendar_token_reasoning))
             ChartLegend(cacheColor, stringResource(R.string.calendar_token_crd))
         }
     }
