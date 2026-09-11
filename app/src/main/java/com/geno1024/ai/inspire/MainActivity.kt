@@ -35,11 +35,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.inspire.ui.MainViewModel
-import com.geno1024.ai.inspire.ui.OpenCodeApp
+import com.geno1024.ai.inspire.ui.InspireApp
 import com.geno1024.ai.inspire.ui.formatBytes
 import com.geno1024.ai.inspire.ui.formatEta
 import com.geno1024.ai.inspire.ui.formatSpeed
-import com.geno1024.ai.inspire.ui.theme.OpenCodeTheme
+import com.geno1024.ai.inspire.ui.theme.InspireTheme
 import com.geno1024.ai.inspire.ui.theme.ThemePreset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -131,9 +131,9 @@ class MainActivity : ComponentActivity() {
                             .mapValues { it.value.content.toLongOrNull() ?: 0L }
                     }.getOrNull() ?: emptyMap()
                 } catch (_: Exception) { emptyMap() }
-                OpenCodeTheme(darkTheme = darkTheme, preset = preset, customColors = customColors) {
+                InspireTheme(darkTheme = darkTheme, preset = preset, customColors = customColors) {
                     Surface(color = MaterialTheme.colorScheme.background) {
-                        OpenCodeApp(viewModel)
+                        InspireApp(viewModel)
 
                         val ctx = androidx.compose.ui.platform.LocalContext.current
                         val scope = rememberCoroutineScope()

@@ -35,7 +35,7 @@ import okhttp3.Response
 
 data class ShellResult(val status: String, val output: String)
 
-class OpenCodeClient(
+class AgentHttpClient(
     serverUrl: String,
     private val username: String? = null,
     private val password: String? = null,

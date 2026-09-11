@@ -534,7 +534,7 @@ fun buildCustomScheme(dark: Boolean, colors: Map<String, Long>): ColorScheme {
 }
 
 @Composable
-fun OpenCodeTheme(
+fun InspireTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     preset: ThemePreset = ThemePreset.DEFAULT,
     customColors: Map<String, Long> = emptyMap(),

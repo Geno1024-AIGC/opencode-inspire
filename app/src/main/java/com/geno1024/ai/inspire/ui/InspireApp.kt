@@ -133,7 +133,7 @@ sealed class Screen {
 }
 
 @Composable
-fun OpenCodeApp(viewModel: MainViewModel) {
+fun InspireApp(viewModel: MainViewModel) {
     var screenKey by rememberSaveable { mutableStateOf(Screen.Connect.key) }
     val screen = Screen.fromKey(screenKey)
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()

@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
  * 后端 AI 代理的客户端契约。
  *
  * 这是 UI/ViewModel 层与具体代理实现解耦的边界。每个代理（OpenCode、其他 AI 代理等）
- * 提供自己的实现。当前唯一实现为 [OpenCodeClient]。
+ * 提供自己的实现。当前唯一实现为 [AgentHttpClient]。
  */
 interface AgentClient {
 
