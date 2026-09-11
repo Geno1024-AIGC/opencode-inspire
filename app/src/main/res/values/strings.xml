@@ -6,6 +6,10 @@
     <!-- Connect / servers -->
     <string name="connect_title">Inspire</string>
     <string name="connect_subtitle">Choose a server or add a new one</string>
+    <string name="connect_welcome">Inspire connects to agent servers over HTTP. Add the servers you use — pick the matching type, or let Inspire detect it from the address.</string>
+    <string name="server_type_auto">Auto detect</string>
+    <string name="server_type_detected">Detected: %1$s</string>
+    <string name="server_type_detect_hint">Detected automatically from the server address.</string>
     <string name="connect_guide_title">Start an agent server</string>
     <string name="connect_guide_step1">On the machine that runs the agent server, open a terminal and start it so it is reachable from your phone:</string>
     <string name="connect_guide_cmd">agent serve --hostname 0.0.0.0 --port 4096</string>

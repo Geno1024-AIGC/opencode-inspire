@@ -66,10 +66,18 @@ fun ConnectScreen(
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     val state by viewModel.connectionState.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
-    var typeId by rememberSaveable { mutableStateOf(AgentClientRegistry.all().first().id) }
     val factories = remember { AgentClientRegistry.all() }
-    val factory = factories.firstOrNull { it.id == typeId } ?: factories.first()
-    var fieldValues by remember(factory) { mutableStateOf(emptyMap<String, String>()) }
+    var typeId by rememberSaveable { mutableStateOf(AUTO_TYPE) }
+    var fieldValues by remember(typeId) { mutableStateOf(emptyMap<String, String>()) }
+    val hostValue = fieldValues["host"]?.trim().orEmpty()
+    val detectedFactory = if (typeId == AUTO_TYPE) {
+        factories.firstOrNull { it.supports(hostValue) }
+    } else {
+        null
+    }
+    val factory = detectedFactory
+        ?: factories.firstOrNull { it.id == typeId }
+        ?: factories.first()
 
     Column(
         modifier = Modifier
@@ -89,21 +97,43 @@ fun ConnectScreen(
         Spacer(Modifier.height(24.dp))
 
         if (servers.isEmpty()) {
-            factory.guide?.let { ServerGuideBlock(it) }
+            Text(
+                stringResource(R.string.connect_welcome),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Spacer(Modifier.height(16.dp))
         }
 
         if (adding) {
             TypeSelector(
                 label = stringResource(R.string.server_type_label),
-                options = factories.map { it.id to it.label },
-                selected = factory.id,
+                options = listOf(AUTO_TYPE to stringResource(R.string.server_type_auto)) + factories.map { it.id to it.label },
+                selected = if (typeId == AUTO_TYPE) AUTO_TYPE else factory.id,
                 onSelect = {
                     typeId = it
                     fieldValues = emptyMap()
                 },
             )
+            if (typeId == AUTO_TYPE) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (detectedFactory != null) {
+                        stringResource(R.string.server_type_detected, detectedFactory.label)
+                    } else {
+                        stringResource(R.string.server_type_detect_hint)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(14.dp))
+            if (typeId != AUTO_TYPE || detectedFactory != null) {
+                factory.guide?.let {
+                    ServerGuideBlock(it)
+                    Spacer(Modifier.height(14.dp))
+                }
+            }
             ServerFields(
                 fields = factory.fields,
                 values = fieldValues,
@@ -145,7 +175,7 @@ fun ConnectScreen(
             TextButton(
                 onClick = {
                     adding = false
-                    typeId = factories.first().id
+                    typeId = AUTO_TYPE
                     fieldValues = emptyMap()
                 },
                 modifier = Modifier.align(Alignment.End),
@@ -415,3 +445,5 @@ private fun ServerRow(
         }
     }
 }
+
+private const val AUTO_TYPE = "auto"

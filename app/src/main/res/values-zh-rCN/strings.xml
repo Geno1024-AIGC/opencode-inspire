@@ -6,6 +6,10 @@
     <!-- Connect / servers -->
 <string name="connect_title">Inspire</string>
     <string name="connect_subtitle">选择服务器或添加新的</string>
+    <string name="connect_welcome">Inspire 通过 HTTP 连接各类 AI 代理服务器。请添加你的服务器——选择匹配的类型，或让 Inspire 根据地址自动检测。</string>
+    <string name="server_type_auto">自动检测</string>
+    <string name="server_type_detected">已检测到：%1$s</string>
+    <string name="server_type_detect_hint">将根据服务器地址自动检测类型。</string>
     <string name="connect_guide_title">如何启动 AI 代理服务器</string>
     <string name="connect_guide_step1">在运行 AI 代理服务器的机器上打开终端并启动它，使其能被手机访问：</string>
     <string name="connect_guide_cmd">agent serve --hostname 0.0.0.0 --port 4096</string>
