@@ -284,15 +284,14 @@ fun ChatScreen(
         }
     }
 
-    val reversedMessages = messages.asReversed()
     val filteredMessages = if (searchActive && searchQuery.isNotBlank()) {
-        reversedMessages.filter { msg ->
+        messages.filter { msg ->
             msg.text.contains(searchQuery, ignoreCase = true) ||
             msg.reasoning?.contains(searchQuery, ignoreCase = true) == true ||
             msg.parts.any { it.toolOutput?.contains(searchQuery, ignoreCase = true) == true }
         }
     } else {
-        reversedMessages
+        messages
     }
 
     val listDensity = with(LocalDensity.current) { 22.dp.roundToPx() }
@@ -362,8 +361,7 @@ fun ChatScreen(
 
     fun scrollToAndHighlight(id: String) {
         coroutineScope.launch {
-            val rev = viewModel.messages.value.asReversed()
-            val idx = rev.indexOfFirst { it.id == id }
+            val idx = messages.indexOfFirst { it.id == id }
             if (idx >= 0) {
                 listState.animateScrollToItem(idx)
                 highlightedId = id
@@ -426,19 +424,26 @@ fun ChatScreen(
         name ?: uri.lastPathSegment
     }
 
-    LaunchedEffect(listState) {
+    LaunchedEffect(listState, filteredMessages.size) {
         snapshotFlow {
-            Triple(
-                listState.firstVisibleItemIndex,
-                listState.firstVisibleItemScrollOffset,
-                messages.size,
-            )
-        }.collect { (firstIndex, offset, _) ->
-            val atNewest = firstIndex == 0 && offset == 0
+            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index to filteredMessages.size
+        }.collect { (lastVisibleIndexOrNull, _) ->
+            val lastVisibleIndex = lastVisibleIndexOrNull ?: -1
+            val atNewest = lastVisibleIndex >= filteredMessages.lastIndex
             if (userScrolledAway == atNewest) userScrolledAway = !atNewest
             if (atNewest && messages.isNotEmpty()) {
-                listState.scrollToItem(0)
+                listState.scrollToItem(filteredMessages.lastIndex)
             }
+        }
+    }
+
+    var bottomInitialized by remember { mutableStateOf(false) }
+    LaunchedEffect(filteredMessages.size) {
+        if (filteredMessages.isEmpty()) {
+            bottomInitialized = false
+        } else if (!bottomInitialized) {
+            listState.scrollToItem(filteredMessages.lastIndex)
+            bottomInitialized = true
         }
     }
 
@@ -657,76 +662,10 @@ fun ChatScreen(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    reverseLayout = true,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    if (sending) {
-                        item(key = "sending") { SendingIndicator() }
-                    }
-                    val parentId = activeSession?.parentId
-                    if (parentId != null) {
-                        item(key = "back-parent") {
-                            AgentBanner(
-                                label = stringResource(R.string.parent_session_back),
-                                subtitle = parentId.takeLast(8),
-                                onClick = { viewModel.openSession(parentId) },
-                            )
-                        }
-                    }
-                    itemsIndexed(filteredMessages, key = { idx, item -> item.id }) { index, msg ->
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        val prevCumulative = if (index + 1 < reversedMessages.size) reversedMessages[index + 1].cumulativeTokens else null
-                        val responseTime = if (sending && index == 0 && msg.role == "assistant" && lastUserTime > 0L) {
-                            (now - lastUserTime).coerceAtLeast(0L)
-                        } else if (msg.role == "assistant" && msg.time > 0L) {
-                            val precedingUserTime = (index + 1 until reversedMessages.size)
-                                .firstOrNull { reversedMessages[it].role == "user" && reversedMessages[it].time > 0L }
-                                ?.let { reversedMessages[it].time }
-                            if (precedingUserTime != null && msg.time > precedingUserTime) msg.time - precedingUserTime else null
-                        } else null
-                        val precedingUserText = (index + 1 until reversedMessages.size)
-                            .firstOrNull { reversedMessages[it].role == "user" }
-                            ?.let { reversedMessages[it].text }
-                        val clipboard = LocalClipboardManager.current
-                        MessageBubble(
-                            msg = msg,
-                            cumulativeTokens = if (msg.cumulativeTokens > 0) msg.cumulativeTokens else null,
-                            deltaTokens = if (msg.cumulativeTokens > 0) {
-                                if (prevCumulative != null) (msg.cumulativeTokens - prevCumulative).coerceAtLeast(0L) else msg.cumulativeTokens
-                            } else null,
-                            sessionElapsed = if (index == 0) sessionElapsed else null,
-                            responseTime = responseTime,
-                            userColor = userBubbleColor,
-                            assistantColor = assistantBubbleColor,
-                            collapsed = msg.id in collapsedMessageIds,
-                            highlighted = msg.id == highlightedId,
-                            onToggleCollapse = { viewModel.toggleMessageCollapsed(msg.id) },
-                            onShowRaw = { rawMessage = msg },
-                            onRegenerate = { (precedingUserText ?: msg.text).let { viewModel.send(it) } },
-                            onCopyText = { clipboard.setText(AnnotatedString(stripMarkdown(msg.text))) },
-                            onCopyMarkdown = { clipboard.setText(AnnotatedString(msg.text)) },
-                            onOpenLink = { previewUrl = it },
-                            selectMode = selectMode,
-                            selected = msg.id in selectedIds,
-                            onSelect = { selectMessage(msg.id) },
-                            onEnterSelectMode = {
-                                if (!selectMode) {
-                                    selectMode = true
-                                    selectedIds = setOf(msg.id)
-                                    rangeAnchorId = null
-                                }
-                            },
-                        )
-                        anchoredChildren[msg.id]?.forEach { child ->
-                            AgentSessionRow(child = child, onClick = { viewModel.openSession(child.id) })
-                        }
-                    }
-                }
-                if (!searchActive && !selectMode && hasOlderHistory && searchQuery.isBlank()) {
+                    if (!searchActive && !selectMode && hasOlderHistory && searchQuery.isBlank()) {
                     item(key = "load-older") {
                         Row(
                             modifier = Modifier
@@ -754,6 +693,72 @@ fun ChatScreen(
                             }
                         }
                     }
+                }
+                    itemsIndexed(filteredMessages, key = { idx, item -> item.id }) { index, msg ->
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        val msgPos = messages.indexOfFirst { it.id == msg.id }
+                        val prevCumulative = if (msgPos > 0) messages[msgPos - 1].cumulativeTokens else null
+                        val responseTime = if (sending && index == filteredMessages.lastIndex && msg.role == "assistant" && lastUserTime > 0L) {
+                            (now - lastUserTime).coerceAtLeast(0L)
+                        } else if (msg.role == "assistant" && msg.time > 0L) {
+                            val precedingUserTime = ((msgPos - 1) downTo 0)
+                                .firstOrNull { messages[it].role == "user" && messages[it].time > 0L }
+                                ?.let { messages[it].time }
+                            if (precedingUserTime != null && msg.time > precedingUserTime) msg.time - precedingUserTime else null
+                        } else null
+                        val precedingUserText = ((msgPos - 1) downTo 0)
+                            .firstOrNull { messages[it].role == "user" }
+                            ?.let { messages[it].text }
+                        val clipboard = LocalClipboardManager.current
+                        MessageBubble(
+                            msg = msg,
+                            cumulativeTokens = if (msg.cumulativeTokens > 0) msg.cumulativeTokens else null,
+                            deltaTokens = if (msg.cumulativeTokens > 0) {
+                                if (prevCumulative != null) (msg.cumulativeTokens - prevCumulative).coerceAtLeast(0L) else msg.cumulativeTokens
+                            } else null,
+                            sessionElapsed = if (index == filteredMessages.lastIndex) sessionElapsed else null,
+                            responseTime = responseTime,
+                            userColor = userBubbleColor,
+                            assistantColor = assistantBubbleColor,
+                            collapsed = msg.id in collapsedMessageIds,
+                            highlighted = msg.id == highlightedId,
+                            onToggleCollapse = { viewModel.toggleMessageCollapsed(msg.id) },
+                            onShowRaw = { rawMessage = msg },
+                            onRegenerate = { (precedingUserText ?: msg.text).let { viewModel.send(it) } },
+                            onCopyText = { clipboard.setText(AnnotatedString(stripMarkdown(msg.text))) },
+                            onCopyMarkdown = { clipboard.setText(AnnotatedString(msg.text)) },
+                            onOpenLink = { previewUrl = it },
+                            selectMode = selectMode,
+                            selected = msg.id in selectedIds,
+                            onSelect = { selectMessage(msg.id) },
+                            onEnterSelectMode = {
+                                if (!selectMode) {
+                                    selectMode = true
+                                    selectedIds = setOf(msg.id)
+                                    rangeAnchorId = null
+                                }
+                            },
+                        )
+                        anchoredChildren[msg.id]?.forEach { child ->
+                            AgentSessionRow(child = child, onClick = { viewModel.openSession(child.id) })
+                        }
+                    }
+                }
+                val parentId = activeSession?.parentId
+                if (parentId != null) {
+                    item(key = "back-parent") {
+                        AgentBanner(
+                            label = stringResource(R.string.parent_session_back),
+                            subtitle = parentId.takeLast(8),
+                            onClick = { viewModel.openSession(parentId) },
+                        )
+                    }
+                }
+                if (sending) {
+                    item(key = "sending") { SendingIndicator() }
                 }
                 }
                 if (selectMode && rangeArmed) {
@@ -922,7 +927,7 @@ fun ChatScreen(
 
      if (userScrolledAway) {
          FloatingActionButton(
-             onClick = { coroutineScope.launch { listState.scrollToItem(0) } },
+             onClick = { coroutineScope.launch { listState.scrollToItem(filteredMessages.lastIndex) } },
              modifier = Modifier
                  .align(Alignment.BottomEnd)
                  .padding(16.dp),
