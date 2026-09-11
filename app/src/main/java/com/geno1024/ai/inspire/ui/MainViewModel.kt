@@ -225,6 +225,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _sessionElapsed = MutableStateFlow<Long?>(null)
     val sessionElapsed: StateFlow<Long?> = _sessionElapsed.asStateFlow()
 
+    private var questionWaitStart: Long? = null
+    private var questionWaitTotal: Long = 0L
+
     private val _sessionTotalElapsed = MutableStateFlow<Long?>(null)
     val sessionTotalElapsed: StateFlow<Long?> = _sessionTotalElapsed.asStateFlow()
 
@@ -1194,6 +1197,8 @@ private fun sessionTitle(sid: String): String {
                 lastUserSendTime = null
                 _sessionElapsed.value = null
                 _sessionTotalElapsed.value = null
+                questionWaitStart = null
+                questionWaitTotal = 0L
                 setSending(false)
                 settings.setServerUrl(serverUrl)
                 settings.setAuth(username, password)
@@ -1247,7 +1252,7 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch {
             runCatching { withContext(Dispatchers.IO) { c.replyQuestion(q.id, answers, dir) } }
                 .onSuccess {
-                    _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
+                    updatePendingQuestions(_pendingQuestions.value.filterNot { it.id == q.id })
                 }
                 .onFailure { e ->
                     _workspaceState.value = UiState.Error(getAppString(R.string.send_failed) + ": " + (e.message ?: ""))
@@ -1261,7 +1266,7 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch {
             runCatching { withContext(Dispatchers.IO) { c.rejectQuestion(q.id, dir) } }
                 .onSuccess {
-                    _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
+                    updatePendingQuestions(_pendingQuestions.value.filterNot { it.id == q.id })
                 }
                 .onFailure { e ->
                     _workspaceState.value = UiState.Error(getAppString(R.string.chat_reject) + ": " + (e.message ?: ""))
@@ -1292,7 +1297,7 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch {
             settings.addIgnoredQuestion(key)
             runCatching { withContext(Dispatchers.IO) { c.rejectQuestion(q.id, dir) } }
-            _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id }
+            updatePendingQuestions(_pendingQuestions.value.filterNot { it.id == q.id })
         }
     }
 
@@ -1986,6 +1991,30 @@ private fun sessionTitle(sid: String): String {
             m.copy(cumulativeTokens = cum)
         }
         _cumulativeTokens.value = cum
+    }
+
+    private fun updatePendingQuestions(list: List<QuestionRequest>) {
+        val prevEmpty = _pendingQuestions.value.isEmpty()
+        _pendingQuestions.value = list
+        val nowEmpty = list.isEmpty()
+        if (prevEmpty && !nowEmpty) {
+            if (questionWaitStart == null) questionWaitStart = System.currentTimeMillis()
+        } else if (!prevEmpty && nowEmpty) {
+            val start = questionWaitStart
+            if (start != null) {
+                questionWaitTotal += System.currentTimeMillis() - start
+                questionWaitStart = null
+            }
+        }
+    }
+
+    private fun currentQuestionWaitMs(): Long {
+        val start = questionWaitStart
+        return if (start != null) {
+            questionWaitTotal + (System.currentTimeMillis() - start)
+        } else {
+            questionWaitTotal
+        }
     }
 
     private fun recomputeSessionElapsed() {
@@ -2815,7 +2844,7 @@ text = e.message ?: getAppString(R.string.send_failed),
         if (silent.isNotEmpty()) {
             withContext(Dispatchers.IO) { silent.forEach { runCatching { c.rejectQuestion(it.id, dir) } } }
         }
-        _pendingQuestions.value = (_pendingQuestions.value + keep).distinctBy { it.id }
+        updatePendingQuestions((_pendingQuestions.value + keep).distinctBy { it.id })
     }
 
     private suspend fun refreshPendingPermissions() {
@@ -2864,13 +2893,13 @@ text = e.message ?: getAppString(R.string.send_failed),
                         }
                         return@runCatching
                     }
-                    _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == q.id } + q
+                    updatePendingQuestions(_pendingQuestions.value.filterNot { it.id == q.id } + q)
                 }
             }
             "question.replied", "question.rejected" -> {
                 val sendId = props?.get("requestID")?.jsonPrimitive?.contentOrNull
                 if (sendId != null) {
-                    _pendingQuestions.value = _pendingQuestions.value.filterNot { it.id == sendId }
+                    updatePendingQuestions(_pendingQuestions.value.filterNot { it.id == sendId })
                 }
             }
             "permission.asked" -> {
@@ -2900,7 +2929,8 @@ text = e.message ?: getAppString(R.string.send_failed),
                     val wasBusy = sessionBusy.remove(sid) == true
                     if (sid == active) {
                         setSending(false)
-                        val elapsed = lastUserSendTime?.let { System.currentTimeMillis() - it }
+                        val wait = currentQuestionWaitMs()
+                        val elapsed = lastUserSendTime?.let { System.currentTimeMillis() - it - wait }
                         if (elapsed != null && elapsed > 0) _sessionElapsed.value = elapsed
                         recomputeSessionTotalElapsed()
                         autoUpdateTimingForSession(sid)
