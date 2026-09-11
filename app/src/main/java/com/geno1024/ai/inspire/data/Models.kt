@@ -297,6 +297,7 @@ data class PermissionTool(
 @Serializable
 data class ServerProfile(
     val url: String,
+    val type: String = "",
     val username: String? = null,
     val password: String? = null,
     val name: String = "",

@@ -1167,11 +1167,17 @@ private fun sessionTitle(sid: String): String {
     return _activeSession.value?.title.orEmpty()
 }
 
-    fun connect(serverUrl: String, username: String? = null, password: String? = null, onSuccess: () -> Unit = {}) {
+    fun connect(
+        serverUrl: String,
+        type: String? = null,
+        username: String? = null,
+        password: String? = null,
+        onSuccess: () -> Unit = {},
+    ) {
         viewModelScope.launch {
             _connectionState.value = UiState.Loading(getAppString(R.string.connecting))
             try {
-                val cli = AgentClientRegistry.create(serverUrl, username, password)
+                val cli = AgentClientRegistry.create(type, serverUrl, username, password)
                 val health = withContext(Dispatchers.IO) { cli.health() }
                 if (!health.healthy) throw IllegalStateException("Server is not healthy")
                 _serverVersion.value = health.version
@@ -1194,7 +1200,7 @@ private fun sessionTitle(sid: String): String {
                 _serverUrl.value = serverUrl
                 _authUsername.value = username
                 _authPassword.value = password
-                saveServerProfile(ServerProfile(serverUrl, username, password))
+                saveServerProfile(ServerProfile(serverUrl, type ?: "", username, password))
                 _connectionState.value = UiState.Idle
                 observeEvents()
                 loadWorkspace()
@@ -1429,7 +1435,8 @@ private fun sessionTitle(sid: String): String {
                         _connectionState.value = UiState.Error(getAppString(R.string.error_no_server))
                         return@launch
                     }
-                    val cli = AgentClientRegistry.create(saved, _authUsername.value, _authPassword.value)
+                    val savedType = settings.servers.first().firstOrNull { it.url == saved }?.type
+                    val cli = AgentClientRegistry.create(savedType, saved, _authUsername.value, _authPassword.value)
                     client = cli
                     probeCapabilities(cli)
                 }

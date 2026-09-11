@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,13 +35,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -47,6 +51,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.inspire.R
+import com.geno1024.ai.inspire.data.AgentClientFactory
+import com.geno1024.ai.inspire.data.AgentClientRegistry
+import com.geno1024.ai.inspire.data.ServerField
+import com.geno1024.ai.inspire.data.ServerGuide
 import com.geno1024.ai.inspire.data.ServerProfile
 
 @Composable
@@ -58,10 +66,10 @@ fun ConnectScreen(
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     val state by viewModel.connectionState.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
-    var host by rememberSaveable { mutableStateOf("") }
-    var port by rememberSaveable { mutableStateOf("4096") }
-    var username by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    var typeId by rememberSaveable { mutableStateOf(AgentClientRegistry.all().first().id) }
+    val factories = remember { AgentClientRegistry.all() }
+    val factory = factories.firstOrNull { it.id == typeId } ?: factories.first()
+    var fieldValues by remember(factory) { mutableStateOf(emptyMap<String, String>()) }
 
     Column(
         modifier = Modifier
@@ -81,65 +89,25 @@ fun ConnectScreen(
         Spacer(Modifier.height(24.dp))
 
         if (servers.isEmpty()) {
-            ServerGuide()
+            factory.guide?.let { ServerGuideBlock(it) }
             Spacer(Modifier.height(16.dp))
         }
 
         if (adding) {
-            Text(
-                stringResource(R.string.host_label),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            TypeSelector(
+                label = stringResource(R.string.server_type_label),
+                options = factories.map { it.id to it.label },
+                selected = factory.id,
+                onSelect = {
+                    typeId = it
+                    fieldValues = emptyMap()
+                },
             )
-            Spacer(Modifier.height(6.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                OutlinedTextField(
-                    value = host,
-                    onValueChange = { host = it },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    value = port,
-                    onValueChange = { port = it },
-                    placeholder = { Text(stringResource(R.string.port_hint_default)) },
-                    modifier = Modifier.width(132.dp),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                stringResource(R.string.username_label_optional),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(6.dp))
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                placeholder = if (password.isNotEmpty()) {
-                    { Text(stringResource(R.string.username_hint_default)) }
-                } else null,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                stringResource(R.string.password_label_optional),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(6.dp))
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
+            Spacer(Modifier.height(14.dp))
+            ServerFields(
+                fields = factory.fields,
+                values = fieldValues,
+                onValueChange = { key, value -> fieldValues = fieldValues + (key to value) },
             )
             Spacer(Modifier.height(16.dp))
             when (val s = state) {
@@ -158,22 +126,17 @@ fun ConnectScreen(
             }
             Button(
                 onClick = {
-                    val hostTrim = host.trim()
-                    val portTrim = port.trim().ifBlank { "4096" }
-                    val base = if (
-                        hostTrim.startsWith("http://") || hostTrim.startsWith("https://")
-                    ) hostTrim else "http://$hostTrim"
-                    val url = "$base:$portTrim"
-                    val user = username.trim().takeIf { it.isNotEmpty() }
-                        ?: if (password.isNotEmpty()) "opencode" else null
+                    val config = factory.buildConfig(fieldValues)
                     viewModel.connect(
-                        url,
-                        username = user,
-                        password = password.takeIf { it.isNotEmpty() },
+                        config.serverUrl,
+                        type = factory.id,
+                        username = config.username,
+                        password = config.password,
                         onSuccess = onConnected,
                     )
                 },
-                enabled = host.isNotBlank() && state !is UiState.Loading,
+                enabled = factory.fields.filter { it.required }.all { fieldValues[it.key].isNullOrBlank().not() }
+                    && state !is UiState.Loading,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.connect_save))
@@ -182,10 +145,8 @@ fun ConnectScreen(
             TextButton(
                 onClick = {
                     adding = false
-                    host = ""
-                    port = "4096"
-                    username = ""
-                    password = ""
+                    typeId = factories.first().id
+                    fieldValues = emptyMap()
                 },
                 modifier = Modifier.align(Alignment.End),
             ) {
@@ -213,8 +174,9 @@ fun ConnectScreen(
                     onConnect = {
                         viewModel.connect(
                             p.url,
-                            p.username?.takeIf { it.isNotEmpty() },
-                            p.password?.takeIf { it.isNotEmpty() },
+                            type = p.type,
+                            username = p.username?.takeIf { it.isNotEmpty() },
+                            password = p.password?.takeIf { it.isNotEmpty() },
                             onSuccess = onConnected,
                         )
                     },
@@ -226,22 +188,148 @@ fun ConnectScreen(
 }
 
 @Composable
-private fun ServerGuide() {
+private fun TypeSelector(
+    label: String,
+    options: List<Pair<String, String>>,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.width(8.dp))
+        Box {
+            Text(
+                options.firstOrNull { it.first == selected }?.second ?: selected,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { expanded = true }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { (id, itemLabel) ->
+                    DropdownMenuItem(
+                        text = { Text(itemLabel) },
+                        onClick = { onSelect(id); expanded = false },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServerFields(
+    fields: List<ServerField>,
+    values: Map<String, String>,
+    onValueChange: (String, String) -> Unit,
+) {
+    var i = 0
+    while (i < fields.size) {
+        val field = fields[i]
+        val next = fields.getOrNull(i + 1)
+        val showHint = { f: ServerField ->
+            f.hintRes != null && (f.key != "username" || values["password"].isNullOrEmpty().not())
+        }
+        if (next != null && next.widthDp != null) {
+            if (field.labelRes != null) {
+                FieldLabel(field.labelRes)
+                Spacer(Modifier.height(6.dp))
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                FieldInput(
+                    field,
+                    value = values[field.key].orEmpty(),
+                    onValueChange = { onValueChange(field.key, it) },
+                    modifier = Modifier.weight(1f),
+                )
+                FieldInput(
+                    next,
+                    value = values[next.key].orEmpty(),
+                    onValueChange = { onValueChange(next.key, it) },
+                    modifier = Modifier.width(next.widthDp!!.dp),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            i += 2
+        } else {
+            if (field.labelRes != null) {
+                FieldLabel(field.labelRes)
+                Spacer(Modifier.height(6.dp))
+            }
+            FieldInput(
+                field,
+                value = values[field.key].orEmpty(),
+                onValueChange = { onValueChange(field.key, it) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+            i += 1
+        }
+    }
+}
+
+@Composable
+private fun FieldLabel(labelRes: Int) {
+    Text(
+        stringResource(labelRes),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun FieldInput(
+    field: ServerField,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = field.hintRes?.let { { Text(stringResource(it)) } },
+        modifier = modifier,
+        singleLine = true,
+        visualTransformation = if (field.password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        keyboardOptions = if (field.numeric) {
+            KeyboardOptions(keyboardType = KeyboardType.Number)
+        } else {
+            KeyboardOptions.Default
+        },
+    )
+}
+
+@Composable
+private fun ServerGuideBlock(guide: ServerGuide) {
     Column(Modifier.fillMaxWidth()) {
         Text(
-            stringResource(R.string.connect_guide_title),
+            stringResource(guide.titleRes),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            stringResource(R.string.connect_guide_step1),
+            stringResource(guide.step1Res),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            stringResource(R.string.connect_guide_cmd),
+            guide.command,
             style = MaterialTheme.typography.bodySmall,
             fontFamily = MonoFontFamily,
             modifier = Modifier
@@ -253,12 +341,7 @@ private fun ServerGuide() {
                 .padding(horizontal = 12.dp, vertical = 10.dp),
         )
         Spacer(Modifier.height(8.dp))
-        listOf(
-            R.string.connect_guide_point1,
-            R.string.connect_guide_point2,
-            R.string.connect_guide_point3,
-            R.string.connect_guide_point4,
-        ).forEach { res ->
+        guide.pointsRes.forEach { res ->
             Text(
                 "• ${stringResource(res)}",
                 style = MaterialTheme.typography.bodySmall,
@@ -277,6 +360,7 @@ private fun ServerRow(
     onConnect: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val typeLabel = remember(profile.type) { AgentClientRegistry.byId(profile.type)?.label }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -285,13 +369,29 @@ private fun ServerRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(
-                profile.name.ifBlank { profile.url },
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    profile.name.ifBlank { profile.url },
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (typeLabel != null) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        typeLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                RoundedCornerShape(4.dp),
+                            )
+                            .padding(horizontal = 4.dp, vertical = 1.dp),
+                    )
+                }
+            }
             if (profile.url != profile.name) {
                 Text(
                     profile.url,

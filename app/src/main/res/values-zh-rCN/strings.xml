@@ -14,6 +14,7 @@
     <string name="connect_guide_point3">不传 --hostname 0.0.0.0 时仅监听 127.0.0.1，手机无法连接。</string>
     <string name="connect_guide_point4">如需登录验证，请按服务器自身的文档配置凭据，然后在下方输入；用户名留空则使用默认值。</string>
     <string name="connect_add">添加服务器</string>
+    <string name="server_type_label">类型</string>
     <string name="connect_save">连接并保存</string>
     <string name="connect_cancel">取消</string>
     <string name="connect_connected">已连接</string>

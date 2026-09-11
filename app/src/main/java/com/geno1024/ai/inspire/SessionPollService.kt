@@ -70,7 +70,10 @@ class SessionPollService : Service() {
         }
         val username = withContext(Dispatchers.IO) { settings.authUsername.first() }
         val password = withContext(Dispatchers.IO) { settings.authPassword.first() }
-        val client = AgentClientRegistry.create(url, username, password)
+        val type = withContext(Dispatchers.IO) {
+            settings.servers.first().firstOrNull { it.url == url }?.type
+        }
+        val client = AgentClientRegistry.create(type, url, username, password)
         var newMessageTime = 0L
         var sessionTitle = ""
         var questions = 0

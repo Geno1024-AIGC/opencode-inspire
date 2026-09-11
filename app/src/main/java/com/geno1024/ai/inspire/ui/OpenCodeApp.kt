@@ -83,6 +83,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geno1024.ai.inspire.R
+import com.geno1024.ai.inspire.data.AgentClientRegistry
 import com.geno1024.ai.inspire.data.CapabilityState
 import com.geno1024.ai.inspire.data.FeatureGroup
 import com.geno1024.ai.inspire.data.FeatureStatus
@@ -1038,7 +1039,7 @@ private fun ServersDialog(
                 servers.sortedBy { it.url != serverUrl }.forEach { p ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f).clickable {
-                            viewModel.connect(p.url, p.username, p.password)
+                            viewModel.connect(p.url, p.type, p.username, p.password)
                         }) {
                             Text(p.name.ifBlank { p.url }, fontWeight = FontWeight.Medium)
                             Text(p.url, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1077,7 +1078,7 @@ private fun ServersDialog(
                     TextButton(
                         enabled = url.isNotBlank(),
                         onClick = {
-                            viewModel.saveServerProfile(ServerProfile(url.trim(), username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }))
+                            viewModel.saveServerProfile(ServerProfile(url.trim(), AgentClientRegistry.all().first().id, username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }))
                             url = ""
                             username = ""
                             password = ""

@@ -14,6 +14,7 @@
     <string name="connect_guide_point3">Without --hostname 0.0.0.0 the server only listens on 127.0.0.1, unreachable from a phone.</string>
     <string name="connect_guide_point4">To require login, configure the server credentials (see its documentation) and enter them below; leave the username blank to use the default.</string>
     <string name="connect_add">Add server</string>
+    <string name="server_type_label">Type</string>
     <string name="connect_save">Connect &amp; Save</string>
     <string name="connect_cancel">Cancel</string>
     <string name="connect_connected">Connected</string>
