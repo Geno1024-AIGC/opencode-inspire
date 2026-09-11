@@ -60,14 +60,14 @@ class OpenCodeClientFactory : AgentClientFactory {
     )
 
     override val guide: ServerGuide = ServerGuide(
-        titleRes = R.string.connect_guide_title,
-        step1Res = R.string.connect_guide_step1,
-        command = "agent serve --hostname 0.0.0.0 --port 4096",
+        titleRes = R.string.opencode_guide_title,
+        step1Res = R.string.opencode_guide_step1,
+        command = "opencode serve --hostname 0.0.0.0 --port 4096",
         pointsRes = listOf(
-            R.string.connect_guide_point1,
-            R.string.connect_guide_point2,
-            R.string.connect_guide_point3,
-            R.string.connect_guide_point4,
+            R.string.opencode_guide_point1,
+            R.string.opencode_guide_point2,
+            R.string.opencode_guide_point3,
+            R.string.opencode_guide_point4,
         ),
     )
 
