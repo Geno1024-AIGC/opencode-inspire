@@ -163,7 +163,19 @@ fun TokenCalendarScreen(
     val projectIds = remember(tokenProjectStats) { tokenProjectStats.keys.sorted() }
     val activeProject = if (projectName in projectIds) projectName else "all"
     val projectNames = remember(projects) {
-        projects.associate { it.id to (it.name.ifBlank { it.worktree }.ifBlank { it.id }) }
+        val map = mutableMapOf<String, String>()
+        for (p in projects) {
+            val display = p.name
+                .ifBlank { p.worktree.substringAfterLast('/') }
+                .ifBlank { p.worktree }
+                .ifBlank { p.id }
+            map[p.id] = display
+            if (p.worktree.isNotBlank()) map[p.worktree] = display
+        }
+        map
+    }
+    val projectDisplayName = { key: String ->
+        projectNames[key] ?: key.substringAfterLast('/').ifBlank { key }
     }
     val projHistory = if (activeProject == "all") history else (tokenProjectStats[activeProject]?.history ?: emptyMap())
     val projElapsed = if (activeProject == "all") elapsed else (tokenProjectStats[activeProject]?.elapsed ?: emptyMap())
@@ -238,7 +250,7 @@ fun TokenCalendarScreen(
                     Spacer(Modifier.width(8.dp))
                     Box {
                         Text(
-                            if (activeProject == "all") stringResource(R.string.model_all) else (projectNames[activeProject] ?: activeProject),
+                            if (activeProject == "all") stringResource(R.string.model_all) else projectDisplayName(activeProject),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -254,7 +266,7 @@ fun TokenCalendarScreen(
                             )
                             projectIds.forEach { id ->
                                 DropdownMenuItem(
-                                    text = { Text(projectNames[id] ?: id) },
+                                    text = { Text(projectDisplayName(id)) },
                                     onClick = { projectName = id; modelName = "all"; projectMenu = false },
                                 )
                             }
