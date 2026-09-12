@@ -79,6 +79,14 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     val dayStartOffset by viewModel.dayStartOffset.collectAsStateWithLifecycle()
     val today = remember(dayStartOffset) { LocalDate.now(effectiveStatsZone(dayStartOffset)) }
     val context = LocalContext.current
+
+    val usagePeriodAllRes = stringResource(R.string.usage_period_all)
+    val usagePeriod7dRes = stringResource(R.string.usage_period_7d)
+    val usagePeriod30dRes = stringResource(R.string.usage_period_30d)
+    val usagePeriod90dRes = stringResource(R.string.usage_period_90d)
+    val usageAppNameRes = stringResource(R.string.app_name)
+    val usageTitleRes = stringResource(R.string.usage_leaderboard_title)
+    val shareLabelRes = stringResource(R.string.chat_select_share)
     val scope = rememberCoroutineScope()
     val accentColor = MaterialTheme.colorScheme.primary.toArgb()
 
@@ -141,22 +149,20 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
 
     fun shareImage() {
         val periodLabel = when (periodMode) {
-            "all" -> context.getString(R.string.usage_period_all)
+            "all" -> usagePeriodAllRes
             "custom" -> listOfNotNull(
                 customStart?.toLocalDateUtc()?.toString(),
                 customEnd?.toLocalDateUtc()?.toString(),
             ).joinToString(" ~ ")
-            else -> context.getString(
-                when (periodMode) {
-                    "7" -> R.string.usage_period_7d
-                    "30" -> R.string.usage_period_30d
-                    else -> R.string.usage_period_90d
-                },
-            )
+            else -> when (periodMode) {
+                "7" -> usagePeriod7dRes
+                "30" -> usagePeriod30dRes
+                else -> usagePeriod90dRes
+            }
         }
         val data = UsageShareData(
-            appName = context.getString(R.string.app_name),
-            title = context.getString(R.string.usage_leaderboard_title),
+            appName = usageAppNameRes,
+            title = usageTitleRes,
             periodLabel = periodLabel,
             footer = LocalDate.now().toString(),
             totalTokens = periodTotal.total,
@@ -196,7 +202,7 @@ fun UsageScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(Intent.createChooser(intent, context.getString(R.string.chat_select_share)))
+            context.startActivity(Intent.createChooser(intent, shareLabelRes))
         }
     }
 
