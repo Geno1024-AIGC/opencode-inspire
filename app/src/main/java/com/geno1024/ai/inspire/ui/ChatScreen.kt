@@ -2887,6 +2887,7 @@ private fun SessionDetailsScreen(
     val modelIds = modelMap.keys.sorted()
     val activeDetailModel = if (detailModel in modelIds) detailModel else "all"
     val context = LocalContext.current
+    val detailCopiedRes = stringResource(R.string.copied)
     val hasStored = stored != null && stored.totalElapsed > 0L
     val canIncremental = stored != null && !stored.lastMessageId.isNullOrEmpty()
 
@@ -3011,7 +3012,7 @@ private fun SessionDetailsScreen(
                             modifier = Modifier.clickable {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 clipboard.setPrimaryClip(ClipData.newPlainText(null, "${tokens.input}/${tokens.output}/${tokens.reasoning}/${tokens.cache?.read ?: 0}/${tokens.cache?.write ?: 0}"))
-                                Toast.makeText(context, context.getString(R.string.copied), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, detailCopiedRes, Toast.LENGTH_SHORT).show()
                             },
                         )
                     }
@@ -3195,6 +3196,7 @@ private fun DetailRow(
     onCopyValue: String? = null,
 ) {
     val context = LocalContext.current
+    val copiedRes = stringResource(R.string.copied)
     val copyable = onCopyValue != null
 
     Row(
@@ -3206,7 +3208,7 @@ private fun DetailRow(
                     copyable -> Modifier.clickable {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText(label, onCopyValue))
-                        Toast.makeText(context, context.getString(R.string.copied), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, copiedRes, Toast.LENGTH_SHORT).show()
                     }
                     else -> Modifier
                 }

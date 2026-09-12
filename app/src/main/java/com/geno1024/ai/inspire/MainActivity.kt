@@ -114,12 +114,7 @@ class MainActivity : ComponentActivity() {
                 "zh" -> Locale.SIMPLIFIED_CHINESE
                 else -> baseConfig.locales[0]
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                appConfig.setLocales(android.os.LocaleList(locale))
-            } else {
-                @Suppress("DEPRECATION")
-                appConfig.locale = locale
-            }
+            appConfig.setLocales(android.os.LocaleList(locale))
 
             CompositionLocalProvider(LocalConfiguration provides appConfig) {
                 val preset = try {

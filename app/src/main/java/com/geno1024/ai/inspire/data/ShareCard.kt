@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import androidx.core.graphics.createBitmap
 import java.text.NumberFormat
+import java.util.Locale
 import com.geno1024.ai.inspire.ui.monoAndroidTypeface
 
 data class ShareCardData(
@@ -140,7 +141,7 @@ fun buildShareCardBitmap(data: ShareCardData): Bitmap {
         Triple("REA", nf.format(data.reasoning), data.reasoning),
         Triple("CACHE R", nf.format(data.cacheRead), data.cacheRead),
         Triple("MESSAGES", nf.format(data.messages), data.messages),
-        Triple("COST", String.format("$%.4f", data.cost), data.cost),
+        Triple("COST", String.format(Locale.ROOT, "$%.4f", data.cost), data.cost),
     )
     rows.forEachIndexed { i, (t, v, _) ->
         val row = i / 2
