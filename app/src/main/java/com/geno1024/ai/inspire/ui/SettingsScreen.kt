@@ -520,6 +520,10 @@ fun SettingsScreen(
                     SectionLabel(R.string.settings_backup)
                     val context = LocalContext.current
                     val scope = rememberCoroutineScope()
+                    val backupRestoredRes = stringResource(R.string.settings_backup_restored)
+                    val backupRestoreFailedRes = stringResource(R.string.settings_backup_restore_failed)
+                    val backupExportedRes = stringResource(R.string.settings_backup_exported)
+                    val backupExportFailedRes = stringResource(R.string.settings_backup_export_failed)
                     val importLauncher = rememberLauncherForActivityResult(
                         ActivityResultContracts.OpenDocument()
                     ) { uri ->
@@ -533,8 +537,8 @@ fun SettingsScreen(
                                 val ok = !text.isNullOrBlank() && viewModel.importSettingsBackup(text)
                                 Toast.makeText(
                                     context,
-                                    if (ok) context.getString(R.string.settings_backup_restored)
-                                    else context.getString(R.string.settings_backup_restore_failed),
+                                    if (ok) backupRestoredRes
+                                    else backupRestoreFailedRes,
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }
@@ -547,8 +551,8 @@ fun SettingsScreen(
                                     val ok = viewModel.exportSettingsBackup()
                                     Toast.makeText(
                                         context,
-                                        if (ok) context.getString(R.string.settings_backup_exported)
-                                        else context.getString(R.string.settings_backup_export_failed),
+                                        if (ok) backupExportedRes
+                                        else backupExportFailedRes,
                                         Toast.LENGTH_SHORT,
                                     ).show()
                                 }
