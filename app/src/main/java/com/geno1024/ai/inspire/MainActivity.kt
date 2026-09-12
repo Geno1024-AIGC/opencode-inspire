@@ -112,7 +112,7 @@ class MainActivity : ComponentActivity() {
             val locale = when (langPref) {
                 "en" -> Locale.ENGLISH
                 "zh" -> Locale.SIMPLIFIED_CHINESE
-                else -> Locale.getDefault()
+                else -> baseConfig.locales[0]
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 appConfig.setLocales(android.os.LocaleList(locale))
@@ -136,6 +136,7 @@ class MainActivity : ComponentActivity() {
                         InspireApp(viewModel)
 
                         val ctx = androidx.compose.ui.platform.LocalContext.current
+                        val updateDownloadFailedRes = stringResource(R.string.update_download_failed)
                         val scope = rememberCoroutineScope()
                         var downloadJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
                         val downloadPercent by viewModel.downloadPercent.collectAsStateWithLifecycle()
@@ -227,7 +228,7 @@ class MainActivity : ComponentActivity() {
                                                 }
                                                 runCatching { ctx.startActivity(intent) }
                                             } else {
-                                                viewModel.showUpdateMessage(ctx.getString(R.string.update_download_failed))
+                                                viewModel.showUpdateMessage(updateDownloadFailedRes)
                                             }
                                         }
                                     }) { Text(stringResource(R.string.update_download)) }
