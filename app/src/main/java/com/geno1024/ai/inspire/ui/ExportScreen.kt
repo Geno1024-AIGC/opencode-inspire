@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -87,6 +88,12 @@ fun ExportScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    val configLocale = LocalConfiguration.current.locales[0]
+    val appNameRes = stringResource(R.string.app_name)
+    val shareCardSubtitleRes = stringResource(R.string.share_card_subtitle)
+    val exportSavedPattern = stringResource(R.string.export_saved)
+    val exportFailedRes = stringResource(R.string.export_failed)
+
     val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
     val hourByDay by viewModel.hourByDay.collectAsStateWithLifecycle()
     val tokenProjectStats by viewModel.tokenProjectStats.collectAsStateWithLifecycle()
@@ -120,7 +127,7 @@ fun ExportScreen(
         onBack()
     })
 
-    val locale = Locale.getDefault()
+    val locale = configLocale
     val accent = MaterialTheme.colorScheme.primary.toArgb()
     val ink = 0xFF161A1E.toInt()
     val muted = 0xFF6B7280.toInt()
@@ -132,9 +139,9 @@ fun ExportScreen(
     val cardData = remember(effHistory, commonTransparent, authorDraft, startMonth) {
         val total = effHistory.values.fold(TokenDay()) { a, b -> a + b }
         ShareCardData(
-            appName = context.getString(R.string.app_name),
+            appName = appNameRes,
             monthLabel = startMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)),
-            sublabel = context.getString(R.string.share_card_subtitle),
+            sublabel = shareCardSubtitleRes,
             totalTokens = total.fresh,
             input = total.input,
             output = total.output,
@@ -200,7 +207,7 @@ fun ExportScreen(
                 ink = ink,
                 muted = muted,
                 transparent = commonTransparent,
-                appName = context.getString(R.string.app_name),
+                appName = appNameRes,
                 author = authorDraft.trim().ifBlank { null },
                 monthPattern = calMonthFormat,
                 continuous = calContinuous,
@@ -238,7 +245,7 @@ fun ExportScreen(
             }
             Toast.makeText(
                 context,
-                if (ok) context.getString(R.string.export_saved, name) else context.getString(R.string.export_failed),
+                if (ok) String.format(Locale.ROOT, exportSavedPattern, name) else exportFailedRes,
                 Toast.LENGTH_LONG,
             ).show()
         }
@@ -428,9 +435,9 @@ fun ExportScreen(
                             scope.launch {
                                 val name = viewModel.exportUsageCsv(activeProject.takeIf { it != "all" })
                                 val msg = if (name != null) {
-                                    context.getString(R.string.export_saved, name)
+                                    String.format(Locale.ROOT, exportSavedPattern, name)
                                 } else {
-                                    context.getString(R.string.export_failed)
+                                    exportFailedRes
                                 }
                                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                             }
@@ -448,9 +455,9 @@ fun ExportScreen(
                             scope.launch {
                                 val name = viewModel.exportUsageJson(activeProject.takeIf { it != "all" })
                                 val msg = if (name != null) {
-                                    context.getString(R.string.export_saved, name)
+                                    String.format(Locale.ROOT, exportSavedPattern, name)
                                 } else {
-                                    context.getString(R.string.export_failed)
+                                    exportFailedRes
                                 }
                                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                             }
@@ -565,7 +572,7 @@ private fun MonthSelect(label: String, months: List<YearMonth>, selected: YearMo
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             months.forEach { m ->
                 DropdownMenuItem(
-                    text = { Text(m.format(DateTimeFormatter.ofPattern("yyyy-MM", Locale.getDefault())), fontWeight = if (m == selected) FontWeight.Bold else FontWeight.Normal) },
+                    text = { Text(m.format(DateTimeFormatter.ofPattern("yyyy-MM", LocalConfiguration.current.locales[0])), fontWeight = if (m == selected) FontWeight.Bold else FontWeight.Normal) },
                     onClick = { open = false; onSelect(m) },
                 )
             }
