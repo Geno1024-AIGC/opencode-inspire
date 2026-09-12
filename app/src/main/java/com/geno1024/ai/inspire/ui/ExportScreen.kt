@@ -82,6 +82,7 @@ fun ExportScreen(
     viewModel: MainViewModel,
     startMonth: YearMonth,
     onBack: () -> Unit,
+    initialProject: String = "",
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -90,7 +91,7 @@ fun ExportScreen(
     val hourByDay by viewModel.hourByDay.collectAsStateWithLifecycle()
     val tokenProjectStats by viewModel.tokenProjectStats.collectAsStateWithLifecycle()
     val tokenProjectDirs by viewModel.tokenProjectDirs.collectAsStateWithLifecycle()
-    var projectFilter by rememberSaveable { mutableStateOf("all") }
+    var projectFilter by rememberSaveable { mutableStateOf(initialProject.ifBlank { "all" }) }
     val projectIds = remember(tokenProjectStats) { tokenProjectStats.keys.sorted() }
     val activeProject = if (projectFilter in projectIds) projectFilter else "all"
     val projectNames = remember(tokenProjectDirs, projectIds) {
@@ -425,7 +426,7 @@ fun ExportScreen(
                     Button(
                         onClick = {
                             scope.launch {
-                                val name = viewModel.exportUsageCsv()
+                                val name = viewModel.exportUsageCsv(activeProject.takeIf { it != "all" })
                                 val msg = if (name != null) {
                                     context.getString(R.string.export_saved, name)
                                 } else {
@@ -445,7 +446,7 @@ fun ExportScreen(
                     Button(
                         onClick = {
                             scope.launch {
-                                val name = viewModel.exportUsageJson()
+                                val name = viewModel.exportUsageJson(activeProject.takeIf { it != "all" })
                                 val msg = if (name != null) {
                                     context.getString(R.string.export_saved, name)
                                 } else {

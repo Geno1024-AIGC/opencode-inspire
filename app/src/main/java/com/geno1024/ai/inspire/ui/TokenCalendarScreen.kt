@@ -126,7 +126,7 @@ internal fun utcOffsetLabel(minutes: Int): String {
 fun TokenCalendarScreen(
     viewModel: MainViewModel,
     onBack: () -> Unit,
-    onOpenExport: (YearMonth) -> Unit = {},
+    onOpenExport: (YearMonth, String) -> Unit = { _, _ -> },
 ) {
     BackHandler(onBack = onBack)
     val history by viewModel.tokenHistory.collectAsStateWithLifecycle()
@@ -224,7 +224,7 @@ fun TokenCalendarScreen(
                         }) {
                             Text(stringResource(R.string.calendar_full))
                         }
-                        IconButton(onClick = { onOpenExport(shownMonth) }) {
+                        IconButton(onClick = { onOpenExport(shownMonth, if (activeProject == "all") "" else activeProject) }) {
                             Icon(Icons.Filled.Share, stringResource(R.string.calendar_export))
                         }
                     }

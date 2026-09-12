@@ -138,6 +138,7 @@ fun InspireApp(viewModel: MainViewModel) {
     val screen = Screen.fromKey(screenKey)
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     var exportStartMonth by remember { mutableStateOf(java.time.YearMonth.now()) }
+    var exportProject by remember { mutableStateOf("") }
 
     LaunchedEffect(serverUrl) {
         if (serverUrl != null && screen is Screen.Connect) {
@@ -186,8 +187,9 @@ fun InspireApp(viewModel: MainViewModel) {
             TokenCalendarScreen(
                 viewModel = viewModel,
                 onBack = { screenKey = Screen.Settings.key },
-                onOpenExport = { m ->
+                onOpenExport = { m, p ->
                     exportStartMonth = m
+                    exportProject = p
                     screenKey = Screen.Export.key
                 },
             )
@@ -202,6 +204,7 @@ fun InspireApp(viewModel: MainViewModel) {
             ExportScreen(
                 viewModel = viewModel,
                 startMonth = exportStartMonth,
+                initialProject = exportProject,
                 onBack = { screenKey = Screen.Calendar.key },
             )
         }
