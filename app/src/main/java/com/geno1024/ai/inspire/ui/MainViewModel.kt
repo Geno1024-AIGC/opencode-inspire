@@ -412,6 +412,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _updateMessage = MutableStateFlow<String?>(null)
     val updateMessage: StateFlow<String?> = _updateMessage.asStateFlow()
 
+    private val _streamPartType = mutableMapOf<Pair<String, String>, String>()
+
     private val _userBubbleColor = MutableStateFlow(-1L)
     val userBubbleColor: StateFlow<Long> = _userBubbleColor.asStateFlow()
 
@@ -3038,12 +3040,20 @@ text = e.message ?: getAppString(R.string.send_failed),
                     }
                     return
                 }
+                val partId = part["id"]?.jsonPrimitive?.contentOrNull
                 val ui = buildPartUi(part) ?: return
+                if (partId != null) _streamPartType[mid to partId] = ui.type
                 _messages.value = _messages.value.map {
                     if (it.id != mid) it
                     else when (ui.type) {
                         "text" -> if ((ui.text?.length ?: 0) > it.text.length) it.copy(text = ui.text ?: it.text) else it
-                        "reasoning" -> if ((ui.text?.length ?: 0) > (it.reasoning?.length ?: 0)) it.copy(reasoning = ui.text ?: it.reasoning) else it
+                        "reasoning" -> {
+                            val r = ui.text
+                            if (r != null && r.length > (it.reasoning?.length ?: 0)) {
+                                val stripped = if (r.isNotEmpty() && it.text.startsWith(r)) it.text.removePrefix(r) else it.text
+                                it.copy(reasoning = r, text = stripped)
+                            } else it
+                        }
                         else -> {
                             val parts = it.parts.filterNot { existing ->
                                 ui.tool != null && existing.tool == ui.tool && existing.toolTitle == ui.toolTitle
@@ -3057,15 +3067,27 @@ text = e.message ?: getAppString(R.string.send_failed),
                 val sid = props?.get("sessionID")?.jsonPrimitive?.contentOrNull ?: return
                 if (sid != active) return
                 val mid = props["messageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val partID = props["partID"]?.jsonPrimitive?.contentOrNull
                 val field = props["field"]?.jsonPrimitive?.contentOrNull ?: return
                 val delta = props["delta"]?.jsonPrimitive?.contentOrNull ?: return
                 if (field != "text") return
+                val isReasoning = partID != null && _streamPartType[mid to partID] == "reasoning"
                 val updated = if (_messages.value.none { it.id == mid }) {
-                    _messages.value + ChatMessage(id = mid, role = "assistant", text = delta, time = System.currentTimeMillis(), cumulativeTokens = _cumulativeTokens.value)
+                    _messages.value + ChatMessage(
+                        id = mid,
+                        role = "assistant",
+                        text = if (isReasoning) "" else delta,
+                        reasoning = if (isReasoning) delta else null,
+                        time = System.currentTimeMillis(),
+                        cumulativeTokens = _cumulativeTokens.value,
+                    )
                 } else {
                     _messages.value.map {
                         if (it.id != mid) it
-                        else it.copy(text = it.text + delta)
+                        else it.copy(
+                            text = if (isReasoning) it.text else it.text + delta,
+                            reasoning = if (isReasoning) (it.reasoning ?: "") + delta else it.reasoning,
+                        )
                     }
                 }
                 _messages.value = updated
