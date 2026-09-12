@@ -128,7 +128,10 @@
 
     <!-- Chat -->
     <string name="chat_placeholder">发送消息…</string>
-    <string name="chat_selected_count">已选 %d 条</string>
+    <plurals name="chat_selected_count">
+        <item quantity="one">已选 %d 条</item>
+        <item quantity="other">已选 %d 条</item>
+    </plurals>
     <string name="chat_select_range">范围选择</string>
     <string name="chat_select_range_tip">范围：依次点两条消息</string>
     <string name="chat_select_share">分享图片</string>
@@ -138,7 +141,10 @@
     <string name="chat_custom_answer">自定义回答</string>
     <string name="chat_submit">提交</string>
     <string name="chat_reject">拒绝</string>
-    <string name="chat_questions_title">%d 个待回答问题</string>
+    <plurals name="chat_questions_title">
+        <item quantity="one">%d 个待回答问题</item>
+        <item quantity="other">%d 个待回答问题</item>
+    </plurals>
     <string name="chat_reject_all">全部拒绝</string>
     <string name="scroll_to_bottom">滚动到底部</string>
     <string name="session_elapsed">回复耗时 %.1fs</string>
@@ -437,7 +443,10 @@
     <string name="history_stats_unavailable">该会话暂无历史数据可统计。</string>
     <string name="history_stats_computing">统计历史耗时中</string>
     <string name="history_stats_computing_sub">正在获取并分析消息…</string>
-    <string name="history_stats_progress_msgs">已获取 %1$d 条消息</string>
+    <plurals name="history_stats_progress_msgs">
+        <item quantity="one">已获取 %1$d 条消息</item>
+        <item quantity="other">已获取 %1$d 条消息</item>
+    </plurals>
     <string name="history_stats_progress_upto">截至：%1$s</string>
     <string name="history_stats_latest">最新消息：%1$s</string>
     <string name="history_stats_fallback_title">历史窗口已前移，改为显示会话跨度</string>
