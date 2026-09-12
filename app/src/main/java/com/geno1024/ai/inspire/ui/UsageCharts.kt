@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.platform.LocalConfiguration
 import com.geno1024.ai.inspire.R
 import com.geno1024.ai.inspire.data.TokenDay
 import com.geno1024.ai.inspire.data.TokenFormat
@@ -150,7 +151,7 @@ fun DailyTrendChart(
             Triple(date, history[date.toString()]?.fresh ?: 0L, history[date.toString()]?.msgs ?: 0L)
         }
     }
-    val locale = java.util.Locale.getDefault()
+    val locale = LocalConfiguration.current.locales[0]
     var showMsgs by remember { mutableStateOf(false) }
     val maxVal = max(data.maxOf { if (showMsgs) it.third else it.second }, 1L)
     val barColor = MaterialTheme.colorScheme.primary

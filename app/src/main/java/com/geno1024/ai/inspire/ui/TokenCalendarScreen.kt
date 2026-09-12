@@ -81,6 +81,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
+import androidx.compose.ui.platform.LocalConfiguration
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -195,7 +196,7 @@ fun TokenCalendarScreen(
 
     val totalDay = viewHistory.values.fold(TokenDay()) { acc, t -> acc + t }
     val totalElapsed = viewElapsed.values.sum()
-    val locale = Locale.getDefault()
+    val locale = LocalConfiguration.current.locales[0]
     val zone = remember(dayStartOffset) { effectiveStatsZone(dayStartOffset) }
     val today = remember(zone) { LocalDate.now(zone) }
     var shownMonth by remember { mutableStateOf(YearMonth.now(zone)) }
