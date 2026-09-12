@@ -101,7 +101,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -267,7 +267,6 @@ fun ChatScreen(
     var commandMenuOpen by remember { mutableStateOf(false) }
     var recentCommands by rememberSaveable { mutableStateOf(listOf<String>()) }
     var showFiles by rememberSaveable { mutableStateOf(false) }
-    var userScrolledAway by remember { mutableStateOf(false) }
     var rawMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var previewUrl by remember { mutableStateOf<String?>(null) }
     var selectMode by rememberSaveable { mutableStateOf(false) }
@@ -432,22 +431,19 @@ fun ChatScreen(
         name ?: uri.lastPathSegment
     }
 
-    LaunchedEffect(listState, filteredMessages.size) {
-        snapshotFlow {
+    val atBottom by remember {
+        derivedStateOf {
             val info = listState.layoutInfo
             val last = info.visibleItemsInfo.maxByOrNull { it.index }
-            val lastIdx = info.totalItemsCount - 1
-            val bottomPinned = last != null &&
-                last.index >= lastIdx &&
-                last.offset + last.size >= info.viewportEndOffset - listDensity
-            bottomPinned to filteredMessages.size
-        }.collect { (bottomPinned, _) ->
-            val atNewest = bottomPinned && messages.isNotEmpty()
-            if (userScrolledAway == atNewest) userScrolledAway = !atNewest
-            if (atNewest) {
-                scrollToBottom()
-            }
+                ?: return@derivedStateOf true
+            if (last.index < info.totalItemsCount - 1) false
+            else last.offset + last.size >= info.viewportEndOffset - listDensity
         }
+    }
+
+    val tailMessage = filteredMessages.lastOrNull()
+    LaunchedEffect(sending, filteredMessages.size, tailMessage?.id, tailMessage?.text?.length) {
+        if (sending && atBottom) scrollToBottom()
     }
 
     var bottomInitialized by remember { mutableStateOf(false) }
@@ -938,7 +934,7 @@ fun ChatScreen(
          }
      }
 
-     if (userScrolledAway) {
+     if (!atBottom) {
          FloatingActionButton(
              onClick = { scrollToBottom() },
              modifier = Modifier
