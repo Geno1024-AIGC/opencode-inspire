@@ -54,6 +54,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.LinkInteractionListener
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
@@ -150,6 +151,7 @@ private fun AnnotatedString.Builder.appendInline(
     nodes: List<InlineMarkdown>,
     linkColor: androidx.compose.ui.graphics.Color?,
     codeStyle: SpanStyle?,
+    onLinkClick: (String) -> Unit,
 ) {
     for (node in nodes) {
         when (node) {
@@ -159,22 +161,30 @@ private fun AnnotatedString.Builder.appendInline(
                 withStyle(style) { append(node.text) }
             }
             is InlineMarkdown.Bold -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                appendInline(node.children, linkColor, codeStyle)
+                appendInline(node.children, linkColor, codeStyle, onLinkClick)
             }
             is InlineMarkdown.Italic -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                appendInline(node.children, linkColor, codeStyle)
+                appendInline(node.children, linkColor, codeStyle, onLinkClick)
             }
             is InlineMarkdown.Strikethrough -> withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) {
-                appendInline(node.children, linkColor, codeStyle)
+                appendInline(node.children, linkColor, codeStyle, onLinkClick)
             }
             is InlineMarkdown.Link -> {
                 val start = length
-                appendInline(node.children, linkColor, codeStyle)
+                appendInline(node.children, linkColor, codeStyle, onLinkClick)
                 if (node.url.isNotEmpty()) {
                     val color = linkColor ?: androidx.compose.ui.graphics.Color.Unspecified
                     val linkStyle = if (color != androidx.compose.ui.graphics.Color.Unspecified)
                         SpanStyle(color = color) else null
-                    addLink(LinkAnnotation.Url(node.url, TextLinkStyles(style = linkStyle)), start, length)
+                    addLink(
+                        LinkAnnotation.Url(
+                            node.url,
+                            TextLinkStyles(style = linkStyle),
+                            linkInteractionListener = LinkInteractionListener { onLinkClick(node.url) },
+                        ),
+                        start,
+                        length,
+                    )
                 }
             }
             is InlineMarkdown.Image -> append(node.alt)
@@ -189,6 +199,7 @@ private fun InlineMarkdownNodes(
     modifier: Modifier = Modifier,
     linkColor: androidx.compose.ui.graphics.Color? = null,
     prefix: String? = null,
+    onLinkClick: (String) -> Unit = {},
 ) {
     val baseFontSize = if (style.fontSize != TextUnit.Unspecified) style.fontSize else 14.sp
     val codeStyle = SpanStyle(
@@ -199,7 +210,7 @@ private fun InlineMarkdownNodes(
     val annotated = remember(nodes, prefix) {
         buildAnnotatedString {
             if (prefix != null) append(prefix)
-            appendInline(nodes, linkColor, codeStyle)
+            appendInline(nodes, linkColor, codeStyle, onLinkClick)
         }
     }
     Text(
@@ -288,7 +299,7 @@ private fun MermaidBlock(source: String) {
 }
 
 @Composable
-fun MarkdownMessage(content: String) {
+fun MarkdownMessage(content: String, onLinkClick: (String) -> Unit = {}) {
     val blocks = remember(content) { parseMarkdown(content) }
     // Split blocks into runs: each run is either a list of non-mermaid blocks,
     // or a single mermaid block.
@@ -316,7 +327,7 @@ fun MarkdownMessage(content: String) {
             } else {
                 SelectionContainer {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        for (b in run) BlockContent(b)
+                        for (b in run) BlockContent(b, onLinkClick)
                     }
                 }
             }
@@ -325,17 +336,17 @@ fun MarkdownMessage(content: String) {
 }
 
 @Composable
-fun MarkdownMessageCustom(content: String) {
+fun MarkdownMessageCustom(content: String, onLinkClick: (String) -> Unit = {}) {
     val blocks = remember(content) { parseMarkdown(content) }
     SelectionContainer {
         Column(modifier = Modifier.fillMaxWidth()) {
-            for (b in blocks) BlockContent(b)
+            for (b in blocks) BlockContent(b, onLinkClick)
         }
     }
 }
 
 @Composable
-private fun BlockContent(block: BlockMarkdown) {
+private fun BlockContent(block: BlockMarkdown, onLinkClick: (String) -> Unit = {}) {
     when (block) {
         is BlockMarkdown.Heading -> {
             val (style, padding) = when (block.hLevel) {
@@ -352,6 +363,7 @@ private fun BlockContent(block: BlockMarkdown) {
                 style = style,
                 modifier = Modifier.padding(vertical = padding),
                 linkColor = MaterialTheme.colorScheme.primary,
+                onLinkClick = onLinkClick,
             )
         }
         is BlockMarkdown.Paragraph -> InlineMarkdownNodes(
@@ -359,6 +371,7 @@ private fun BlockContent(block: BlockMarkdown) {
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(vertical = 2.dp),
             linkColor = MaterialTheme.colorScheme.primary,
+            onLinkClick = onLinkClick,
         )
         is BlockMarkdown.Bullet -> InlineMarkdownNodes(
             nodes = block.content,
@@ -366,6 +379,7 @@ private fun BlockContent(block: BlockMarkdown) {
             modifier = Modifier.padding(start = 16.dp + (block.level * 16).dp, top = 2.dp, bottom = 2.dp),
             linkColor = MaterialTheme.colorScheme.primary,
             prefix = "•  ",
+            onLinkClick = onLinkClick,
         )
         is BlockMarkdown.Ordered -> InlineMarkdownNodes(
             nodes = block.content,
@@ -373,6 +387,7 @@ private fun BlockContent(block: BlockMarkdown) {
             modifier = Modifier.padding(start = 16.dp + (block.level * 16).dp, top = 2.dp, bottom = 2.dp),
             linkColor = MaterialTheme.colorScheme.primary,
             prefix = "${block.num}.  ",
+            onLinkClick = onLinkClick,
         )
         is BlockMarkdown.Task -> InlineMarkdownNodes(
             nodes = block.content,
@@ -380,6 +395,7 @@ private fun BlockContent(block: BlockMarkdown) {
             modifier = Modifier.padding(start = 16.dp + (block.level * 16).dp, top = 2.dp, bottom = 2.dp),
             linkColor = MaterialTheme.colorScheme.primary,
             prefix = if (block.checked) "☑  " else "☐  ",
+            onLinkClick = onLinkClick,
         )
         is BlockMarkdown.Quote -> InlineMarkdownNodes(
             nodes = block.content,
@@ -392,9 +408,10 @@ private fun BlockContent(block: BlockMarkdown) {
                 )
                 .padding(8.dp),
             linkColor = MaterialTheme.colorScheme.primary,
+            onLinkClick = onLinkClick,
         )
         is BlockMarkdown.CodeFence -> CodeBlockRenderer(block.code, block.lang)
-        is BlockMarkdown.Table -> TableRenderer(block)
+        is BlockMarkdown.Table -> TableRenderer(block, onLinkClick)
         is BlockMarkdown.Hr -> Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -484,7 +501,7 @@ private fun CodeBlockRenderer(code: String, lang: String) {
 }
 
 @Composable
-private fun TableRenderer(table: BlockMarkdown.Table) {
+private fun TableRenderer(table: BlockMarkdown.Table, onLinkClick: (String) -> Unit) {
     val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
     val colCount = (listOf(table.headers.size) + table.rows.map { it.size }).maxOrNull()?.coerceAtLeast(1) ?: 1
     val headerBg = MaterialTheme.colorScheme.surfaceVariant
@@ -523,6 +540,7 @@ private fun TableRenderer(table: BlockMarkdown.Table) {
                                 nodes = header,
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                                 linkColor = MaterialTheme.colorScheme.primary,
+                                onLinkClick = onLinkClick,
                             )
                         }
                     }
@@ -548,6 +566,7 @@ private fun TableRenderer(table: BlockMarkdown.Table) {
                                     nodes = cell,
                                     style = MaterialTheme.typography.bodyMedium,
                                     linkColor = MaterialTheme.colorScheme.primary,
+                                    onLinkClick = onLinkClick,
                                 )
                             }
                         }

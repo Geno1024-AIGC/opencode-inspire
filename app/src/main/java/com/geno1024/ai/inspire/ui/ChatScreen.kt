@@ -1634,17 +1634,17 @@ private fun SendingIndicator() {
 }
 
 @Composable
-private fun MarkdownMessage(content: String, color: Color = Color.Unspecified) {
+private fun MarkdownMessage(content: String, color: Color = Color.Unspecified, onLinkClick: (String) -> Unit = {}) {
     if (color != Color.Unspecified) {
         Box(modifier = Modifier.fillMaxWidth()) {
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.material3.LocalContentColor provides color
             ) {
-                com.geno1024.ai.inspire.ui.MarkdownMessage(content)
+                com.geno1024.ai.inspire.ui.MarkdownMessage(content, onLinkClick)
             }
         }
     } else {
-        com.geno1024.ai.inspire.ui.MarkdownMessage(content)
+        com.geno1024.ai.inspire.ui.MarkdownMessage(content, onLinkClick)
     }
 }
 
@@ -1910,7 +1910,7 @@ private fun MessageBubble(
                                 )
                             }
                         } else {
-                            MarkdownMessage(msg.text.trim(), color = onBackground)
+                            MarkdownMessage(msg.text.trim(), color = onBackground, onLinkClick = onOpenLink)
                         }
                     }
                 }
@@ -1930,22 +1930,6 @@ private fun MessageBubble(
                             text = msg.error,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
-                val links = extractMarkdownLinks(msg.text)
-                if (links.isNotEmpty()) {
-                    Spacer(Modifier.height(6.dp))
-                    links.forEach { link ->
-                        Text(
-                            text = "🔗 " + (link.takeLast(48)),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .clickable { onOpenLink(link) }
-                                .padding(vertical = 1.dp),
                         )
                     }
                 }
@@ -3437,21 +3421,6 @@ private fun parentOfRelative(path: String): String {
     val idx = p.lastIndexOf('/')
     if (idx <= 0) return ""
     return p.substring(0, idx)
-}
-private fun extractMarkdownLinks(text: String): List<String> {
-    val markdown = Regex("""\[[^\]]*\]\(\s*(https?://[^\s)]+)\)""")
-    val rawUrls = Regex("""https?://[^\s<>()]+""")
-    val result = mutableListOf<String>()
-    markdown.findAll(text).forEach { m ->
-        m.groupValues.getOrNull(1)?.let { u ->
-            if (u.startsWith("http")) result.add(u.trimEnd(')', '.'))
-        }
-    }
-    rawUrls.findAll(text).forEach { m ->
-        val u = m.value.trimEnd(')', '.', '，', '。', ',', ';', ';', '"', ' ')
-        if (u.startsWith("http") && u !in result) result.add(u)
-    }
-    return result.distinct()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
