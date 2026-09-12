@@ -591,8 +591,8 @@ private fun DayColumnCard(
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
-    hideEmpty: Boolean = false,
     modifier: Modifier = Modifier,
+    hideEmpty: Boolean = false,
 ) {
     val sorted = buckets.toSortedMap()
     val labels: MutableList<String> = mutableListOf()
@@ -627,8 +627,8 @@ private fun MonthColumnCard(
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
-    hideEmpty: Boolean = false,
     modifier: Modifier = Modifier,
+    hideEmpty: Boolean = false,
 ) {
     val sorted = buckets.toSortedMap()
     val labels: MutableList<String> = mutableListOf()
@@ -663,8 +663,8 @@ private fun WeekColumnCard(
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
-    hideEmpty: Boolean = false,
     modifier: Modifier = Modifier,
+    hideEmpty: Boolean = false,
 ) {
     val sorted = buckets.toSortedMap()
     var clickedWeek by remember { mutableStateOf<LocalDate?>(null) }
@@ -742,8 +742,8 @@ private fun PeriodColumns(
     category: TokenCategory,
     tokenMetric: TokenMetric,
     msgMetric: MsgMetric,
-    hideEmpty: Boolean = false,
     modifier: Modifier = Modifier,
+    hideEmpty: Boolean = false,
     onLabelClick: ((index: Int, key: String) -> Unit)? = null,
 ) {
     val mono = MonoFontFamily
