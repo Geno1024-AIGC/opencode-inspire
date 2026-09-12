@@ -58,7 +58,6 @@ object Updater {
         when (channel) {
             "canary" -> releases.firstOrNull { it.prerelease }
             else -> releases.firstOrNull { !it.prerelease }
-                ?: releases.firstOrNull()
         }
 
     fun mirrorApkUrl(url: String, enabled: Boolean): String {
