@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import androidx.core.graphics.createBitmap
 import com.geno1024.ai.inspire.ui.ChatMessage
 import com.geno1024.ai.inspire.ui.monoAndroidTypeface
 
@@ -81,7 +82,7 @@ fun buildChatScreenshot(messages: List<ChatMessage>): Bitmap? {
     val totalH = H_PAD +
         blocks.fold(0f) { acc, b -> acc + b.roleH + b.bubbleH + V_GAP }
 
-    val bmp = Bitmap.createBitmap(IMG_W, totalH.toInt(), Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(IMG_W, totalH.toInt(), Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     c.drawColor(background)
 

@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import androidx.core.graphics.createBitmap
 import java.text.NumberFormat
 import com.geno1024.ai.inspire.ui.monoAndroidTypeface
 
@@ -89,7 +90,7 @@ fun buildShareCardBitmap(data: ShareCardData): Bitmap {
 
     val h = topH + totalH + gridH + footerH
 
-    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(w, h, Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     bmp.eraseColor(data.background ?: Color.TRANSPARENT)
 

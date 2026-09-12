@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import androidx.core.content.edit
 import android.widget.RemoteViews
 
 class SessionWidgetProvider : AppWidgetProvider() {
@@ -69,10 +70,10 @@ class SessionWidgetProvider : AppWidgetProvider() {
 
         fun updateCached(context: Context, sessionTitle: String, questions: Int) {
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .edit()
-                .putString(KEY_SESSION, sessionTitle)
-                .putInt(KEY_QUESTIONS, questions)
-                .apply()
+                .edit {
+                    putString(KEY_SESSION, sessionTitle)
+                    putInt(KEY_QUESTIONS, questions)
+                }
         }
     }
 }

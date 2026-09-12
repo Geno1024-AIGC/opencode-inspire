@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import androidx.core.graphics.createBitmap
 import com.geno1024.ai.inspire.ui.monoAndroidTypeface
 import java.text.NumberFormat
 import java.util.Locale
@@ -117,7 +118,7 @@ fun buildUsageShareBitmap(data: UsageShareData): Bitmap {
     top += 40f
     val totalH = top
 
-    val bmp = Bitmap.createBitmap(w, totalH.toInt(), Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(w, totalH.toInt(), Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     c.drawColor(background)
 
