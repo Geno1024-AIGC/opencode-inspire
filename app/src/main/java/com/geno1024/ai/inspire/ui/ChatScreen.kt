@@ -3,6 +3,7 @@ package com.geno1024.ai.inspire.ui
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.net.toUri
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -3453,7 +3454,7 @@ private fun LinkPreviewSheet(
                 TextButton(
                     onClick = {
                         runCatching {
-                            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                            val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                             context.startActivity(intent)
                         }
                     },

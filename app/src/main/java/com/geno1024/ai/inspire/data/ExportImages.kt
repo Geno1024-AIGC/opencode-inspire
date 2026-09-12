@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import androidx.core.graphics.createBitmap
 import java.text.NumberFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -78,7 +79,7 @@ fun buildCalendarBitmap(
     val footerH = if (!author.isNullOrBlank()) 52f else 0f
 
     val h = (pageH + monthsCapped.size * blockH + (monthsCapped.size - 1).coerceAtLeast(0) * blockGap + footerH + 40f).toInt()
-    val bmp = Bitmap.createBitmap(W, h, Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(W, h, Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     if (!transparent) c.drawColor(0xFFF6F8FB.toInt())
 
@@ -227,7 +228,7 @@ private fun buildCalendarContinuous(
     monthPattern: String,
     metrics: List<CalendarMetric>,
 ): Bitmap {
-    if (months.isEmpty()) return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+    if (months.isEmpty()) return createBitmap(1, 1, Bitmap.Config.ARGB_8888)
     val startMonth = months.first()
     val endMonth = months.last()
     val start = startMonth.atDay(1)
@@ -250,7 +251,7 @@ private fun buildCalendarContinuous(
     val gridH = nRows * (cell + cellGap)
     val blockH = cardTitleH + dowH + gridH + 40f
     val h = (pageH + blockH + footerH + 40f).toInt()
-    val bmp = Bitmap.createBitmap(W, h, Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(W, h, Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     if (!transparent) c.drawColor(0xFFF6F8FB.toInt())
 
@@ -433,7 +434,7 @@ private fun buildPunchcardHourly(
     val w = (domainX + bodyW + padLR + legendPad).toInt()
     val h = (topLabelH + padLR + bodyH + legendH).toInt()
 
-    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(w, h, Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     if (!transparent) c.drawColor(0xFFF6F8FB.toInt())
 
@@ -525,7 +526,7 @@ private fun buildPunchcardDaily(
     val dates = history.keys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
         .sorted().takeLast(730)
     if (dates.isEmpty()) {
-        return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+        return createBitmap(1, 1, Bitmap.Config.ARGB_8888)
     }
     val wf = WeekFields.of(locale)
     fun weekStart(d: LocalDate): LocalDate = d.with(wf.dayOfWeek(), 1L)
@@ -547,7 +548,7 @@ private fun buildPunchcardDaily(
     val w = (domainX + bodyW + padLR + legendPad).toInt()
     val h = (topRowH + padLR + bodyH + legendH).toInt()
 
-    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val bmp = createBitmap(w, h, Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
     if (!transparent) c.drawColor(0xFFF6F8FB.toInt())
 

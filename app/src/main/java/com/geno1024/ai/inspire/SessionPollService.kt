@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import android.os.IBinder
 import com.geno1024.ai.inspire.data.AgentClientRegistry
 import com.geno1024.ai.inspire.data.SettingsRepository
@@ -111,13 +112,13 @@ class SessionPollService : Service() {
                 postPermissionRequests(permissions, sessionTitle)
             }
 
-            prefs.edit()
-                .putString(KEY_LAST_SESSION, active?.id)
-                .putLong(KEY_LAST_TIME, newMessageTime)
-                .putInt(KEY_LAST_QUESTIONS, questions)
-                .putInt(KEY_LAST_PERMISSIONS, permissions)
-                .putLong(KEY_LAST_CHECK, System.currentTimeMillis())
-                .apply()
+            prefs.edit {
+                putString(KEY_LAST_SESSION, active?.id)
+                putLong(KEY_LAST_TIME, newMessageTime)
+                putInt(KEY_LAST_QUESTIONS, questions)
+                putInt(KEY_LAST_PERMISSIONS, permissions)
+                putLong(KEY_LAST_CHECK, System.currentTimeMillis())
+            }
         }
         SessionWidgetProvider.updateCached(applicationContext, sessionTitle, questions)
         SessionWidgetProvider.refreshAppWidgets(applicationContext)
