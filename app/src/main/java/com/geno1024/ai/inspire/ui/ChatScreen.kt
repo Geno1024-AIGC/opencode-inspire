@@ -786,6 +786,16 @@ fun ChatScreen(
                         },
                     )
                 }
+                if (!atBottom) {
+                    FloatingActionButton(
+                        onClick = { scrollToBottom() },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(16.dp),
+                    ) {
+                        Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.scroll_to_bottom))
+                    }
+                }
             }
 
             if (todos.isNotEmpty() && !todosHidden) {
@@ -931,17 +941,6 @@ fun ChatScreen(
                     )
                 }
              }
-         }
-     }
-
-     if (!atBottom) {
-         FloatingActionButton(
-             onClick = { scrollToBottom() },
-             modifier = Modifier
-                 .align(Alignment.BottomEnd)
-                 .padding(16.dp),
-         ) {
-             Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.scroll_to_bottom))
          }
      }
 
