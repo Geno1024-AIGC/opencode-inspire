@@ -12,7 +12,6 @@
     <string name="server_type_detect_hint">Detected automatically from the server address.</string>
     <string name="opencode_guide_title">Start OpenCode</string>
     <string name="opencode_guide_step1">On the machine running OpenCode, open a terminal and start it so it is reachable from your phone:</string>
-    <string name="opencode_guide_cmd">opencode serve --hostname 0.0.0.0 --port 4096</string>
     <string name="opencode_guide_point1">Copy the OpenCode agent LAN address into the Server address field below (the port defaults to 4096).</string>
     <string name="opencode_guide_point2">When --port is omitted the OpenCode server uses port 4096; if taken, a random free port is used.</string>
     <string name="opencode_guide_point3">Without --hostname 0.0.0.0 the OpenCode server only listens on 127.0.0.1, unreachable from a phone.</string>
@@ -24,7 +23,6 @@
     <string name="connect_connected">Connected</string>
     <string name="connect_remove">Remove server</string>
     <string name="host_label">Server address</string>
-    <string name="port_label">Port</string>
     <string name="port_hint_default">4096</string>
     <string name="port_hint_generic">Port</string>
     <string name="username_label_optional">Username (optional)</string>
@@ -59,8 +57,6 @@
     <string name="share_card_subtitle">Token usage report</string>
     <string name="export_title">Export</string>
     <string name="export_section_type">Export type</string>
-    <string name="export_section_project">Project scope</string>
-    <string name="export_project_all">All projects</string>
     <string name="export_type_image">Image</string>
     <string name="export_section_common">Common options</string>
     <string name="export_opt_author">Your name (drawn on image)</string>
@@ -95,7 +91,6 @@
     <string name="session_group_today">Today</string>
     <string name="session_group_yesterday">Yesterday</string>
     <string name="session_group_earlier">Earlier</string>
-    <string name="drawer_servers">Servers</string>
     <string name="drawer_projects">Projects</string>
     <string name="drawer_providers">Providers</string>
     <string name="drawer_refresh">Refresh</string>
@@ -133,17 +128,13 @@
 
     <!-- Chat -->
     <string name="chat_placeholder">Message…</string>
-    <string name="chat_select_mode">Select messages</string>
     <string name="chat_selected_count">%d selected</string>
     <string name="chat_select_range">Range</string>
     <string name="chat_select_range_tip">Range: tap two messages</string>
-    <string name="chat_select_clear">Clear</string>
-    <string name="chat_select_export">Save screenshot</string>
     <string name="chat_select_share">Share image</string>
     <string name="chat_select_range_down">Select messages below</string>
     <string name="chat_select_range_up">Select messages above</string>
     <string name="export_none_selected">No messages selected</string>
-    <string name="chat_erase_title">Agent asks</string>
     <string name="chat_custom_answer">Custom answer</string>
     <string name="chat_submit">Submit</string>
     <string name="chat_reject">Reject</string>
@@ -246,8 +237,6 @@
     <string name="calendar_export">Export usage</string>
     <string name="export_saved">Saved: %1$s</string>
     <string name="export_failed">Export failed</string>
-    <string name="export_csv_json">CSV + JSON</string>
-    <string name="export_image">Image (PNG)</string>
     <string name="calendar_last_updated">Cached data as of: %1$s</string>
     <string name="calendar_table_total">Total</string>
     <string name="calendar_table_msgs">msgs</string>
@@ -274,8 +263,6 @@
     <string name="calendar_period_show_all">show all</string>
     <string name="calendar_period_hide_empty">hide empty</string>
     <string name="stats_tab_msgs">msgs</string>
-    <string name="chart_model_usage">Model usage</string>
-    <string name="chart_trend_title">Trend · last 14 days</string>
     <string name="calendar_msgs_user">user</string>
     <string name="calendar_msgs_assistant">assistant</string>
     <string name="calendar_table_month">This month</string>
@@ -347,8 +334,6 @@
     <string name="about_tokens_by_model">By model</string>
     <string name="channel_release">Release</string>
     <string name="channel_canary">Canary</string>
-    <string name="settings_ghproxy">Mirror download (ghproxy)</string>
-    <string name="settings_ghproxy_sub">Route GitHub release APK downloads through a mainland mirror</string>
     <string name="settings_update_channel">Release channel</string>
     <string name="settings_update_source">Download source</string>
     <string name="source_github">GitHub</string>
@@ -362,7 +347,6 @@
     <string name="update_check_failed">Failed to check for updates</string>
     <string name="update_available_title">Update available</string>
     <string name="update_available_body">A newer version (%1$s) is available. Current: %2$s</string>
-    <string name="update_open">Open</string>
     <string name="update_download">Download &amp; install</string>
     <string name="update_download_failed">Update download failed</string>
     <string name="download_title">Downloading update…</string>
@@ -374,7 +358,6 @@
     <string name="ok">OK</string>
 
     <!-- Workspace / session -->
-    <string name="workspace_loading">Loading…</string>
     <string name="workspace_error">Failed to load workspace</string>
     <string name="creating_session">Creating session…</string>
     <string name="create_session_error">Failed to create session</string>
@@ -398,7 +381,6 @@
     <string name="todo_title">Todos %1$d/%2$d</string>
 
     <!-- Slash commands -->
-    <string name="slash_trigger">Commands</string>
     <string name="slash_no_commands">No commands available</string>
 
     <!-- Code block copy -->
@@ -423,7 +405,6 @@
     <string name="model_label">Model</string>
 
     <!-- Session management -->
-    <string name="session_rename">Rename</string>
     <string name="session_delete">Delete session</string>
     <string name="session_delete_confirm">Delete this session and all its messages?</string>
     <string name="session_delete_title">Delete session</string>
@@ -434,7 +415,6 @@
     <string name="session_details_id">Session ID</string>
     <string name="session_details_created">Created</string>
     <string name="session_details_tokens">Token</string>
-    <string name="session_details_model">Model</string>
     <string name="session_details_tokens_in">In %s</string>
     <string name="session_details_tokens_out">Out %s</string>
     <string name="session_details_tokens_reasoning">Reasoning %s</string>
@@ -442,26 +422,17 @@
     <string name="session_details_tokens_cache_write">Cw %s</string>
     <string name="session_details_history">History stats</string>
     <string name="session_details_history_none">Not computed yet for this session.</string>
-    <string name="session_details_history_recompute">Compute all</string>
     <string name="session_details_history_incremental">Incremental</string>
     <string name="session_details_history_full">Full</string>
     <string name="session_details_history_total">Cumulative time: %.1fs</string>
     <string name="session_details_history_upto">Through: %1$s</string>
     <string name="session_details_history_messages">Messages: %1$d ↑%2$d ↓%3$d</string>
     <string name="session_details_history_tools">Tool calls: %1$d</string>
-    <string name="session_details_history_exchanges">Exchanges: %1$d</string>
-    <string name="session_details_history_user">By me: %1$d</string>
-    <string name="session_details_history_assistant">By assistant: %1$d</string>
     <string name="session_details_auto_update">Auto-update stats after each reply</string>
-    <string name="session_details_history_update">Update</string>
-    <string name="history_stats">Compute history stats</string>
     <string name="history_stats_title">History stats</string>
-    <string name="history_stats_exchanges">Exchanges: %1$d</string>
     <string name="history_stats_total">Total conversation time: %.1fs</string>
     <string name="history_stats_messages">Messages: %1$d ↑%2$d ↓%3$d</string>
     <string name="history_stats_tools">Tool calls: %1$d</string>
-    <string name="history_stats_user">Sent by me: %1$d</string>
-    <string name="history_stats_assistant">Sent by assistant: %1$d</string>
     <string name="history_stats_first5">First 5 messages</string>
     <string name="history_stats_unavailable">No historical data available for this session.</string>
     <string name="history_stats_computing">Computing history stats</string>
@@ -529,8 +500,6 @@
     <string name="files_title">Files</string>
     <string name="files_empty">No files</string>
     <string name="files_up">Up</string>
-    <string name="files_root">/</string>
-    <string name="files_open_in_chat">Open in chat</string>
     <string name="files_send_to_ai">Send to AI</string>
     <string name="files_cancel">Cancel</string>
     <string name="files_read_failed">Failed to read file</string>

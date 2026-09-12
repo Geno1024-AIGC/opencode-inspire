@@ -12,7 +12,6 @@
     <string name="server_type_detect_hint">将根据服务器地址自动检测类型。</string>
     <string name="opencode_guide_title">启动 OpenCode</string>
     <string name="opencode_guide_step1">在运行 OpenCode 的机器上打开终端并启动它，使其能被手机访问：</string>
-    <string name="opencode_guide_cmd">opencode serve --hostname 0.0.0.0 --port 4096</string>
     <string name="opencode_guide_point1">把 OpenCode 的局域网地址填入下方服务器地址（端口默认 4096）。</string>
     <string name="opencode_guide_point2">省略 --port 时，OpenCode 使用 4096 端口；若被占用，则改用随机空闲端口。</string>
     <string name="opencode_guide_point3">不传 --hostname 0.0.0.0 时 OpenCode 仅监听 127.0.0.1，手机无法连接。</string>
@@ -24,7 +23,6 @@
     <string name="connect_connected">已连接</string>
     <string name="connect_remove">删除服务器</string>
     <string name="host_label">服务器地址</string>
-    <string name="port_label">端口</string>
     <string name="port_hint_default">4096</string>
     <string name="port_hint_generic">端口</string>
     <string name="username_label_optional">用户名（可选）</string>
@@ -59,8 +57,6 @@
     <string name="share_card_subtitle">Token 用量报告</string>
     <string name="export_title">导出</string>
     <string name="export_section_type">导出类型</string>
-    <string name="export_section_project">项目范围</string>
-    <string name="export_project_all">全部项目</string>
     <string name="export_type_image">图片</string>
     <string name="export_section_common">通用选项</string>
     <string name="export_opt_author">署名（绘制到图片上）</string>
@@ -95,7 +91,6 @@
     <string name="session_group_today">今天</string>
     <string name="session_group_yesterday">昨天</string>
     <string name="session_group_earlier">更早</string>
-    <string name="drawer_servers">服务器</string>
     <string name="drawer_projects">项目</string>
     <string name="drawer_providers">模型与密钥</string>
     <string name="drawer_refresh">刷新</string>
@@ -133,17 +128,13 @@
 
     <!-- Chat -->
     <string name="chat_placeholder">发送消息…</string>
-    <string name="chat_select_mode">选择消息</string>
     <string name="chat_selected_count">已选 %d 条</string>
     <string name="chat_select_range">范围选择</string>
     <string name="chat_select_range_tip">范围：依次点两条消息</string>
-    <string name="chat_select_clear">清空</string>
-    <string name="chat_select_export">保存截图</string>
     <string name="chat_select_share">分享图片</string>
     <string name="chat_select_range_down">选择以下对话</string>
     <string name="chat_select_range_up">选择以上对话</string>
     <string name="export_none_selected">未选择消息</string>
-    <string name="chat_erase_title">代理提问</string>
     <string name="chat_custom_answer">自定义回答</string>
     <string name="chat_submit">提交</string>
     <string name="chat_reject">拒绝</string>
@@ -246,8 +237,6 @@
     <string name="calendar_export">导出用量</string>
     <string name="export_saved">已保存：%1$s</string>
     <string name="export_failed">导出失败</string>
-    <string name="export_csv_json">CSV + JSON</string>
-    <string name="export_image">图片（PNG）</string>
     <string name="calendar_last_updated">缓存数据截至：%1$s</string>
 <string name="calendar_table_total">总计</string>
     <string name="calendar_table_msgs">总消息</string>
@@ -274,8 +263,6 @@
     <string name="calendar_period_show_all">显示全部</string>
     <string name="calendar_period_hide_empty">隐藏空数据</string>
     <string name="stats_tab_msgs">消息</string>
-    <string name="chart_model_usage">模型用量</string>
-    <string name="chart_trend_title">趋势 · 最近 14 天</string>
     <string name="calendar_msgs_user">user</string>
     <string name="calendar_msgs_assistant">assistant</string>
     <string name="calendar_table_month">本月</string>
@@ -347,8 +334,6 @@
     <string name="about_tokens_by_model">按模型</string>
     <string name="channel_release">正式版</string>
     <string name="channel_canary">Canary</string>
-    <string name="settings_ghproxy">镜像下载 (ghproxy)</string>
-    <string name="settings_ghproxy_sub">把 GitHub 发布的 APK 下载走大陆镜像</string>
     <string name="settings_update_channel">发布频道</string>
     <string name="settings_update_source">下载源</string>
     <string name="source_github">GitHub</string>
@@ -362,7 +347,6 @@
     <string name="update_check_failed">检查更新失败</string>
     <string name="update_available_title">发现新版本</string>
     <string name="update_available_body">发现新版本（%1$s），当前版本 %2$s</string>
-    <string name="update_open">打开</string>
     <string name="update_download">下载并安装</string>
     <string name="update_download_failed">更新下载失败</string>
     <string name="download_title">正在下载更新…</string>
@@ -374,7 +358,6 @@
     <string name="ok">确定</string>
 
     <!-- Workspace / session -->
-    <string name="workspace_loading">正在加载…</string>
     <string name="workspace_error">加载工作区失败</string>
     <string name="creating_session">正在创建会话…</string>
     <string name="create_session_error">创建会话失败</string>
@@ -398,7 +381,6 @@
     <string name="todo_title">待办 %1$d/%2$d</string>
 
     <!-- Slash commands -->
-    <string name="slash_trigger">命令</string>
     <string name="slash_no_commands">没有可用命令</string>
 
     <!-- Code block copy -->
@@ -423,7 +405,6 @@
     <string name="model_label">模型</string>
 
     <!-- Session management -->
-    <string name="session_rename">重命名</string>
     <string name="session_delete">删除会话</string>
     <string name="session_delete_confirm">删除此会话及其所有消息？</string>
     <string name="session_delete_title">删除会话</string>
@@ -434,7 +415,6 @@
     <string name="session_details_id">会话 ID</string>
     <string name="session_details_created">创建时间</string>
     <string name="session_details_tokens">Token</string>
-    <string name="session_details_model">模型</string>
     <string name="session_details_tokens_in">输入 %s</string>
     <string name="session_details_tokens_out">输出 %s</string>
     <string name="session_details_tokens_reasoning">推理 %s</string>
@@ -442,26 +422,17 @@
     <string name="session_details_tokens_cache_write">缓存写 %s</string>
     <string name="session_details_history">历史统计</string>
     <string name="session_details_history_none">该会话尚未统计。</string>
-    <string name="session_details_history_recompute">统计全部</string>
     <string name="session_details_history_incremental">增量</string>
     <string name="session_details_history_full">全量</string>
     <string name="session_details_history_total">累计耗时：%.1fs</string>
     <string name="session_details_history_upto">到：%1$s</string>
     <string name="session_details_history_messages">消息数：%1$d ↑%2$d ↓%3$d</string>
     <string name="session_details_history_tools">工具调用：%1$d</string>
-    <string name="session_details_history_exchanges">双向对话：%1$d</string>
-    <string name="session_details_history_user">我发的：%1$d</string>
-    <string name="session_details_history_assistant">你发的：%1$d</string>
     <string name="session_details_auto_update">每次回复后自动更新统计</string>
-    <string name="session_details_history_update">更新</string>
-    <string name="history_stats">统计历史</string>
     <string name="history_stats_title">历史统计</string>
-    <string name="history_stats_exchanges">双向对话：%1$d</string>
     <string name="history_stats_total">对话总耗时：%.1fs</string>
     <string name="history_stats_messages">消息数：%1$d ↑%2$d ↓%3$d</string>
     <string name="history_stats_tools">工具调用：%1$d</string>
-    <string name="history_stats_user">我发的：%1$d</string>
-    <string name="history_stats_assistant">你发的：%1$d</string>
     <string name="history_stats_first5">前 5 条消息</string>
     <string name="history_stats_unavailable">该会话暂无历史数据可统计。</string>
     <string name="history_stats_computing">统计历史耗时中</string>
@@ -526,8 +497,6 @@
     <string name="files_title">文件</string>
     <string name="files_empty">无文件</string>
     <string name="files_up">上级</string>
-    <string name="files_root">/</string>
-    <string name="files_open_in_chat">在聊天中打开</string>
     <string name="files_send_to_ai">发送给 AI</string>
     <string name="files_cancel">取消</string>
     <string name="files_read_failed">读取文件失败</string>
