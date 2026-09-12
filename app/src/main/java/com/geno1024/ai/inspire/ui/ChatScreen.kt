@@ -224,6 +224,7 @@ fun ChatScreen(
         }
     }
     val context = LocalContext.current
+    val shareLabelRes = stringResource(R.string.chat_select_share)
     val activeId = activeSession?.id
     val drafts = sessionDrafts
     var input by rememberSaveable(activeId) { mutableStateOf("") }
@@ -412,7 +413,7 @@ fun ChatScreen(
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(Intent.createChooser(intent, context.getString(R.string.chat_select_share)))
+            context.startActivity(Intent.createChooser(intent, shareLabelRes))
         }
     }
 
