@@ -81,6 +81,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.painterResource
 import com.geno1024.ai.inspire.R
 import com.geno1024.ai.inspire.data.Message
@@ -511,7 +512,7 @@ fun ChatScreen(
                     title = {
                         if (selectMode) {
                             Text(
-                                stringResource(R.string.chat_selected_count, selectedIds.size),
+                                pluralStringResource(R.plurals.chat_selected_count, selectedIds.size, selectedIds.size),
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -1009,7 +1010,7 @@ fun ChatScreen(
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     historyProgress?.let { p ->
                         Text(
-                            stringResource(R.string.history_stats_progress_msgs, p.fetched),
+                            pluralStringResource(R.plurals.history_stats_progress_msgs, p.fetched, p.fetched),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         if (p.lastTimestamp > 0L) {
@@ -1511,7 +1512,7 @@ private fun PendingQuestionsSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    stringResource(R.string.chat_questions_title, requests.size),
+                    pluralStringResource(R.plurals.chat_questions_title, requests.size, requests.size),
                     style = MaterialTheme.typography.titleMedium,
                 )
                 TextButton(onClick = onDismissAll) { Text(stringResource(R.string.chat_reject_all)) }
