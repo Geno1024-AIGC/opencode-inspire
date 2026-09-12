@@ -5,6 +5,7 @@ plugins {
 }
 
 import java.io.File
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 // ---- Dynamic version: 0.1.$pack.$build.$commit ----
@@ -46,6 +47,18 @@ val tokensModels = tokenLines.drop(6).joinToString("\n") { it.trim() }.trim('\n'
 
 val appVersionName = "0.1.$pack.$build.$commitSha"
 
+// ---- Release signing: password from local.properties (git-ignored) or CI env vars ----
+val keystoreProps = Properties().apply {
+    val lf = File(rootProject.projectDir, "local.properties")
+    if (lf.exists()) lf.inputStream().use { load(it) }
+}
+fun secret(key: String, env: String): String? =
+    System.getenv(env)?.takeIf { it.isNotBlank() } ?: keystoreProps.getProperty(key)?.takeIf { it.isNotBlank() }
+val releaseStoreFile = secret("keystore.file", "KEYSTORE_STORE_FILE")
+val releaseStorePassword = secret("keystore.storePassword", "KEYSTORE_STORE_PASSWORD")
+val releaseKeyPassword = secret("keystore.keyPassword", "KEYSTORE_KEY_PASSWORD") ?: releaseStorePassword
+val releaseKeyAlias = secret("keystore.keyAlias", "KEYSTORE_KEY_ALIAS") ?: "geno"
+
 android {
     namespace = "com.geno1024.ai.inspire"
     compileSdk = 37
@@ -70,10 +83,22 @@ android {
         buildConfigField("String", "TOKENS_MODELS", "\"${tokensModels.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\"")
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseStoreFile != null && releaseStorePassword != null) {
+                storeFile = File(releaseStoreFile)
+                storePassword = releaseStorePassword
+                keyPassword = releaseKeyPassword
+                keyAlias = releaseKeyAlias
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
