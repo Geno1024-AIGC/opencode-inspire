@@ -16,7 +16,7 @@
     <string name="opencode_guide_point1">Copy the OpenCode agent LAN address into the Server address field below (the port defaults to 4096).</string>
     <string name="opencode_guide_point2">When --port is omitted the OpenCode server uses port 4096; if taken, a random free port is used.</string>
     <string name="opencode_guide_point3">Without --hostname 0.0.0.0 the OpenCode server only listens on 127.0.0.1, unreachable from a phone.</string>
-    <string name="opencode_guide_point4">To require login, configure OpenCode credentials (e.g. opencode auth login) and enter them below; leave the username blank to use the default.</string>
+    <string name="opencode_guide_point4">To require login, set the OPENCODE_SERVER_USERNAME and OPENCODE_SERVER_PASSWORD environment variables on the server and enter them below; leave the username blank to use the default.</string>
     <string name="connect_add">Add server</string>
     <string name="server_type_label">Type</string>
     <string name="connect_save">Connect &amp; Save</string>

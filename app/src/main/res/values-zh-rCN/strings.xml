@@ -16,7 +16,7 @@
     <string name="opencode_guide_point1">把 OpenCode 的局域网地址填入下方服务器地址（端口默认 4096）。</string>
     <string name="opencode_guide_point2">省略 --port 时，OpenCode 使用 4096 端口；若被占用，则改用随机空闲端口。</string>
     <string name="opencode_guide_point3">不传 --hostname 0.0.0.0 时 OpenCode 仅监听 127.0.0.1，手机无法连接。</string>
-    <string name="opencode_guide_point4">如需登录验证，请先在 OpenCode 中配置账户（例如 opencode auth login），再在下方输入；用户名留空则使用默认值。</string>
+    <string name="opencode_guide_point4">如需登录验证，请在服务器上设置 OPENCODE_SERVER_USERNAME 与 OPENCODE_SERVER_PASSWORD 环境变量，然后填入下方；用户名留空则使用默认值。</string>
     <string name="connect_add">添加服务器</string>
     <string name="server_type_label">类型</string>
     <string name="connect_save">连接并保存</string>
