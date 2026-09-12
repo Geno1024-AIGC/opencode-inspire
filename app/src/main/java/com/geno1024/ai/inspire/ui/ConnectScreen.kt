@@ -134,8 +134,15 @@ fun ConnectScreen(
                     Spacer(Modifier.height(14.dp))
                 }
             }
+            val displayedFields = factory.fields.map { f ->
+                if (typeId != "opencode" && f.key == "port") {
+                    f.copy(hintRes = R.string.port_hint_generic)
+                } else {
+                    f
+                }
+            }
             ServerFields(
-                fields = factory.fields,
+                fields = displayedFields,
                 values = fieldValues,
                 onValueChange = { key, value -> fieldValues = fieldValues + (key to value) },
             )
