@@ -28,7 +28,6 @@ class SessionWidgetProvider : AppWidgetProvider() {
         val cached = readCached(context)
         val views = RemoteViews(context.packageName, R.layout.widget_session)
         views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_title))
-        views.setImageViewResource(R.id.widget_icon, R.drawable.ic_launcher_foreground)
         val launch = PendingIntent.getActivity(
             context,
             0,
