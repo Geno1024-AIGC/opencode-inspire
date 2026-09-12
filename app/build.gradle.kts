@@ -67,7 +67,7 @@ android {
         applicationId = "com.geno1024.ai.inspire"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        versionCode = build
         versionName = appVersionName
         buildConfigField("String", "GIT_COMMIT", "\"$commitSha\"")
         buildConfigField("String", "BUILD_TIME", "\"$commitDate\"")
