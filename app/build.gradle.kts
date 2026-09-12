@@ -66,7 +66,7 @@ android {
     defaultConfig {
         applicationId = "com.geno1024.ai.inspire"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = build
         versionName = appVersionName
         buildConfigField("String", "GIT_COMMIT", "\"$commitSha\"")
