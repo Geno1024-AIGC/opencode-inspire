@@ -697,7 +697,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadTokenHistory() = runTokenLoad(incremental = false)
 
-    fun incrementTokenHistory() = runTokenLoad(incremental = true)
+    fun incrementTokenHistory() = runTokenLoad(incremental = false)
 
     fun setDayStartOffset(offsetMinutes: Int?) {
         _dayStartOffset.value = offsetMinutes
