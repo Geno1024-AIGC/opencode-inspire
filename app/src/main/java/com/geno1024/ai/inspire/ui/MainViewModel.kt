@@ -2863,18 +2863,15 @@ text = e.message ?: getAppString(R.string.send_failed),
         refreshPendingQuestions()
         val c = client ?: return
         val dir = _activeSession.value?.directory
-        var fetched: List<PermissionRequest>? = null
-        if (!dir.isNullOrBlank()) {
-            fetched = runCatching {
+        val scoped = if (!dir.isNullOrBlank()) {
+            runCatching {
                 withContext(Dispatchers.IO) { c.pendingPermissions(dir) }
-            }.getOrNull()
-        }
-        if (fetched == null) {
-            fetched = runCatching {
-                withContext(Dispatchers.IO) { c.pendingPermissions(null) }
-            }.getOrNull()
-        }
-        val list = fetched ?: return
+            }.getOrNull().orEmpty()
+        } else emptyList()
+        val global = runCatching {
+            withContext(Dispatchers.IO) { c.pendingPermissions(null) }
+        }.getOrNull() ?: return
+        val list = (global + scoped).distinctBy { it.id }
         val ignored = _ignoredPermissions.value
         val (silent, keep) = list.partition { permissionIgnoreKey(it) in ignored }
         if (silent.isNotEmpty()) {
