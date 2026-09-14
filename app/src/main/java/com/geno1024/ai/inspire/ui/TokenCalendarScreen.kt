@@ -1394,11 +1394,15 @@ private fun ProjectsStatsCard(
         )
         return
     }
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        val headerStyle = MaterialTheme.typography.bodySmall
-        val cellStyle = MaterialTheme.typography.bodySmall
+    val headerStyle = MaterialTheme.typography.bodySmall
+    val cellStyle = MaterialTheme.typography.bodySmall
+    val nameWidth = 120.dp
+    val colWidth = 72.dp
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            Modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp).padding(bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -1406,20 +1410,22 @@ private fun ProjectsStatsCard(
                 style = headerStyle,
                 color = labelColor,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1.5f),
+                modifier = Modifier.width(nameWidth),
             )
-            Text("Total", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-            Text("In", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-            Text("Out", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-            Text("Rea", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-            Text("CR", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-            Text("CW", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+            Text("Total", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
+            Text("In", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
+            Text("Out", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
+            Text("Rea", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
+            Text("CR", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
+            Text("CW", style = headerStyle, color = labelColor, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         rows.forEach { (id, total, _) ->
             val displayName = projectNames[id] ?: id.substringAfterLast('/').ifBlank { id }
             Row(
-                Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -1428,20 +1434,22 @@ private fun ProjectsStatsCard(
                     color = onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1.5f),
+                    modifier = Modifier.width(nameWidth),
                 )
-                Text(fmtTokens(total.total, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-                Text(fmtTokens(total.input, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-                Text(fmtTokens(total.output, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-                Text(fmtTokens(total.reasoning, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-                Text(fmtTokens(total.cacheRead, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
-                Text(fmtTokens(total.cacheWrite, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                Text(fmtTokens(total.total, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
+                Text(fmtTokens(total.input, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
+                Text(fmtTokens(total.output, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
+                Text(fmtTokens(total.reasoning, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
+                Text(fmtTokens(total.cacheRead, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
+                Text(fmtTokens(total.cacheWrite, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth))
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         val grandTotal = rows.fold(TokenDay()) { acc, (_, t, _) -> acc + t }
         Row(
-            Modifier.fillMaxWidth().padding(top = 4.dp),
+            Modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp).padding(top = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -1449,14 +1457,14 @@ private fun ProjectsStatsCard(
                 style = cellStyle,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1.5f),
+                modifier = Modifier.width(nameWidth),
             )
-            Text(fmtTokens(grandTotal.total, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.primary)
-            Text(fmtTokens(grandTotal.input, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.primary)
-            Text(fmtTokens(grandTotal.output, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.primary)
-            Text(fmtTokens(grandTotal.reasoning, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.primary)
-            Text(fmtTokens(grandTotal.cacheRead, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.primary)
-            Text(fmtTokens(grandTotal.cacheWrite, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.primary)
+            Text(fmtTokens(grandTotal.total, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth), color = MaterialTheme.colorScheme.primary)
+            Text(fmtTokens(grandTotal.input, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth), color = MaterialTheme.colorScheme.primary)
+            Text(fmtTokens(grandTotal.output, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth), color = MaterialTheme.colorScheme.primary)
+            Text(fmtTokens(grandTotal.reasoning, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth), color = MaterialTheme.colorScheme.primary)
+            Text(fmtTokens(grandTotal.cacheRead, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth), color = MaterialTheme.colorScheme.primary)
+            Text(fmtTokens(grandTotal.cacheWrite, tokenFormat), fontFamily = mono, textAlign = TextAlign.End, modifier = Modifier.width(colWidth), color = MaterialTheme.colorScheme.primary)
         }
     }
 }
