@@ -70,6 +70,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -871,6 +872,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _tokenHistoryLoading.value = true
         viewModelScope.launch {
             try {
+                withTimeout(120_000L) {
                 withContext(Dispatchers.IO) {
                     val c = client ?: return@withContext
                     val zone = effectiveZone()
@@ -1158,6 +1160,7 @@ val dayKey = day.toString()
                         settings.saveTokenRawBuckets(rawOut)
                         settings.saveTokenRawSync(maxRawMs)
                     }
+                }
                 }
             } finally {
                 _tokenHistoryLoading.value = false
