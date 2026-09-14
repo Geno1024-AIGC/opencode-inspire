@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.geno1024.ai.inspire.BuildConfig
+import com.geno1024.ai.inspire.data.Mirror
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -471,12 +472,15 @@ fun SettingsScreen(
                         title = stringResource(R.string.settings_update_channel),
                     )
                     DropdownSetting(
-                        listOf(
-                            "github" to stringResource(R.string.source_github),
-                            "ghproxy" to stringResource(R.string.source_ghproxy),
-                        ),
-                        selected = if (mirror) "ghproxy" else "github",
-                        onSelect = { viewModel.setMirror(it != "github") },
+                        Mirror.entries.map { it.id to stringResource(when (it) {
+                            Mirror.NONE -> R.string.source_github
+                            Mirror.GH_PROXY -> R.string.source_ghproxy
+                            Mirror.MIRROR_GHPROXY -> R.string.source_mirror_ghproxy
+                            Mirror.GHPROXY_NET -> R.string.source_ghproxy_net
+                            Mirror.GH_PROXY_COM -> R.string.source_gh_proxy_com
+                        }) },
+                        selected = mirror,
+                        onSelect = viewModel::setMirror,
                         title = stringResource(R.string.settings_update_source),
                     )
                     Row(

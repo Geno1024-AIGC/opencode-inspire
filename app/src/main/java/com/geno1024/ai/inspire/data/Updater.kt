@@ -16,6 +16,14 @@ data class ReleaseInfo(
     val publishedAt: String? = null,
 )
 
+enum class Mirror(val id: String, val prefix: String) {
+    NONE("github", ""),
+    GH_PROXY("ghproxy", "https://gh-proxy.com/"),
+    MIRROR_GHPROXY("mirror_ghproxy", "https://mirror.ghproxy.com/"),
+    GHPROXY_NET("ghproxy_net", "https://ghproxy.net/"),
+    GH_PROXY_COM("gh_proxy_com", "https://gh-proxy.com/");
+}
+
 object Updater {
     private const val REPO = "Geno1024-AIGC/opencode-inspire"
 
@@ -60,9 +68,9 @@ object Updater {
             else -> releases.firstOrNull { !it.prerelease }
         }
 
-    fun mirrorApkUrl(url: String, enabled: Boolean): String {
-        if (!enabled) return url
-        return if (url.startsWith("https://github.com/")) "https://gh-proxy.com/$url" else url
+    fun mirrorApkUrl(url: String, mirror: Mirror): String {
+        if (mirror == Mirror.NONE || !url.startsWith("https://github.com/")) return url
+        return "${mirror.prefix}$url"
     }
 
     private fun versionTuple(v: String): Pair<Int, Int>? {

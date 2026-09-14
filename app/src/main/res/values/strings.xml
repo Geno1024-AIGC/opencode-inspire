@@ -346,7 +346,10 @@
     <string name="settings_update_channel">Release channel</string>
     <string name="settings_update_source">Download source</string>
     <string name="source_github">GitHub</string>
-    <string name="source_ghproxy">ghproxy</string>
+    <string name="source_ghproxy">gh-proxy.com</string>
+    <string name="source_mirror_ghproxy">mirror.ghproxy.com</string>
+    <string name="source_ghproxy_net">ghproxy.net</string>
+    <string name="source_gh_proxy_com">gh-proxy.com (alt)</string>
     <string name="check_updates">Check for updates</string>
     <string name="check_updates_sub">Check GitHub for a newer version</string>
     <string name="check_now">Check</string>

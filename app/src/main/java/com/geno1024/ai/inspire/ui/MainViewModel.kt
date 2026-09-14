@@ -46,6 +46,7 @@ import com.geno1024.ai.inspire.data.TokenFormat
 import com.geno1024.ai.inspire.data.TokenModelStats
 import com.geno1024.ai.inspire.data.Tokens
 import com.geno1024.ai.inspire.data.Updater
+import com.geno1024.ai.inspire.data.Mirror
 import com.geno1024.ai.inspire.data.UsageExportDoc
 import com.geno1024.ai.inspire.data.UsageExportResult
 import com.geno1024.ai.inspire.data.buildUsageCsv
@@ -400,8 +401,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _channel = MutableStateFlow("release")
     val channel: StateFlow<String> = _channel.asStateFlow()
-    private val _mirror = MutableStateFlow(false)
-    val mirror: StateFlow<Boolean> = _mirror.asStateFlow()
+    private val _mirror = MutableStateFlow("github")
+    val mirror: StateFlow<String> = _mirror.asStateFlow()
 
     private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
     val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
@@ -1376,8 +1377,8 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch { settings.setChannel(value) }
     }
 
-    fun setMirror(enabled: Boolean) {
-        viewModelScope.launch { settings.setMirror(enabled) }
+    fun setMirror(mirror: String) {
+        viewModelScope.launch { settings.setMirror(mirror) }
     }
 
     fun setBackgroundNotify(enabled: Boolean) {
@@ -1407,7 +1408,7 @@ private fun sessionTitle(sid: String): String {
                 val current = BuildConfig.VERSION_NAME
                 if (rel != null && Updater.isNewer(rel.tagName, current)) {
                     val baseUrl = rel.apkUrl ?: rel.htmlUrl
-                    _updateInfo.value = UpdateInfo(version = rel.tagName, url = Updater.mirrorApkUrl(baseUrl, _mirror.value))
+                    _updateInfo.value = UpdateInfo(version = rel.tagName, url = Updater.mirrorApkUrl(baseUrl, Mirror.entries.find { it.id == _mirror.value } ?: Mirror.NONE))
                 } else {
                     _updateInfo.value = null
                     if (notifyLatest) _updateMessage.value = getAppString(R.string.update_latest)

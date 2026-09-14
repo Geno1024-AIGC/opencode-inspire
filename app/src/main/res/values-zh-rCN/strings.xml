@@ -344,7 +344,10 @@
     <string name="settings_update_channel">发布频道</string>
     <string name="settings_update_source">下载源</string>
     <string name="source_github">GitHub</string>
-    <string name="source_ghproxy">ghproxy</string>
+    <string name="source_ghproxy">gh-proxy.com</string>
+    <string name="source_mirror_ghproxy">mirror.ghproxy.com</string>
+    <string name="source_ghproxy_net">ghproxy.net</string>
+    <string name="source_gh_proxy_com">gh-proxy.com (备用)</string>
     <string name="check_updates">检查更新</string>
     <string name="check_updates_sub">在 GitHub 上检查是否有新版本</string>
     <string name="check_now">检查</string>
