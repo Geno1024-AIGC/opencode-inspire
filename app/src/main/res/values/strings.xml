@@ -291,6 +291,9 @@
     <string name="stats_tab_day">Day</string>
     <string name="stats_tab_monthly">Month</string>
     <string name="stats_tab_weekly">Week</string>
+    <string name="stats_tab_projects">Projects</string>
+    <string name="calendar_today">Today</string>
+    <string name="calendar_no_project_data">No project data</string>
     <string name="calendar_chart_title">Trend</string>
     <string name="stats_total">Total</string>
     <string name="stats_week_dialog_title">Week %1$d‑W%2$02d</string>
