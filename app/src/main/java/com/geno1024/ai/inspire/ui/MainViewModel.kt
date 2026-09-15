@@ -443,7 +443,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         viewModelScope.launch {
-            settings.drafts.collect { _sessionDrafts.value = it }
+            settings.drafts.collect { persisted ->
+                val mem = _sessionDrafts.value
+                _sessionDrafts.value = mem + persisted.filter { it.key !in mem }
+            }
         }
         viewModelScope.launch {
             settings.serverUrl.collect { _serverUrl.value = it }
