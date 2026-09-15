@@ -1397,7 +1397,7 @@ private fun ProjectsStatsCard(
     val headerStyle = MaterialTheme.typography.bodySmall
     val cellStyle = MaterialTheme.typography.bodySmall
     val nameWidth = 120.dp
-    val colWidth = 72.dp
+    val colWidth = 96.dp
     val grandTotal = rows.fold(TokenDay()) { acc, (_, t, _) -> acc + t }
     val tableScrollState = rememberScrollState()
     Box(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
