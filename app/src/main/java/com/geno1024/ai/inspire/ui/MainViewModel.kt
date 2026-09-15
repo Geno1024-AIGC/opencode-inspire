@@ -2877,7 +2877,7 @@ text = e.message ?: getAppString(R.string.send_failed),
         } else emptyList()
         val global = runCatching {
             withContext(Dispatchers.IO) { c.pendingPermissions(null) }
-        }.getOrNull() ?: return
+        }.getOrNull().orEmpty()
         val list = (global + scoped).distinctBy { it.id }
         val ignored = _ignoredPermissions.value
         val (silent, keep) = list.partition { permissionIgnoreKey(it) in ignored }
