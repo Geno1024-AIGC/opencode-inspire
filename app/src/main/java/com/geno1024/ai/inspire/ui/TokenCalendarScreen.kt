@@ -1400,9 +1400,8 @@ private fun ProjectsStatsCard(
     val colWidth = 96.dp
     val grandTotal = rows.fold(TokenDay()) { acc, (_, t, _) -> acc + t }
     val tableScrollState = rememberScrollState()
-    Box(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Column(Modifier.horizontalScroll(tableScrollState)) {
-            Row(
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Column(Modifier.horizontalScroll(tableScrollState)) {            Row(
                 Modifier
                     .padding(horizontal = 16.dp).padding(bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1446,7 +1445,7 @@ private fun ProjectsStatsCard(
                 }
             }
         }
-        Column(Modifier.align(Alignment.BottomCenter).horizontalScroll(tableScrollState)) {
+        Column(Modifier.horizontalScroll(tableScrollState).padding(top = 8.dp)) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Row(
                 Modifier
