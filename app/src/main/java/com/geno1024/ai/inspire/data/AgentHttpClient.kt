@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -230,6 +232,12 @@ class AgentHttpClient(
                     agent = v2.agent,
                 )
             }
+        }
+
+    override suspend fun sessionStatuses(directory: String?): Map<String, SessionStatusInfo> =
+        execute("GET", "/session/status${queryOf(mapOf("directory" to directory))}") { text ->
+            if (text.isBlank()) emptyMap()
+            else json.decodeFromString(MapSerializer(String.serializer(), SessionStatusInfo.serializer()), text)
         }
 
     override suspend fun models(): List<ModelInfo> =

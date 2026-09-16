@@ -1792,6 +1792,7 @@ private fun sessionTitle(sid: String): String {
         settings.setLastSessionId(s.id)
         loadMessages()
         refreshPendingQuestions()
+        refreshSessionStatuses()
     }
 
     fun toggleMessageCollapsed(id: String?) {
@@ -2836,6 +2837,7 @@ text = e.message ?: getAppString(R.string.send_failed),
                 launch {
                     while (true) {
                         refreshChildSessions()
+                        refreshSessionStatuses()
                         delay(4000)
                     }
                 }
@@ -2859,6 +2861,21 @@ text = e.message ?: getAppString(R.string.send_failed),
             ?.filter { it.parentId == activeId }
             ?: return
         _childSessions.value = children
+    }
+
+    private suspend fun refreshSessionStatuses() {
+        val c = client ?: return
+        val activeId = _activeSession.value?.id
+        val statuses = runCatching { withContext(Dispatchers.IO) { c.sessionStatuses(_activeSession.value?.directory) } }
+            .getOrNull()
+            ?: return
+        var activeBusy = false
+        for ((sid, info) in statuses) {
+            val busy = info.type == "busy"
+            if (busy) sessionBusy[sid] = true
+            if (sid == activeId) activeBusy = busy
+        }
+        if (activeId != null) setSending(activeBusy)
     }
 
     private suspend fun refreshPendingQuestions() {

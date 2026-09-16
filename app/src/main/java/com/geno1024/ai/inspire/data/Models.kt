@@ -67,6 +67,11 @@ data class SessionV2Info(
 )
 
 @Serializable
+data class SessionStatusInfo(
+    val type: String? = null,
+)
+
+@Serializable
 data class ModelV2Ref(
     val id: String? = null,
     @SerialName("providerID") val providerId: String? = null,

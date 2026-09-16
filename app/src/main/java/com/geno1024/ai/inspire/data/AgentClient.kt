@@ -26,6 +26,8 @@ interface AgentClient {
 
     suspend fun sessions(): List<Session>
 
+    suspend fun sessionStatuses(directory: String? = null): Map<String, SessionStatusInfo>
+
     suspend fun models(): List<ModelInfo>
 
     suspend fun providers(directory: String? = null): ProvidersV2Response
