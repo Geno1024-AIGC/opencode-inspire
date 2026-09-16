@@ -31,6 +31,7 @@ import com.geno1024.ai.inspire.data.AgentClient
 import com.geno1024.ai.inspire.data.AgentClientRegistry
 import com.geno1024.ai.inspire.data.Part
 import com.geno1024.ai.inspire.data.PermissionRequest
+import com.geno1024.ai.inspire.data.ProvidersV2Response
 import com.geno1024.ai.inspire.data.Project
 import com.geno1024.ai.inspire.data.QuestionRequest
 import com.geno1024.ai.inspire.data.ServerProfile
@@ -363,6 +364,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _models = MutableStateFlow<List<ModelInfo>>(emptyList())
     val models: StateFlow<List<ModelInfo>> = _models.asStateFlow()
+
+    private val _providers = MutableStateFlow<ProvidersV2Response>(ProvidersV2Response())
+    val providers: StateFlow<ProvidersV2Response> = _providers.asStateFlow()
 
     private val _currentModelId = MutableStateFlow<String?>(null)
     val currentModelId: StateFlow<String?> = _currentModelId.asStateFlow()
@@ -1539,6 +1543,11 @@ private fun sessionTitle(sid: String): String {
         runCatching {
             _models.value = withContext(Dispatchers.IO) {
                 c.models()
+            }
+        }
+        runCatching {
+            _providers.value = withContext(Dispatchers.IO) {
+                c.providers(_activeSession.value?.directory)
             }
         }
         runCatching {

@@ -3,6 +3,7 @@ package com.geno1024.ai.inspire.data
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class HealthResponse(
@@ -84,6 +85,31 @@ data class ModelLimit(
     val context: Long = 0L,
     val input: Long? = null,
     val output: Long? = null,
+)
+
+@Serializable
+data class ProviderV2Info(
+    val id: String,
+    val name: String? = null,
+    val source: String? = null,
+    val env: List<String> = emptyList(),
+    val options: JsonObject = JsonObject(emptyMap()),
+    val models: Map<String, ProviderV2Model> = emptyMap(),
+)
+
+@Serializable
+data class ProviderV2Model(
+    val id: String,
+    @SerialName("providerID") val providerId: String = "",
+    val name: String? = null,
+    val status: String? = null,
+)
+
+@Serializable
+data class ProvidersV2Response(
+    val all: List<ProviderV2Info> = emptyList(),
+    val default: JsonObject = JsonObject(emptyMap()),
+    val connected: List<String> = emptyList(),
 )
 
 @Serializable

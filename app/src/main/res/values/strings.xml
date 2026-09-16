@@ -414,6 +414,7 @@
     <string name="permission_outside_project">Outside project</string>
 
     <!-- Model switcher -->
+    <string name="provider_label">Provider</string>
     <string name="model_label">Model</string>
 
     <!-- Session management -->

@@ -138,7 +138,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import com.geno1024.ai.inspire.data.FileNode
-import com.geno1024.ai.inspire.data.ModelInfo
+import com.geno1024.ai.inspire.data.ProvidersV2Response
 import com.geno1024.ai.inspire.data.AgentInfo
 import com.geno1024.ai.inspire.data.QuestionRequest
 import com.geno1024.ai.inspire.data.StoredHistoryStats
@@ -193,7 +193,7 @@ fun ChatScreen(
         lastTodosKey = key
     }
     val commands by viewModel.commands.collectAsStateWithLifecycle()
-    val models by viewModel.models.collectAsStateWithLifecycle()
+    val providers by viewModel.providers.collectAsStateWithLifecycle()
     val currentModelId by viewModel.currentModelId.collectAsStateWithLifecycle()
     val agents by viewModel.agents.collectAsStateWithLifecycle()
     val currentAgent by viewModel.currentAgent.collectAsStateWithLifecycle()
@@ -543,12 +543,15 @@ fun ChatScreen(
                                                 onSelect = { agent -> viewModel.switchAgent(agent.id) },
                                             )
                                         }
-                                        if (models.isNotEmpty()) {
+                                        if (providers.all.isNotEmpty()) {
                                             Spacer(Modifier.width(6.dp))
                                             ModelSwitcher(
-                                                models = models,
-                                                currentModelId = currentModelId,
-                                                onSelect = { model -> viewModel.switchModel(model.providerId ?: "opencode", model.id ?: "") },
+                                                providers = providers,
+                                                currentModelId = currentModelId ?: activeSession?.model?.id,
+                                                currentProviderId = activeSession?.model?.providerId,
+                                                onSelect = { providerId, modelId ->
+                                                    viewModel.switchModel(providerId, modelId)
+                                                },
                                             )
                                         }
                                     }
@@ -2816,36 +2819,90 @@ private fun AgentSwitcher(
 
 @Composable
 private fun ModelSwitcher(
-    models: List<ModelInfo>,
+    providers: ProvidersV2Response,
     currentModelId: String?,
-    onSelect: (ModelInfo) -> Unit,
+    currentProviderId: String?,
+    onSelect: (providerId: String, modelId: String) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val current = models.firstOrNull { it.id == currentModelId } ?: models.firstOrNull()
-    Box {
+    var expandedProvider by remember { mutableStateOf(false) }
+    var expandedModel by remember { mutableStateOf(false) }
+
+    val availableProviders = providers.all.filter { it.models.isNotEmpty() }
+    val connectedProviderIds = providers.connected
+    val currentProviderIdResolved = currentProviderId ?: connectedProviderIds.firstOrNull { id ->
+        availableProviders.any { it.id == id }
+    } ?: availableProviders.firstOrNull()?.id
+    val provider = availableProviders.firstOrNull { it.id == currentProviderIdResolved }
+        ?: availableProviders.firstOrNull()
+    val providerModels = provider?.models?.values.orEmpty().toList()
+    val currentModel = providerModels.firstOrNull { it.id == currentModelId }
+        ?: providerModels.firstOrNull()
+
+    if (provider == null || providerModels.isEmpty()) return
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box {
+            Text(
+                text = provider.name?.takeIf { it.isNotBlank() } ?: provider.id,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clickable { expandedProvider = true }
+                    .padding(vertical = 2.dp),
+            )
+            DropdownMenu(expanded = expandedProvider, onDismissRequest = { expandedProvider = false }) {
+                availableProviders.forEach { p ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                p.name?.takeIf { it.isNotBlank() } ?: p.id,
+                                fontWeight = if (p.id == provider.id) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        },
+                        onClick = {
+                            expandedProvider = false
+                            val first = p.models.values.firstOrNull()
+                            if (first != null) {
+                                onSelect(p.id, first.id)
+                            }
+                        },
+                    )
+                }
+            }
+        }
         Text(
-            text = current?.id ?: stringResource(R.string.model_label),
+            text = " · ",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .clickable { expanded = true }
-                .padding(vertical = 2.dp),
         )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            models.forEach { model ->
-                val selected = model.id == currentModelId
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            model.id ?: "",
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        )
-                    },
-                    onClick = {
-                        expanded = false
-                        onSelect(model)
-                    },
-                )
+        Box {
+            Text(
+                text = currentModel?.name?.takeIf { it.isNotBlank() } ?: currentModel?.id ?: stringResource(R.string.model_label),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .clickable { expandedModel = true }
+                    .padding(vertical = 2.dp),
+            )
+            DropdownMenu(expanded = expandedModel, onDismissRequest = { expandedModel = false }) {
+                providerModels.forEach { model ->
+                    val selected = model.id == currentModelId
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                model.name?.takeIf { it.isNotBlank() } ?: model.id,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        },
+                        onClick = {
+                            expandedModel = false
+                            onSelect(provider.id, model.id)
+                        },
+                    )
+                }
             }
         }
     }

@@ -412,6 +412,7 @@
     <string name="permission_outside_project">项目目录之外</string>
 
     <!-- Model switcher -->
+    <string name="provider_label">提供商</string>
     <string name="model_label">模型</string>
 
     <!-- Session management -->

@@ -238,6 +238,12 @@ class AgentHttpClient(
             else json.decodeFromString(ModelsV2Response.serializer(), text).data
         }
 
+    override suspend fun providers(directory: String?): ProvidersV2Response =
+        execute("GET", "/provider${queryOf(mapOf("directory" to directory))}") { text ->
+            if (text.isBlank()) ProvidersV2Response()
+            else json.decodeFromString(ProvidersV2Response.serializer(), text)
+        }
+
     override suspend fun agents(directory: String?): List<AgentInfo> =
         execute("GET", "/api/agent${queryOf(mapOf("directory" to directory))}") { text ->
             if (text.isBlank()) emptyList()

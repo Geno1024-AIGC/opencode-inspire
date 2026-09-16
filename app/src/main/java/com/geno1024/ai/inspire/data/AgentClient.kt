@@ -28,6 +28,8 @@ interface AgentClient {
 
     suspend fun models(): List<ModelInfo>
 
+    suspend fun providers(directory: String? = null): ProvidersV2Response
+
     suspend fun agents(directory: String? = null): List<AgentInfo>
 
     suspend fun switchAgent(sessionId: String, agent: String)
