@@ -3,6 +3,7 @@ package com.geno1024.ai.inspire.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +20,8 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -46,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.geno1024.ai.inspire.R
 import com.geno1024.ai.inspire.data.IntegrationInfo
+import com.geno1024.ai.inspire.data.ProvidersV2Response
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,6 +62,8 @@ fun ProvidersScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     val connectFailText = stringResource(R.string.providers_connect_fail)
     val noKeyText = stringResource(R.string.providers_no_key)
     val integrations by viewModel.integrations.collectAsState()
+    val providers by viewModel.providers.collectAsState()
+    val activeSession by viewModel.activeSession.collectAsState()
     var connectTarget by remember { mutableStateOf<IntegrationInfo?>(null) }
     var refreshing by remember { mutableStateOf(false) }
 
@@ -103,6 +109,11 @@ fun ProvidersScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             HorizontalDivider()
+            ProviderPicker(
+                providers = providers,
+                currentProviderId = activeSession?.model?.providerId,
+                onSelect = { providerId -> viewModel.switchProvider(providerId) },
+            )
             if (integrations.isEmpty()) {
                 if (refreshing) {
                     Row(
@@ -158,6 +169,67 @@ fun ProvidersScreen(viewModel: MainViewModel, onBack: () -> Unit) {
             },
         )
     }
+}
+
+@Composable
+private fun ProviderPicker(
+    providers: ProvidersV2Response,
+    currentProviderId: String?,
+    onSelect: (providerId: String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val available = providers.all.filter { it.models.isNotEmpty() }
+    val connectedIds = providers.connected
+    val currentResolved = currentProviderId ?: connectedIds.firstOrNull { id ->
+        available.any { it.id == id }
+    } ?: available.firstOrNull()?.id
+    val current = available.firstOrNull { it.id == currentResolved }
+        ?: available.firstOrNull()
+
+    if (available.isEmpty()) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stringResource(R.string.provider_label),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Box {
+            Text(
+                text = current?.name?.takeIf { it.isNotBlank() } ?: current?.id
+                    ?: stringResource(R.string.provider_label),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clickable { expanded = true }
+                    .padding(vertical = 2.dp),
+            )
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                available.forEach { p ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                (p.name?.takeIf { it.isNotBlank() } ?: p.id) + if (p.id in connectedIds) " ✓" else "",
+                                fontWeight = if (p.id == current?.id) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        },
+                        onClick = {
+                            expanded = false
+                            if (p.id != current?.id) onSelect(p.id)
+                        },
+                    )
+                }
+            }
+        }
+    }
+    HorizontalDivider()
 }
 
 @Composable

@@ -2248,6 +2248,14 @@ text = e.message ?: getAppString(R.string.send_failed),
         }
     }
 
+    fun switchProvider(providerId: String) {
+        val firstModel = _providers.value.all
+            .firstOrNull { it.id == providerId }
+            ?.models?.values?.firstOrNull()
+            ?: return
+        switchModel(providerId, firstModel.id)
+    }
+
     fun switchModel(providerId: String, modelId: String) {
         val c = client ?: return
         val sid = _activeSession.value?.id ?: return

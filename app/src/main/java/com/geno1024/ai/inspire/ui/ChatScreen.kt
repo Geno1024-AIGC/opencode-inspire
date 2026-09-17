@@ -2826,7 +2826,6 @@ private fun ModelSwitcher(
     currentProviderId: String?,
     onSelect: (providerId: String, modelId: String) -> Unit,
 ) {
-    var expandedProvider by remember { mutableStateOf(false) }
     var expandedModel by remember { mutableStateOf(false) }
 
     val availableProviders = providers.all.filter { it.models.isNotEmpty() }
@@ -2845,36 +2844,13 @@ private fun ModelSwitcher(
     Row(
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box {
-            Text(
-                text = provider.name?.takeIf { it.isNotBlank() } ?: provider.id,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .clickable { expandedProvider = true }
-                    .padding(vertical = 2.dp),
-            )
-            DropdownMenu(expanded = expandedProvider, onDismissRequest = { expandedProvider = false }) {
-                availableProviders.forEach { p ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                p.name?.takeIf { it.isNotBlank() } ?: p.id,
-                                fontWeight = if (p.id == provider.id) FontWeight.Bold else FontWeight.Normal,
-                            )
-                        },
-                        onClick = {
-                            expandedProvider = false
-                            val first = p.models.values.firstOrNull()
-                            if (first != null) {
-                                onSelect(p.id, first.id)
-                            }
-                        },
-                    )
-                }
-            }
-        }
+        Text(
+            text = provider.name?.takeIf { it.isNotBlank() } ?: provider.id,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(vertical = 2.dp),
+        )
         Text(
             text = " · ",
             style = MaterialTheme.typography.labelSmall,
