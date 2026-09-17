@@ -91,6 +91,7 @@ import com.geno1024.ai.inspire.data.saveBitmapToDownloads
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
@@ -1284,6 +1285,7 @@ private fun PermissionDialog(
     val pathsTitle = stringResource(R.string.permission_paths)
     AlertDialog(
         onDismissRequest = { onReply("reject") },
+        properties = DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false),
         title = { Text(stringResource(R.string.permission_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
