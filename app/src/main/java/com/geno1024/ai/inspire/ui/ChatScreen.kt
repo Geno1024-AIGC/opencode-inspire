@@ -141,6 +141,7 @@ import kotlinx.coroutines.withContext
 import com.geno1024.ai.inspire.data.FileNode
 import com.geno1024.ai.inspire.data.ProvidersV2Response
 import com.geno1024.ai.inspire.data.AgentInfo
+import com.geno1024.ai.inspire.data.ModelInfo
 import com.geno1024.ai.inspire.data.QuestionRequest
 import com.geno1024.ai.inspire.data.StoredHistoryStats
 import com.geno1024.ai.inspire.data.TokenDay
@@ -195,6 +196,7 @@ fun ChatScreen(
     }
     val commands by viewModel.commands.collectAsStateWithLifecycle()
     val providers by viewModel.providers.collectAsStateWithLifecycle()
+    val models by viewModel.models.collectAsStateWithLifecycle()
     val currentModelId by viewModel.currentModelId.collectAsStateWithLifecycle()
     val agents by viewModel.agents.collectAsStateWithLifecycle()
     val currentAgent by viewModel.currentAgent.collectAsStateWithLifecycle()
@@ -548,6 +550,7 @@ fun ChatScreen(
                                             Spacer(Modifier.width(6.dp))
                                             ModelSwitcher(
                                                 providers = providers,
+                                                models = models,
                                                 currentModelId = currentModelId ?: activeSession?.model?.id,
                                                 currentProviderId = activeSession?.model?.providerId,
                                                 onSelect = { providerId, modelId ->
@@ -2814,6 +2817,7 @@ private fun AgentSwitcher(
 @Composable
 private fun ModelSwitcher(
     providers: ProvidersV2Response,
+    models: List<ModelInfo>,
     currentModelId: String?,
     currentProviderId: String?,
     onSelect: (providerId: String, modelId: String) -> Unit,
@@ -2845,12 +2849,23 @@ private fun ModelSwitcher(
         DropdownMenu(expanded = expandedModel, onDismissRequest = { expandedModel = false }) {
             providerModels.forEach { model ->
                 val selected = model.id == currentModelId
+                val modelInfo = models.firstOrNull { it.id == model.id }
+                val context = modelInfo?.limit?.context ?: 0L
                 DropdownMenuItem(
                     text = {
-                        Text(
-                            model.name?.takeIf { it.isNotBlank() } ?: model.id,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        )
+                        Column {
+                            Text(
+                                model.name?.takeIf { it.isNotBlank() } ?: model.id,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            )
+                            if (context > 0) {
+                                Text(
+                                    "${formatContextWindow(context)} context",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     },
                     onClick = {
                         expandedModel = false
@@ -2860,6 +2875,12 @@ private fun ModelSwitcher(
             }
         }
     }
+}
+
+private fun formatContextWindow(context: Long): String = when {
+    context >= 1_000_000 -> "${context / 1_000_000}M"
+    context >= 1_000 -> "${context / 1_000}K"
+    else -> context.toString()
 }
 
 @Composable
