@@ -2134,7 +2134,7 @@ private fun MessageMeta(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            parts.joinToString(" / "),
+            parts.joinToString("\n"),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             fontFamily = MonoFontFamily,
