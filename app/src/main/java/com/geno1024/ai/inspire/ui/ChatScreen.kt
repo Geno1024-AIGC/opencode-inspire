@@ -2131,7 +2131,7 @@ private fun MessageMeta(
     }
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Bottom,
     ) {
         Text(
             parts.joinToString("\n"),
