@@ -592,10 +592,10 @@ private fun DailyCalendarTab(
                     fontFamily = MonoFontFamily,
                 )
                 Text(
-                    "${stringResource(R.string.calendar_day_detail_in, fmtTokens(selDay.input, tokenFormat))} · " +
-                        "${stringResource(R.string.calendar_day_detail_out, fmtTokens(selDay.output, tokenFormat))} · " +
-                        "${stringResource(R.string.calendar_day_detail_reasoning, fmtTokens(selDay.reasoning, tokenFormat))} · " +
-                        "${stringResource(R.string.calendar_day_detail_cache_read, fmtTokens(selDay.cacheRead, tokenFormat))} · " +
+                    "${stringResource(R.string.calendar_day_detail_in, fmtTokens(selDay.input, tokenFormat))}\n" +
+                        "${stringResource(R.string.calendar_day_detail_out, fmtTokens(selDay.output, tokenFormat))}\n" +
+                        "${stringResource(R.string.calendar_day_detail_reasoning, fmtTokens(selDay.reasoning, tokenFormat))}\n" +
+                        "${stringResource(R.string.calendar_day_detail_cache_read, fmtTokens(selDay.cacheRead, tokenFormat))}\n" +
                         "${stringResource(R.string.calendar_day_detail_cache_write, fmtTokens(selDay.cacheWrite, tokenFormat))}",
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = MonoFontFamily,
