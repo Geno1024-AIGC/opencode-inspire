@@ -731,7 +731,6 @@ fun ChatScreen(
                         val clipboard = LocalClipboardManager.current
                         MessageBubble(
                             msg = msg,
-                            cumulativeTokens = if (msg.cumulativeTokens > 0) msg.cumulativeTokens else null,
                             deltaTokens = if (msg.cumulativeTokens > 0) {
                                 if (prevCumulative != null) (msg.cumulativeTokens - prevCumulative).coerceAtLeast(0L) else msg.cumulativeTokens
                             } else null,
@@ -1774,7 +1773,6 @@ private fun MessageBubble(
     msg: ChatMessage,
     userColor: Long = -1L,
     assistantColor: Long = -1L,
-    cumulativeTokens: Long? = null,
     deltaTokens: Long? = null,
     sessionElapsed: Long? = null,
     responseTime: Long? = null,
@@ -1943,7 +1941,6 @@ private fun MessageBubble(
                 }
                 MessageMeta(
                     msg = msg,
-                    cumulativeTokens = cumulativeTokens,
                     deltaTokens = deltaTokens,
                     collapsed = collapsed,
                     onToggleCollapse = onToggleCollapse,
@@ -2112,7 +2109,6 @@ private fun BubbleActions(
 @Composable
 private fun MessageMeta(
     msg: ChatMessage,
-    cumulativeTokens: Long? = null,
     deltaTokens: Long? = null,
     collapsed: Boolean = false,
     onToggleCollapse: () -> Unit = {},
@@ -2121,13 +2117,9 @@ private fun MessageMeta(
     val time = msg.time
     val parts = buildList {
         if (!msg.model.isNullOrBlank()) add(msg.model)
-        if (cumulativeTokens != null) {
-            if (deltaTokens != null && deltaTokens > 0) {
-                add("$cumulativeTokens (+$deltaTokens)")
-            } else {
-                add("$cumulativeTokens")
-            }
-        } else {
+        if (deltaTokens != null && deltaTokens > 0) {
+            add("+$deltaTokens")
+        } else if (deltaTokens == null) {
             val tokens = msg.tokens
             if (tokens != null) {
                 val total = tokens.total
@@ -2142,7 +2134,7 @@ private fun MessageMeta(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            parts.joinToString(" · "),
+            parts.joinToString(" / "),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             fontFamily = MonoFontFamily,
