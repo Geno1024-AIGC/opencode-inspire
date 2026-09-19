@@ -82,7 +82,51 @@ data class ModelV2Ref(
 data class ModelInfo(
     val id: String? = null,
     @SerialName("providerID") val providerId: String? = null,
+    val name: String? = null,
+    val family: String? = null,
+    val api: ModelApi? = null,
+    val capabilities: ModelCapabilities? = null,
+    val request: JsonObject? = null,
+    val variants: List<JsonObject> = emptyList(),
+    val time: ModelTime? = null,
+    val cost: List<ModelCost> = emptyList(),
+    val status: String? = null,
+    val enabled: Boolean = true,
     val limit: ModelLimit? = null,
+)
+
+@Serializable
+data class ModelApi(
+    val id: String? = null,
+    val type: String? = null,
+    @SerialName("package") val packageName: String? = null,
+    val url: String? = null,
+    val settings: JsonObject? = null,
+)
+
+@Serializable
+data class ModelCapabilities(
+    val tools: Boolean = false,
+    val input: List<String> = emptyList(),
+    val output: List<String> = emptyList(),
+)
+
+@Serializable
+data class ModelTime(
+    val released: Long? = null,
+)
+
+@Serializable
+data class ModelCost(
+    val input: Double = 0.0,
+    val output: Double = 0.0,
+    val cache: ModelCostCache? = null,
+)
+
+@Serializable
+data class ModelCostCache(
+    val read: Double = 0.0,
+    val write: Double = 0.0,
 )
 
 @Serializable

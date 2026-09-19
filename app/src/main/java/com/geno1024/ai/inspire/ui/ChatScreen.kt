@@ -151,6 +151,7 @@ import android.graphics.Bitmap
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import java.util.Locale
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -2850,21 +2851,14 @@ private fun ModelSwitcher(
             providerModels.forEach { model ->
                 val selected = model.id == currentModelId
                 val modelInfo = models.firstOrNull { it.id == model.id }
-                val context = modelInfo?.limit?.context ?: 0L
                 DropdownMenuItem(
                     text = {
-                        Column {
+                        Column(Modifier.fillMaxWidth()) {
                             Text(
                                 model.name?.takeIf { it.isNotBlank() } ?: model.id,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                             )
-                            if (context > 0) {
-                                Text(
-                                    "${formatContextWindow(context)} context",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            ModelInfoDetails(modelInfo, model.id)
                         }
                     },
                     onClick = {
@@ -2875,6 +2869,73 @@ private fun ModelSwitcher(
             }
         }
     }
+}
+
+@Composable
+private fun ModelInfoDetails(info: ModelInfo?, fallbackId: String) {
+    val lines = buildList {
+        val id = info?.id?.takeIf { it.isNotBlank() } ?: fallbackId
+        add("$id${info?.family?.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""}")
+        val api = info?.api
+        val apiParts = buildList {
+            api?.type?.takeIf { it.isNotBlank() }?.let { add(it) }
+            api?.packageName?.takeIf { it.isNotBlank() }?.let { add(it) }
+            api?.url?.takeIf { it.isNotBlank() }?.let { add(it) }
+        }
+        if (apiParts.isNotEmpty()) add("api: " + apiParts.joinToString(" · "))
+        val caps = info?.capabilities
+        if (caps != null) {
+            val capParts = buildList {
+                add(if (caps.tools) "tools ✓" else "tools ✗")
+                if (caps.input.isNotEmpty()) add("in: ${caps.input.joinToString("+")}")
+                if (caps.output.isNotEmpty()) add("out: ${caps.output.joinToString("+")}")
+            }
+            if (capParts.isNotEmpty()) add(capParts.joinToString(" · "))
+        }
+        val limit = info?.limit
+        if (limit != null && (limit.context > 0 || (limit.input ?: 0) > 0 || (limit.output ?: 0) > 0)) {
+            val limParts = buildList {
+                if (limit.context > 0) add("context ${formatContextWindow(limit.context)}")
+                (limit.input ?: 0L).takeIf { it > 0 }?.let { add("input ${formatContextWindow(it)}") }
+                (limit.output ?: 0L).takeIf { it > 0 }?.let { add("output ${formatContextWindow(it)}") }
+            }
+            if (limParts.isNotEmpty()) add("limit: " + limParts.joinToString(" · "))
+        }
+        val cost = info?.cost?.firstOrNull()
+        if (cost != null) {
+            val costParts = buildList {
+                add("in ${formatPrice(cost.input)}")
+                add("out ${formatPrice(cost.output)}")
+                cost.cache?.let { c ->
+                    if (c.read > 0.0) add("crd ${formatPrice(c.read)}")
+                    if (c.write > 0.0) add("crw ${formatPrice(c.write)}")
+                }
+            }
+            if (costParts.isNotEmpty()) add("cost: " + costParts.joinToString(" · "))
+        }
+        val timeParts = buildList {
+            info?.time?.released?.takeIf { it > 0 }?.let {
+                val d = java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                add("released $d")
+            }
+            info?.status?.takeIf { it.isNotBlank() }?.let { add(it) }
+            if (info?.enabled == false) add("disabled")
+        }
+        if (timeParts.isNotEmpty()) add(timeParts.joinToString(" · "))
+    }
+    Text(
+        lines.joinToString("\n"),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontFamily = MonoFontFamily,
+        modifier = Modifier.padding(top = 2.dp),
+    )
+}
+
+private fun formatPrice(v: Double): String = when {
+    v == 0.0 -> "0"
+    v >= 1.0 -> "%.2f".format(Locale.ROOT, v)
+    else -> "%.4f".format(Locale.ROOT, v)
 }
 
 private fun formatContextWindow(context: Long): String = when {
