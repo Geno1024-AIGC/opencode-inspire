@@ -2833,46 +2833,30 @@ private fun ModelSwitcher(
 
     if (provider == null || providerModels.isEmpty()) return
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Box {
         Text(
-            text = provider.name?.takeIf { it.isNotBlank() } ?: provider.id,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(vertical = 2.dp),
-        )
-        Text(
-            text = " · ",
+            text = currentModel?.name?.takeIf { it.isNotBlank() } ?: currentModel?.id ?: stringResource(R.string.model_label),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .clickable { expandedModel = true }
+                .padding(vertical = 2.dp),
         )
-        Box {
-            Text(
-                text = currentModel?.name?.takeIf { it.isNotBlank() } ?: currentModel?.id ?: stringResource(R.string.model_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .clickable { expandedModel = true }
-                    .padding(vertical = 2.dp),
-            )
-            DropdownMenu(expanded = expandedModel, onDismissRequest = { expandedModel = false }) {
-                providerModels.forEach { model ->
-                    val selected = model.id == currentModelId
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                model.name?.takeIf { it.isNotBlank() } ?: model.id,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            )
-                        },
-                        onClick = {
-                            expandedModel = false
-                            onSelect(provider.id, model.id)
-                        },
-                    )
-                }
+        DropdownMenu(expanded = expandedModel, onDismissRequest = { expandedModel = false }) {
+            providerModels.forEach { model ->
+                val selected = model.id == currentModelId
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            model.name?.takeIf { it.isNotBlank() } ?: model.id,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = {
+                        expandedModel = false
+                        onSelect(provider.id, model.id)
+                    },
+                )
             }
         }
     }
