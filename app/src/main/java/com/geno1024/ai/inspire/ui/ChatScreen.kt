@@ -2903,7 +2903,6 @@ private fun ModelInfoDetails(info: ModelInfo?, fallbackId: String) {
         lines.joinToString("\n"),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontFamily = MonoFontFamily,
         modifier = Modifier.padding(top = 2.dp),
     )
 }
