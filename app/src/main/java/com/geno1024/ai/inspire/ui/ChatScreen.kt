@@ -105,6 +105,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -447,9 +448,14 @@ fun ChatScreen(
         }
     }
 
+    var stickToBottom by remember(activeId) { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        snapshotFlow { atBottom }.collect { stickToBottom = it }
+    }
+
     val tailMessage = filteredMessages.lastOrNull()
-    LaunchedEffect(filteredMessages.size, tailMessage?.id, tailMessage?.text?.length, sending) {
-        if (sending || atBottom) scrollToBottom()
+    LaunchedEffect(filteredMessages.size, tailMessage?.id, tailMessage?.text?.length) {
+        if (stickToBottom) scrollToBottom()
     }
 
     var bottomInitialized by remember { mutableStateOf(false) }
