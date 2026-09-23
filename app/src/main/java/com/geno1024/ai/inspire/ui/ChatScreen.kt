@@ -448,8 +448,8 @@ fun ChatScreen(
     }
 
     val tailMessage = filteredMessages.lastOrNull()
-    LaunchedEffect(filteredMessages.size, tailMessage?.id, tailMessage?.text?.length) {
-        if (atBottom) scrollToBottom()
+    LaunchedEffect(filteredMessages.size, tailMessage?.id, tailMessage?.text?.length, sending) {
+        if (sending || atBottom) scrollToBottom()
     }
 
     var bottomInitialized by remember { mutableStateOf(false) }
