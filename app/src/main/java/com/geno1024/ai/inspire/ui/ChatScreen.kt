@@ -461,6 +461,9 @@ fun ChatScreen(
     LaunchedEffect(sending, stickToBottom) {
         if (sending && stickToBottom) {
             while (isActive) {
+                if (listState.isScrollInProgress) {
+                    break
+                }
                 scrollToBottom()
                 delay(50)
             }
