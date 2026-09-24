@@ -458,6 +458,15 @@ fun ChatScreen(
         if (stickToBottom) scrollToBottom()
     }
 
+    LaunchedEffect(sending, stickToBottom) {
+        if (sending && stickToBottom) {
+            while (isActive) {
+                scrollToBottom()
+                delay(50)
+            }
+        }
+    }
+
     var bottomInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(filteredMessages.size) {
         if (filteredMessages.isEmpty()) {
