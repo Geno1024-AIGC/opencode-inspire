@@ -2796,7 +2796,7 @@ text = e.message ?: getAppString(R.string.send_failed),
         viewModelScope.launch {
             var last = 0L
             var lastTs = System.currentTimeMillis()
-            runCatching {
+            try {
                 val bytes = withContext(Dispatchers.IO) {
                     c.readFileBytes(locationDir, relPath, onRead = { done, total ->
                         val now = System.currentTimeMillis()
@@ -2809,7 +2809,7 @@ text = e.message ?: getAppString(R.string.send_failed),
                 }
                 withContext(Dispatchers.IO) {
                     val out = appContext.contentResolver.openOutputStream(uri, "wt")
-                        ?: throw IOException(getAppString(R.string.files_read_failed))
+                        ?: throw IOException(getAppString(R.string.files_download_failed))
                     try {
                         var off = 0
                         while (off < bytes.size) {
@@ -2825,19 +2825,15 @@ text = e.message ?: getAppString(R.string.send_failed),
                         }
                     }
                 }
+                cancelFileDownloadNotification()
+                onResult(true, null)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                cancelFileDownloadNotification()
+                throw e
+            } catch (e: Exception) {
+                cancelFileDownloadNotification()
+                onResult(false, e.message)
             }
-                .onSuccess {
-                    cancelFileDownloadNotification()
-                    onResult(true, null)
-                }
-                .onFailure { e ->
-                    cancelFileDownloadNotification()
-                    try {
-                        appContext.contentResolver.delete(uri, null, null)
-                    } catch (_: Exception) {
-                    }
-                    onResult(false, e.message)
-                }
         }
     }
 

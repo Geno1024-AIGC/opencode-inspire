@@ -192,14 +192,21 @@ class AgentHttpClient(
             headers = if (locationDir.isNullOrBlank()) emptyMap()
             else mapOf("x-opencode-directory" to locationDir),
             onRead = onRead,
+            readTimeoutSeconds = 300L,
         )
 
-    private suspend fun executeBytes(path: String, headers: Map<String, String> = emptyMap(), onRead: (Long, Long) -> Unit = { _, _ -> }): ByteArray? =
+    private suspend fun executeBytes(
+        path: String,
+        headers: Map<String, String> = emptyMap(),
+        onRead: (Long, Long) -> Unit = { _, _ -> },
+        readTimeoutSeconds: Long = 30L,
+    ): ByteArray? =
         suspendCancellableCoroutine { cont ->
             val reqBuilder = Request.Builder().url("$base$path")
             authHeader?.let { reqBuilder.header("Authorization", it) }
             headers.forEach { (k, v) -> reqBuilder.header(k, v) }
-            val call = client.newCall(reqBuilder.get().build())
+            val call = if (readTimeoutSeconds == 30L) client.newCall(reqBuilder.get().build())
+            else client.newBuilder().readTimeout(readTimeoutSeconds, TimeUnit.SECONDS).build().newCall(reqBuilder.get().build())
             cont.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {

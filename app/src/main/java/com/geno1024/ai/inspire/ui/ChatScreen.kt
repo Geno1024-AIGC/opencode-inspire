@@ -3347,8 +3347,8 @@ private fun FileBrowserSheet(
                     Toast.makeText(
                         context,
                         if (ok) context.getString(R.string.files_downloaded, name)
-                        else err ?: context.getString(R.string.files_download_failed),
-                        Toast.LENGTH_SHORT,
+                        else err?.takeIf { it.isNotBlank() } ?: context.getString(R.string.files_download_failed),
+                        Toast.LENGTH_LONG,
                     ).show()
                 }
             }
