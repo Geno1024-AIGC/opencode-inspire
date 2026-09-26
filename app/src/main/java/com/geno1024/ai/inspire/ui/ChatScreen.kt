@@ -3446,8 +3446,8 @@ private fun FileBrowserSheet(
                     if (node.type != "directory") {
                         Box(
                             modifier = Modifier
-                                .width(32.dp)
-                                .height(32.dp)
+                                .width(24.dp)
+                                .height(20.dp)
                                 .clickable {
                                     val rel = node.path
                                     val n = node.name
