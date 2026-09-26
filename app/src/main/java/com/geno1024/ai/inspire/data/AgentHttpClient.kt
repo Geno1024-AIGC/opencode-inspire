@@ -186,6 +186,40 @@ class AgentHttpClient(
             else json.parseToJsonElement(text).jsonObject["content"]?.jsonPrimitive?.contentOrNull
         }
 
+    override suspend fun readFileBytes(locationDir: String?, path: String): ByteArray? =
+        executeBytes(
+            "/api/fs/read/${path.trimStart('/')}",
+            headers = if (locationDir.isNullOrBlank()) emptyMap()
+            else mapOf("x-opencode-directory" to locationDir),
+        )
+
+    private suspend fun executeBytes(path: String, headers: Map<String, String> = emptyMap()): ByteArray? =
+        suspendCancellableCoroutine { cont ->
+            val reqBuilder = Request.Builder().url("$base$path")
+            authHeader?.let { reqBuilder.header("Authorization", it) }
+            headers.forEach { (k, v) -> reqBuilder.header(k, v) }
+            val call = client.newCall(reqBuilder.get().build())
+            cont.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (cont.isCancelled) return
+                    cont.resumeWithException(e)
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    if (cont.isCancelled) return
+                    response.use {
+                        if (!it.isSuccessful) {
+                            val text = it.body?.string().orEmpty()
+                            cont.resumeWithException(IOException("HTTP ${it.code}: $text"))
+                            return
+                        }
+                        cont.resume(it.body?.bytes())
+                    }
+                }
+            })
+        }
+
     override suspend fun createSession(directory: String?, parentId: String?, title: String?): Session =
         execute(
             "POST",

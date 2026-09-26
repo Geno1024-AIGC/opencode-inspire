@@ -519,6 +519,8 @@
     <string name="files_send_to_ai">Send to AI</string>
     <string name="files_cancel">Cancel</string>
     <string name="files_read_failed">Failed to read file</string>
+    <string name="files_downloaded">Downloaded %1$s</string>
+    <string name="files_download_failed">Download failed</string>
 
     <!-- Notification -->
     <string name="notify_session_done">Session finished</string>

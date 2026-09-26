@@ -3336,6 +3336,26 @@ private fun FileBrowserSheet(
     var previewPath by remember { mutableStateOf<String?>(null) }
     var previewName by remember { mutableStateOf<String?>(null) }
 
+    val context = LocalContext.current
+    var downloadTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val downloadLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("*/*")
+    ) { uri ->
+        downloadTarget?.let { (rel, name) ->
+            if (uri != null) {
+                viewModel.downloadSessionFile(rel, locationDir, uri) { ok, err ->
+                    Toast.makeText(
+                        context,
+                        if (ok) context.getString(R.string.files_downloaded, name)
+                        else err ?: context.getString(R.string.files_download_failed),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+        }
+        downloadTarget = null
+    }
+
     val label = if (path.isEmpty())
         locationDir.trimEnd('/').substringAfterLast('/').ifBlank { locationDir }
     else
@@ -3422,7 +3442,20 @@ private fun FileBrowserSheet(
                         Modifier.height(18.dp).width(18.dp),
                         tint = if (node.type == "directory") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Text(node.name, style = MaterialTheme.typography.bodyMedium)
+                    Text(node.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    if (node.type != "directory") {
+                        IconButton(
+                            onClick = {
+                                val rel = node.path
+                                val n = node.name
+                                downloadTarget = rel to n
+                                downloadLauncher.launch(n)
+                            },
+                            modifier = Modifier.height(32.dp).width(32.dp),
+                        ) {
+                            Icon(painterResource(R.drawable.ic_download), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(18.dp).width(18.dp))
+                        }
+                    }
                 }
             }
         }

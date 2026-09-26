@@ -1,5 +1,6 @@
 package com.geno1024.ai.inspire.ui
 
+import java.io.IOException
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -2777,6 +2778,33 @@ text = e.message ?: getAppString(R.string.send_failed),
             withContext(Dispatchers.IO) { c.readFileContent(locationDir, relPath) }
         } catch (_: Exception) {
             null
+        }
+    }
+
+    suspend fun readSessionFileBytes(relPath: String, locationDir: String): ByteArray? {
+        val c = client ?: return null
+        return try {
+            withContext(Dispatchers.IO) { c.readFileBytes(locationDir, relPath) }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun downloadSessionFile(relPath: String, locationDir: String, uri: android.net.Uri, onResult: (Boolean, String?) -> Unit) {
+        val c = client ?: run { onResult(false, null); return }
+        viewModelScope.launch {
+            runCatching {
+                val bytes = withContext(Dispatchers.IO) {
+                    c.readFileBytes(locationDir, relPath) ?: throw IOException(getAppString(R.string.files_read_failed))
+                }
+                val appContext = getApplication<Application>()
+                withContext(Dispatchers.IO) {
+                    appContext.contentResolver.openOutputStream(uri)?.use { out -> out.write(bytes) }
+                        ?: throw IOException(getAppString(R.string.files_read_failed))
+                }
+            }
+                .onSuccess { onResult(true, null) }
+                .onFailure { e -> onResult(false, e.message) }
         }
     }
 

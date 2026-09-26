@@ -513,6 +513,8 @@
     <string name="files_send_to_ai">发送给 AI</string>
     <string name="files_cancel">取消</string>
     <string name="files_read_failed">读取文件失败</string>
+    <string name="files_downloaded">已下载 %1$s</string>
+    <string name="files_download_failed">下载失败</string>
 
     <!-- Notification -->
     <string name="notify_session_done">会话已完成</string>

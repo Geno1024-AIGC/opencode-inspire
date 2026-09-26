@@ -20,6 +20,8 @@ interface AgentClient {
 
     suspend fun readFileContent(locationDir: String?, path: String): String?
 
+    suspend fun readFileBytes(locationDir: String?, path: String): ByteArray?
+
     suspend fun createSession(directory: String? = null, parentId: String? = null, title: String? = null): Session
 
     suspend fun runShell(sessionId: String, command: String, agent: String = "general"): ShellResult
