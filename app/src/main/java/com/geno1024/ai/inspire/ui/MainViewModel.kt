@@ -2798,13 +2798,17 @@ text = e.message ?: getAppString(R.string.send_failed),
             var lastTs = System.currentTimeMillis()
             try {
                 val bytes = withContext(Dispatchers.IO) {
+                    var lastNotifyTs = 0L
                     c.readFileBytes(locationDir, relPath, onRead = { done, total ->
                         val now = System.currentTimeMillis()
-                        val elapsed = (now - lastTs).coerceAtLeast(1)
-                        val speed = if (elapsed > 0) (done - last) * 1000L / elapsed else 0L
-                        last = done
-                        lastTs = now
-                        showFileDownloadNotification(name, done, total, speed)
+                        if (now - lastNotifyTs >= 200L || done >= total) {
+                            lastNotifyTs = now
+                            val elapsed = (now - lastTs).coerceAtLeast(1)
+                            val speed = if (elapsed > 0) (done - last) * 1000L / elapsed else 0L
+                            last = done
+                            lastTs = now
+                            showFileDownloadNotification(name, done, total, speed)
+                        }
                     }) ?: throw IOException(getAppString(R.string.files_read_failed))
                 }
                 withContext(Dispatchers.IO) {

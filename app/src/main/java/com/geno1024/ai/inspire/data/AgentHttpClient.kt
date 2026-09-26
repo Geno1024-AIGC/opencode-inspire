@@ -226,7 +226,7 @@ class AgentHttpClient(
                         val total = body.contentLength()
                         val buf = java.io.ByteArrayOutputStream()
                         val sink = body.source()
-                        val chunk = ByteArray(64 * 1024)
+                        val chunk = ByteArray(1024 * 1024)
                         var read = 0L
                         while (true) {
                             val n = try {
