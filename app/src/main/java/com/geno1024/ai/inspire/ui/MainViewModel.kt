@@ -2808,8 +2808,22 @@ text = e.message ?: getAppString(R.string.send_failed),
                     }) ?: throw IOException(getAppString(R.string.files_read_failed))
                 }
                 withContext(Dispatchers.IO) {
-                    appContext.contentResolver.openOutputStream(uri)?.use { out -> out.write(bytes) }
+                    val out = appContext.contentResolver.openOutputStream(uri, "wt")
                         ?: throw IOException(getAppString(R.string.files_read_failed))
+                    try {
+                        var off = 0
+                        while (off < bytes.size) {
+                            val n = minOf(256 * 1024, bytes.size - off)
+                            out.write(bytes, off, n)
+                            out.flush()
+                            off += n
+                        }
+                    } finally {
+                        try {
+                            out.close()
+                        } catch (_: Exception) {
+                        }
+                    }
                 }
             }
                 .onSuccess {
@@ -2818,6 +2832,10 @@ text = e.message ?: getAppString(R.string.send_failed),
                 }
                 .onFailure { e ->
                     cancelFileDownloadNotification()
+                    try {
+                        appContext.contentResolver.delete(uri, null, null)
+                    } catch (_: Exception) {
+                    }
                     onResult(false, e.message)
                 }
         }
