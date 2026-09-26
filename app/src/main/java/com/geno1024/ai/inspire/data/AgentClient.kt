@@ -20,7 +20,7 @@ interface AgentClient {
 
     suspend fun readFileContent(locationDir: String?, path: String): String?
 
-    suspend fun readFileBytes(locationDir: String?, path: String): ByteArray?
+    suspend fun readFileBytes(locationDir: String?, path: String, onRead: (Long, Long) -> Unit = { _, _ -> }): ByteArray?
 
     suspend fun createSession(directory: String? = null, parentId: String? = null, title: String? = null): Session
 

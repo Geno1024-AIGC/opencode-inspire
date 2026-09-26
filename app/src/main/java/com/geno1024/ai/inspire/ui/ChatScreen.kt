@@ -3343,7 +3343,7 @@ private fun FileBrowserSheet(
     ) { uri ->
         downloadTarget?.let { (rel, name) ->
             if (uri != null) {
-                viewModel.downloadSessionFile(rel, locationDir, uri) { ok, err ->
+                viewModel.downloadSessionFile(rel, locationDir, uri, name) { ok, err ->
                     Toast.makeText(
                         context,
                         if (ok) context.getString(R.string.files_downloaded, name)
@@ -3444,14 +3444,17 @@ private fun FileBrowserSheet(
                     )
                     Text(node.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     if (node.type != "directory") {
-                        IconButton(
-                            onClick = {
-                                val rel = node.path
-                                val n = node.name
-                                downloadTarget = rel to n
-                                downloadLauncher.launch(n)
-                            },
-                            modifier = Modifier.height(32.dp).width(32.dp),
+                        Box(
+                            modifier = Modifier
+                                .width(32.dp)
+                                .height(32.dp)
+                                .clickable {
+                                    val rel = node.path
+                                    val n = node.name
+                                    downloadTarget = rel to n
+                                    downloadLauncher.launch(n)
+                                },
+                            contentAlignment = Alignment.Center,
                         ) {
                             Icon(painterResource(R.drawable.ic_download), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(18.dp).width(18.dp))
                         }

@@ -2790,21 +2790,70 @@ text = e.message ?: getAppString(R.string.send_failed),
         }
     }
 
-    fun downloadSessionFile(relPath: String, locationDir: String, uri: android.net.Uri, onResult: (Boolean, String?) -> Unit) {
+    fun downloadSessionFile(relPath: String, locationDir: String, uri: android.net.Uri, name: String, onResult: (Boolean, String?) -> Unit) {
         val c = client ?: run { onResult(false, null); return }
+        val appContext = getApplication<Application>()
         viewModelScope.launch {
+            var last = 0L
+            var lastTs = System.currentTimeMillis()
             runCatching {
                 val bytes = withContext(Dispatchers.IO) {
-                    c.readFileBytes(locationDir, relPath) ?: throw IOException(getAppString(R.string.files_read_failed))
+                    c.readFileBytes(locationDir, relPath, onRead = { done, total ->
+                        val now = System.currentTimeMillis()
+                        val elapsed = (now - lastTs).coerceAtLeast(1)
+                        val speed = if (elapsed > 0) (done - last) * 1000L / elapsed else 0L
+                        last = done
+                        lastTs = now
+                        showFileDownloadNotification(name, done, total, speed)
+                    }) ?: throw IOException(getAppString(R.string.files_read_failed))
                 }
-                val appContext = getApplication<Application>()
                 withContext(Dispatchers.IO) {
                     appContext.contentResolver.openOutputStream(uri)?.use { out -> out.write(bytes) }
                         ?: throw IOException(getAppString(R.string.files_read_failed))
                 }
             }
-                .onSuccess { onResult(true, null) }
-                .onFailure { e -> onResult(false, e.message) }
+                .onSuccess {
+                    cancelFileDownloadNotification()
+                    onResult(true, null)
+                }
+                .onFailure { e ->
+                    cancelFileDownloadNotification()
+                    onResult(false, e.message)
+                }
+        }
+    }
+
+    fun showFileDownloadNotification(name: String, done: Long, total: Long, speed: Long = 0L) {
+        val context = getApplication<Application>()
+        val progress = if (total > 0L) (done * 100L / total).toInt().coerceIn(0, 100) else -1
+        val detail = if (total > 0L) {
+            context.getString(R.string.download_progress_detail, formatBytes(done), formatBytes(total))
+        } else {
+            context.getString(R.string.download_progress_unknown, formatBytes(done))
+        }
+        val builder = android.app.Notification.Builder(context, "download")
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle(name)
+            .setContentText(detail)
+            .setOnlyAlertOnce(true)
+            .setOngoing(true)
+        if (total > 0L) builder.setProgress(100, progress, false)
+        else builder.setProgress(0, 0, true)
+        try {
+            context.getSystemService(Context.NOTIFICATION_SERVICE)?.let { service ->
+                (service as? NotificationManager)?.notify(1004, builder.build())
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    fun cancelFileDownloadNotification() {
+        val context = getApplication<Application>()
+        try {
+            context.getSystemService(Context.NOTIFICATION_SERVICE)?.let { service ->
+                (service as? NotificationManager)?.cancel(1004)
+            }
+        } catch (_: Exception) {
         }
     }
 

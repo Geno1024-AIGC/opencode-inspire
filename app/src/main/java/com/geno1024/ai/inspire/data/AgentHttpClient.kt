@@ -186,14 +186,15 @@ class AgentHttpClient(
             else json.parseToJsonElement(text).jsonObject["content"]?.jsonPrimitive?.contentOrNull
         }
 
-    override suspend fun readFileBytes(locationDir: String?, path: String): ByteArray? =
+    override suspend fun readFileBytes(locationDir: String?, path: String, onRead: (Long, Long) -> Unit): ByteArray? =
         executeBytes(
             "/api/fs/read/${path.trimStart('/')}",
             headers = if (locationDir.isNullOrBlank()) emptyMap()
             else mapOf("x-opencode-directory" to locationDir),
+            onRead = onRead,
         )
 
-    private suspend fun executeBytes(path: String, headers: Map<String, String> = emptyMap()): ByteArray? =
+    private suspend fun executeBytes(path: String, headers: Map<String, String> = emptyMap(), onRead: (Long, Long) -> Unit = { _, _ -> }): ByteArray? =
         suspendCancellableCoroutine { cont ->
             val reqBuilder = Request.Builder().url("$base$path")
             authHeader?.let { reqBuilder.header("Authorization", it) }
@@ -214,7 +215,25 @@ class AgentHttpClient(
                             cont.resumeWithException(IOException("HTTP ${it.code}: $text"))
                             return
                         }
-                        cont.resume(it.body?.bytes())
+                        val body = it.body ?: return cont.resume(null)
+                        val total = body.contentLength()
+                        val buf = java.io.ByteArrayOutputStream()
+                        val sink = body.source()
+                        val chunk = ByteArray(64 * 1024)
+                        var read = 0L
+                        while (true) {
+                            val n = try {
+                                sink.read(chunk, 0, chunk.size)
+                            } catch (e: Exception) {
+                                cont.resumeWithException(e)
+                                return
+                            }
+                            if (n < 0) break
+                            buf.write(chunk, 0, n)
+                            read += n
+                            onRead(read, total)
+                        }
+                        cont.resume(buf.toByteArray())
                     }
                 }
             })
