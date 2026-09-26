@@ -1352,7 +1352,7 @@ private fun PermissionDialog(
                     }
                 }
                 permission.metadata?.takeIf { it.isNotEmpty() }?.entries?.take(5)?.forEach { (k, v) ->
-                    SummaryRow(label = k, value = v, monospace = true)
+                    SummaryRow(label = k, value = v.toString(), monospace = true)
                 }
             }
         },
