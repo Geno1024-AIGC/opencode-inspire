@@ -69,6 +69,7 @@ class AgentHttpClient(
         path: String,
         body: String? = null,
         headers: Map<String, String> = emptyMap(),
+        readTimeoutSeconds: Long = 30L,
         deserialize: (String) -> T,
     ): T = suspendCancellableCoroutine { cont ->
         val reqBuilder = Request.Builder().url("$base$path")
@@ -82,7 +83,8 @@ class AgentHttpClient(
             else -> throw IllegalArgumentException("Unsupported method: $method")
         }
         val request = reqBuilder.build()
-        val call = client.newCall(request)
+        val call = if (readTimeoutSeconds == 30L) client.newCall(request)
+        else client.newBuilder().readTimeout(readTimeoutSeconds, TimeUnit.SECONDS).build().newCall(request)
         cont.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -254,6 +256,7 @@ class AgentHttpClient(
                 if (parentId != null) put("parentID", parentId)
                 if (title != null) put("title", title)
             }.toString(),
+            readTimeoutSeconds = 120L,
         ) { json.decodeFromString(Session.serializer(), it) }
 
     override suspend fun runShell(sessionId: String, command: String, agent: String): ShellResult =
@@ -264,6 +267,7 @@ class AgentHttpClient(
                 put("agent", JsonPrimitive(agent))
                 put("command", JsonPrimitive(command))
             }.toString(),
+            readTimeoutSeconds = 600L,
         ) { text ->
             if (text.isBlank()) return@execute ShellResult("completed", "")
             runCatching {
