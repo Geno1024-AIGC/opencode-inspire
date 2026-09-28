@@ -36,6 +36,7 @@ import com.geno1024.ai.inspire.data.ProvidersV2Response
 import com.geno1024.ai.inspire.data.Project
 import com.geno1024.ai.inspire.data.QuestionRequest
 import com.geno1024.ai.inspire.data.ServerProfile
+import com.geno1024.ai.inspire.data.ShellResult
 import com.geno1024.ai.inspire.data.Session
 import com.geno1024.ai.inspire.data.SessionCache
 import com.geno1024.ai.inspire.data.SessionInfo
@@ -73,6 +74,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withTimeout
+import kotlin.coroutines.coroutineContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -1667,18 +1669,27 @@ private fun sessionTitle(sid: String): String {
                 val targetDir = "${parentDir.trimEnd('/')}/$repoName"
                 val tempSession = withContext(Dispatchers.IO) { c.createSession(directory = parentDir) }
                 val escapedUrl = escapeShell(url)
+                val escapedParent = escapeShell(parentDir.trimEnd('/'))
                 val escapedTarget = escapeShell(targetDir)
+                val log = "/tmp/.inspire-clone-${repoName}.log"
+                val escapedLog = escapeShell(log)
                 val result = try {
-                    withContext(Dispatchers.IO) {
+                    val started = withContext(Dispatchers.IO) {
                         c.runShell(
                             tempSession.id,
-                            "git clone $escapedUrl $escapedTarget 2>&1; printf '[EXIT=%s]' \"\$?\"",
+                            "rm -f $escapedLog; cd $escapedParent && " +
+                                "(nohup git clone $escapedUrl $escapedTarget >$escapedLog 2>&1 &) ; echo __BG__",
                         )
+                    }
+                    if (started.status != "completed" || !started.output.contains("__BG__")) {
+                        started
+                    } else {
+                        awaitBackgroundClone(c, tempSession.id, targetDir, escapedTarget, escapedLog)
                     }
                 } finally {
                     withContext(Dispatchers.IO) { runCatching { c.deleteSession(tempSession.id) } }
                 }
-                if (result.status == "completed" && result.output.contains("[EXIT=0]")) {
+                if (result.status == "completed" && result.output.contains("__CLONE_OK__")) {
                     newSession(targetDir, onDone)
                 } else {
                     _workspaceState.value = UiState.Error(cloneErrorText(result.output))
@@ -1689,10 +1700,44 @@ private fun sessionTitle(sid: String): String {
         }
     }
 
+    private suspend fun awaitBackgroundClone(
+        c: AgentClient,
+        sessionId: String,
+        targetDir: String,
+        escapedTarget: String,
+        escapedLog: String,
+    ): ShellResult {
+        val deadline = System.currentTimeMillis() + 30 * 60 * 1000L
+        var tail = ""
+        while (System.currentTimeMillis() < deadline) {
+            delay(3000)
+            coroutineContext.ensureActive()
+            val probe = runCatching {
+                withContext(Dispatchers.IO) {
+                    c.runShell(
+                        sessionId,
+                        "tail -n 5 $escapedLog 2>/dev/null; echo '__TAIL_END__'; " +
+                            "if [ -d $escapedTarget/.git ]; then echo __CLONE_OK__; fi",
+                    )
+                }
+            }
+            if (probe.isFailure) continue
+            val out = probe.getOrThrow().output
+            if (out.contains("__CLONE_OK__")) return ShellResult("completed", out)
+            tail = out.substringBefore("__TAIL_END__")
+        }
+        return ShellResult("error", tail.ifBlank { "clone timed out" })
+    }
+
     private fun cloneErrorText(output: String): String {
         val line = output.lineSequence()
             .map { it.trim() }
-            .filter { it.isNotBlank() && !it.startsWith("[EXIT=") }
+            .filter {
+                it.isNotBlank() &&
+                    !it.startsWith("[EXIT=") &&
+                    !it.startsWith("__TAIL_END__") &&
+                    !it.startsWith("__CLONE_OK__")
+            }
             .lastOrNull()
         return line ?: getAppString(R.string.clone_project_error)
     }
