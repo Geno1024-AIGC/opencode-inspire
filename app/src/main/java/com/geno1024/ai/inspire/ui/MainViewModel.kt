@@ -73,7 +73,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.coroutineContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -289,6 +288,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val tokenRawBuckets: StateFlow<List<TokenRawBucket>> = _tokenRawBuckets.asStateFlow()
 
     private val _tokenRawSync = MutableStateFlow(0L)
+
+    private val _tokenSessionSync = MutableStateFlow<Map<String, Long>>(emptyMap())
 
     private val _dayStartOffset = MutableStateFlow<Int?>(null)
     val dayStartOffset: StateFlow<Int?> = _dayStartOffset.asStateFlow()
@@ -559,6 +560,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             settings.tokenRawSync.collect { _tokenRawSync.value = it }
+        }
+        viewModelScope.launch {
+            settings.tokenSessionSync.collect { _tokenSessionSync.value = it }
         }
         viewModelScope.launch {
             settings.dayStartOffset.collect { _dayStartOffset.value = it }
@@ -882,7 +886,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _tokenHistoryLoading.value = true
         viewModelScope.launch {
             try {
-                withTimeout(120_000L) {
                 withContext(Dispatchers.IO) {
                     val c = client ?: return@withContext
                     val zone = effectiveZone()
@@ -900,7 +903,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val weekStartSet = weekStartDatesStr.toSet()
 
                     val baseSync = if (incremental) _tokenSync.value else 0L
-                    val hasFreshCache = incremental && baseSync > 0L
+
+                    val sessionSyncMap = (if (incremental) _tokenSessionSync.value else emptyMap()).toMutableMap()
+                    val fallbackSince = if (incremental && baseSync > 0L) baseSync else null
 
                     val tokens = (if (incremental) _tokenHistory.value else emptyMap()).toMutableMap()
                     val elapsed = (if (incremental) _tokenElapsed.value else emptyMap()).toMutableMap()
@@ -946,16 +951,79 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     } else mutableMapOf()
                     var maxRawMs = if (incremental) _tokenRawSync.value else 0L
+                    var lastPeriodicCommitMs = System.currentTimeMillis()
+
+                    suspend fun persistSnapshot(publish: Boolean) {
+                        val monthOut = month.filterKeys { it in monthKeys }
+                        val weekOut = week.filterKeys { it in weekStartDatesStr }
+                        val dayOut = dayHours
+                        val modelOut = modelStats.mapValues { (_, b) ->
+                            TokenModelStats(
+                                history = b.history,
+                                elapsed = b.elapsed,
+                                hourByDay = b.hourByDay,
+                                hourByWeek = b.hourByWeek.filterKeys { it in weekStartDatesStr },
+                                hourByMonth = b.hourByMonth.filterKeys { it in monthKeys },
+                            )
+                        }
+                        val projOut = projectStats.mapValues { (_, b) ->
+                            TokenModelStats(
+                                history = b.history,
+                                elapsed = b.elapsed,
+                                hourByDay = b.hourByDay,
+                                hourByWeek = b.hourByWeek.filterKeys { it in weekStartDatesStr },
+                                hourByMonth = b.hourByMonth.filterKeys { it in monthKeys },
+                            )
+                        }
+                        val rawOut = rawAccum.values.sortedWith(compareBy({ it.epochBucket }, { it.model }, { it.projectId }))
+                        if (publish) {
+                            _tokenHistory.value = tokens
+                            _tokenElapsed.value = elapsed
+                            _hourByMonth.value = monthOut
+                            _hourByWeek.value = weekOut
+                            _hourByDay.value = dayOut
+                            _tokenModelStats.value = modelOut
+                            _tokenProjectStats.value = projOut
+                            _tokenProjectDirs.value = dirByProj
+                            _sessionModelTokens.value = sessionTokens
+                            _tokenSync.value = maxMsgMs
+                            _tokenRawBuckets.value = rawOut
+                            _tokenRawSync.value = maxRawMs
+                            _tokenSessionSync.value = sessionSyncMap.toMap()
+                        }
+                        if (coroutineContext.isActive) {
+                            val syncedAtMs = System.currentTimeMillis()
+                            settings.saveTokenHistory(tokens, elapsed)
+                            settings.saveTokenCalendar(
+                                monthOut, weekOut, dayOut,
+                                if (publish) maxMsgMs else _tokenSync.value,
+                                if (publish) syncedAtMs else _tokenSyncedAt.value,
+                            )
+                            settings.saveTokenModelStats(modelOut)
+                            settings.saveTokenProjectStats(projOut)
+                            settings.saveSessionModelTokens(sessionTokens)
+                            settings.saveTokenSessionSync(sessionSyncMap)
+                            if (publish) {
+                                _tokenSyncedAt.value = syncedAtMs
+                                settings.saveTokenRawBuckets(rawOut)
+                                settings.saveTokenRawSync(maxRawMs)
+                            }
+                        }
+                    }
 
                     c.sessions().forEach { s ->
                         coroutineContext.ensureActive()
-                        val messages = if (hasFreshCache) {
-                            runCatching { c.sessionMessagesSince(s.id, baseSync) }.getOrNull()
-                        } else {
+                        val stored = sessionSyncMap[s.id]
+                        val since = stored ?: fallbackSince
+                        val fullFetch = since == null
+                        val messages = if (fullFetch) {
                             runCatching { c.sessionMessagesAll(s.id) }.getOrNull()
+                        } else {
+                            runCatching { c.sessionMessagesSince(s.id, since) }.getOrNull()
                         } ?: return@forEach
-                        val sessionCost = if (hasFreshCache) 0.0
-                            else runCatching { c.sessionDetail(s.id)?.cost ?: 0.0 }.getOrDefault(0.0)
+                        val sessionCost = if (fullFetch) {
+                            runCatching { c.sessionDetail(s.id)?.cost ?: 0.0 }.getOrDefault(0.0)
+                        } else 0.0
                         var turnStart = 0L
                         var turnEnd = 0L
                         var lastDayKey = ""
@@ -1091,7 +1159,7 @@ val dayKey = day.toString()
                                 rawAccum[key] = rb.copy(cost = rb.cost + sessionCost)
                             }
                         }
-                        if (!hasFreshCache && sesMsgs > 0L && _storedStats.value[s.id] == null) {
+                        if (fullFetch && sesMsgs > 0L && _storedStats.value[s.id] == null) {
                             persistStats(
                                 s.id,
                                 HistoryStats(
@@ -1121,56 +1189,18 @@ val dayKey = day.toString()
                                 rawAccum[key] = rb.copy(elapsedMs = rb.elapsedMs + (turnEnd - turnStart))
                             }
                         }
+                        val prior = stored ?: fallbackSince ?: 0L
+                        if (prior > 0L || sesLatest > 0L) {
+                            sessionSyncMap[s.id] = maxOf(prior, sesLatest)
+                        }
+                        val nowCommitMs = System.currentTimeMillis()
+                        if (nowCommitMs - lastPeriodicCommitMs >= 2_000L) {
+                            lastPeriodicCommitMs = nowCommitMs
+                            persistSnapshot(publish = false)
+                        }
                     }
 
-                    val monthOut = month.filterKeys { it in monthKeys }
-                    val weekOut = week.filterKeys { it in weekStartDatesStr }
-                    val dayOut = dayHours
-
-                    val modelOut = modelStats.mapValues { (_, b) ->
-                        TokenModelStats(
-                            history = b.history,
-                            elapsed = b.elapsed,
-                            hourByDay = b.hourByDay,
-                            hourByWeek = b.hourByWeek.filterKeys { it in weekStartDatesStr },
-                            hourByMonth = b.hourByMonth.filterKeys { it in monthKeys },
-                        )
-                    }
-                    val projOut = projectStats.mapValues { (_, b) ->
-                        TokenModelStats(
-                            history = b.history,
-                            elapsed = b.elapsed,
-                            hourByDay = b.hourByDay,
-                            hourByWeek = b.hourByWeek.filterKeys { it in weekStartDatesStr },
-                            hourByMonth = b.hourByMonth.filterKeys { it in monthKeys },
-                        )
-                    }
-
-                    _tokenHistory.value = tokens
-                    _tokenElapsed.value = elapsed
-                    _hourByMonth.value = monthOut
-                    _hourByWeek.value = weekOut
-                    _hourByDay.value = dayOut
-                    _tokenModelStats.value = modelOut
-                    _tokenProjectStats.value = projOut
-                    _tokenProjectDirs.value = dirByProj
-                    _sessionModelTokens.value = sessionTokens
-                    _tokenSync.value = maxMsgMs
-                    val rawOut = rawAccum.values.sortedWith(compareBy({ it.epochBucket }, { it.model }, { it.projectId }))
-                    _tokenRawBuckets.value = rawOut
-                    _tokenRawSync.value = maxRawMs
-                    if (coroutineContext.isActive) {
-                        val syncedAtMs = System.currentTimeMillis()
-                        _tokenSyncedAt.value = syncedAtMs
-                        settings.saveTokenHistory(tokens, elapsed)
-                        settings.saveTokenCalendar(monthOut, weekOut, dayOut, maxMsgMs, syncedAtMs)
-                        settings.saveTokenModelStats(modelOut)
-                        settings.saveTokenProjectStats(projOut)
-                        settings.saveSessionModelTokens(sessionTokens)
-                        settings.saveTokenRawBuckets(rawOut)
-                        settings.saveTokenRawSync(maxRawMs)
-                    }
-                }
+                    persistSnapshot(publish = true)
                 }
             } finally {
                 _tokenHistoryLoading.value = false

@@ -94,6 +94,7 @@ class SettingsRepository(private val context: Context) {
         val TOKEN_SYNC_AT = longPreferencesKey("token_sync_at")
         val TOKEN_RAW_BUCKETS = stringPreferencesKey("token_raw_buckets")
         val TOKEN_RAW_SYNC = longPreferencesKey("token_raw_sync")
+        val TOKEN_SESSION_SYNC = stringPreferencesKey("token_session_sync")
         val DAY_START_OFFSET_MIN = intPreferencesKey("day_start_offset_min")
         val DOWNLOADED_APK = stringPreferencesKey("downloaded_apk")
         val INSTALLED_VERSION = stringPreferencesKey("installed_version")
@@ -215,6 +216,11 @@ class SettingsRepository(private val context: Context) {
         } ?: emptyList()
     }
     val tokenRawSync: Flow<Long> = context.dataStore.data.map { it[Keys.TOKEN_RAW_SYNC] ?: 0L }
+    val tokenSessionSync: Flow<Map<String, Long>> = context.dataStore.data.map { prefs ->
+        prefs[Keys.TOKEN_SESSION_SYNC]?.let { raw ->
+            runCatching { json.decodeFromString<Map<String, Long>>(raw) }.getOrNull()
+        } ?: emptyMap()
+    }
     val dayStartOffset: Flow<Int?> = context.dataStore.data.map { it[Keys.DAY_START_OFFSET_MIN] }
     val downloadedApk: Flow<String?> = context.dataStore.data.map { it[Keys.DOWNLOADED_APK] }
     val installedVersion: Flow<String?> = context.dataStore.data.map { it[Keys.INSTALLED_VERSION] }
@@ -383,6 +389,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun saveTokenRawSync(ms: Long) {
         context.dataStore.edit { it[Keys.TOKEN_RAW_SYNC] = ms }
+    }
+
+    suspend fun saveTokenSessionSync(sync: Map<String, Long>) {
+        context.dataStore.edit { it[Keys.TOKEN_SESSION_SYNC] = json.encodeToString(sync) }
     }
 
     suspend fun setDayStartOffset(offsetMinutes: Int?) {
