@@ -104,8 +104,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -438,20 +436,7 @@ fun ChatScreen(
         name ?: uri.lastPathSegment
     }
 
-    val atBottom by remember {
-        derivedStateOf {
-            val info = listState.layoutInfo
-            val last = info.visibleItemsInfo.maxByOrNull { it.index }
-                ?: return@derivedStateOf true
-            if (last.index < info.totalItemsCount - 1) false
-            else last.offset + last.size >= info.viewportEndOffset - listDensity
-        }
-    }
-
     var stickToBottom by remember(activeId) { mutableStateOf(true) }
-    LaunchedEffect(Unit) {
-        snapshotFlow { atBottom }.collect { stickToBottom = it }
-    }
 
     val tailMessage = filteredMessages.lastOrNull()
     LaunchedEffect(filteredMessages.size, tailMessage?.id, tailMessage?.text?.length) {
@@ -813,15 +798,31 @@ fun ChatScreen(
                         },
                     )
                 }
-                if (!atBottom) {
-                    FloatingActionButton(
-                        onClick = { scrollToBottom() },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(16.dp),
-                    ) {
-                        Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.scroll_to_bottom))
-                    }
+                FloatingActionButton(
+                    onClick = {
+                        stickToBottom = !stickToBottom
+                        if (stickToBottom) scrollToBottom()
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp),
+                    containerColor = if (stickToBottom) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    contentColor = if (stickToBottom) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                ) {
+                    Icon(
+                        Icons.Filled.KeyboardArrowDown,
+                        stringResource(
+                            if (stickToBottom) R.string.scroll_to_bottom else R.string.pin_to_bottom_off
+                        ),
+                    )
                 }
             }
 

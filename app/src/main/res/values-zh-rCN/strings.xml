@@ -145,6 +145,7 @@
     </plurals>
     <string name="chat_reject_all">全部拒绝</string>
     <string name="scroll_to_bottom">滚动到底部</string>
+    <string name="pin_to_bottom_off">取消贴底</string>
     <string name="session_elapsed">回复耗时 %.1fs</string>
     <string name="session_stats_line">time %1$.1f s，msgs %2$d, cost %3$s</string>
     <string name="chat_working">工作中…</string>
