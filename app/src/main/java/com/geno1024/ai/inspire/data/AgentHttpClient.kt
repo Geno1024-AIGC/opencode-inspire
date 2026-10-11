@@ -638,7 +638,9 @@ class AgentHttpClient(
             else json.decodeFromString<List<String>>(text)
         }
 
-    private suspend fun probeStatus(path: String): Int? = suspendCancellableCoroutine { cont ->
+    private data class Probe(val code: Int, val contentType: String?)
+
+    private suspend fun probeStatus(path: String): Probe? = suspendCancellableCoroutine { cont ->
         val reqBuilder = Request.Builder().url("$base$path")
         authHeader?.let { reqBuilder.header("Authorization", it) }
         val call = client.newCall(reqBuilder.build())
@@ -651,14 +653,21 @@ class AgentHttpClient(
 
             override fun onResponse(call: Call, response: Response) {
                 if (cont.isCancelled) return
-                cont.resume(response.code)
+                val probe = Probe(response.code, response.header("Content-Type"))
                 response.close()
+                cont.resume(probe)
             }
         })
     }
 
-    private fun probeOk(status: Int?): Boolean =
-        status?.let { it in 200..399 || it == 400 } ?: false
+    private fun probeOk(probe: Probe?): Boolean {
+        val r = probe ?: return false
+        // The server serves its SPA (HTML) with 200 for unknown paths, so a 200 alone
+        // does not prove the route exists. Treat HTML as "route absent".
+        val ct = r.contentType?.substringBefore(';')?.trim()?.lowercase()
+        if (ct == "text/html") return false
+        return r.code in 200..399 || r.code == 400
+    }
 
     private suspend fun probeDocPaths(): List<String>? = suspendCancellableCoroutine { cont ->
         val reqBuilder = Request.Builder().url("$base/doc")
