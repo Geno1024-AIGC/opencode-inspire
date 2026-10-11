@@ -1011,7 +1011,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
 
-                    c.sessions().forEach { s ->
+                    val allSessions = c.sessions()
+                        .sortedByDescending { it.time?.updated?.takeIf { u -> u > 0L } ?: it.time?.created ?: 0L }
+                    for (s in allSessions) {
                         coroutineContext.ensureActive()
                         val stored = sessionSyncMap[s.id]
                         val since = stored ?: fallbackSince
@@ -1020,7 +1022,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             runCatching { c.sessionMessagesAll(s.id) }.getOrNull()
                         } else {
                             runCatching { c.sessionMessagesSince(s.id, since) }.getOrNull()
-                        } ?: return@forEach
+                        } ?: continue
                         val sessionCost = if (fullFetch) {
                             runCatching { c.sessionDetail(s.id)?.cost ?: 0.0 }.getOrDefault(0.0)
                         } else 0.0
