@@ -141,6 +141,7 @@ fun TokenCalendarScreen(
     val tokenProjectDirs by viewModel.tokenProjectDirs.collectAsStateWithLifecycle()
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val loading by viewModel.tokenHistoryLoading.collectAsStateWithLifecycle()
+    val tokenLoad by viewModel.tokenLoadIndicator.collectAsStateWithLifecycle()
     val syncedAt by viewModel.tokenSyncedAt.collectAsStateWithLifecycle()
     val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
     val timeFormat by viewModel.tableTimeFormat.collectAsStateWithLifecycle()
@@ -350,6 +351,24 @@ fun TokenCalendarScreen(
                 if (loading) {
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                    val loadDetail = if (tokenLoad.total > 0 && tokenLoad.index > 0) {
+                        if (tokenLoad.lastActiveDate.isEmpty()) {
+                            stringResource(R.string.calendar_loading_session, tokenLoad.index, tokenLoad.total)
+                        } else {
+                            stringResource(
+                                R.string.calendar_loading_session_date,
+                                tokenLoad.index, tokenLoad.total, tokenLoad.lastActiveDate,
+                            )
+                        }
+                    } else {
+                        stringResource(R.string.calendar_loading_connecting)
+                    }
+                    Text(
+                        loadDetail,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
                     )
                 }
                 Row(

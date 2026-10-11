@@ -267,6 +267,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val tokenHistory: StateFlow<Map<String, TokenDay>> = _tokenHistory.asStateFlow()
     private val _tokenHistoryLoading = MutableStateFlow(false)
     val tokenHistoryLoading: StateFlow<Boolean> = _tokenHistoryLoading.asStateFlow()
+
+    private val _tokenLoadIndicator = MutableStateFlow(TokenLoadIndicator())
+    val tokenLoadIndicator: StateFlow<TokenLoadIndicator> = _tokenLoadIndicator.asStateFlow()
     private val _tokenElapsed = MutableStateFlow<Map<String, Long>>(emptyMap())
     val tokenElapsed: StateFlow<Map<String, Long>> = _tokenElapsed.asStateFlow()
     private val _hourByMonth = MutableStateFlow<Map<String, Map<Int, TokenDay>>>(emptyMap())
@@ -885,6 +888,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (_tokenHistoryLoading.value) return
         _tokenHistoryLoading.value = true
         viewModelScope.launch {
+            _tokenLoadIndicator.value = TokenLoadIndicator()
             try {
                 withContext(Dispatchers.IO) {
                     val c = client ?: return@withContext
@@ -1013,8 +1017,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                     val allSessions = c.sessions()
                         .sortedByDescending { it.time?.updated?.takeIf { u -> u > 0L } ?: it.time?.created ?: 0L }
+                    var processed = 0
                     for (s in allSessions) {
                         coroutineContext.ensureActive()
+                        processed++
+                        val lastActive = s.time?.updated?.takeIf { it > 0L } ?: s.time?.created ?: 0L
+                        _tokenLoadIndicator.value = TokenLoadIndicator(
+                            index = processed,
+                            total = allSessions.size,
+                            lastActiveDate = if (lastActive > 0L) {
+                                java.time.Instant.ofEpochMilli(lastActive).atZone(zone).toLocalDate().toString()
+                            } else "",
+                        )
                         val stored = sessionSyncMap[s.id]
                         val since = stored ?: fallbackSince
                         val fullFetch = since == null
@@ -1206,6 +1220,7 @@ val dayKey = day.toString()
                 }
             } finally {
                 _tokenHistoryLoading.value = false
+                _tokenLoadIndicator.value = TokenLoadIndicator()
             }
         }
     }
@@ -1217,6 +1232,12 @@ private class MutableTokenModelStats {
     val hourByWeek = mutableMapOf<String, MutableMap<Int, TokenDay>>()
     val hourByMonth = mutableMapOf<String, MutableMap<Int, TokenDay>>()
 }
+
+data class TokenLoadIndicator(
+    val total: Int = 0,
+    val index: Int = 0,
+    val lastActiveDate: String = "",
+)
 
 private fun sessionTitle(sid: String): String {
     for (p in _projects.value) {

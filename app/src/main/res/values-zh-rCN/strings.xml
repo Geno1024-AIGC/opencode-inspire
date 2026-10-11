@@ -243,6 +243,9 @@
     <string name="export_saved">已保存：%1$s</string>
     <string name="export_failed">导出失败</string>
     <string name="calendar_last_updated">缓存数据截至：%1$s</string>
+    <string name="calendar_loading_connecting">正在获取会话列表…</string>
+    <string name="calendar_loading_session">正在处理会话 %1$d/%2$d</string>
+    <string name="calendar_loading_session_date">正在处理会话 %1$d/%2$d（%3$s）</string>
 <string name="calendar_table_total">总计</string>
     <string name="calendar_table_msgs">总消息</string>
     <string name="calendar_table_msgs_sent">用户</string>
