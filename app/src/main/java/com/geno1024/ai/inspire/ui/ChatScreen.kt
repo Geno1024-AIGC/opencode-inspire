@@ -178,6 +178,7 @@ fun ChatScreen(
     val sessionTokens by viewModel.sessionTokens.collectAsStateWithLifecycle()
     val sessionCost by viewModel.sessionCost.collectAsStateWithLifecycle()
     val sessionModelTokens by viewModel.sessionModelTokens.collectAsStateWithLifecycle()
+    val activeServerLabel by viewModel.activeServerLabel.collectAsStateWithLifecycle()
     val contextWindow by viewModel.contextWindow.collectAsStateWithLifecycle()
     val promptTokens by viewModel.promptTokens.collectAsStateWithLifecycle()
     val cumulativeTokens by viewModel.cumulativeTokens.collectAsStateWithLifecycle()
@@ -1090,6 +1091,7 @@ fun ChatScreen(
             storedStats = storedStats[session.id],
             autoTiming = autoTiming,
             tokenFormat = tokenFormat,
+            serverLabel = activeServerLabel,
             onBack = { showSessionDetails = false },
         )
     }
@@ -2967,6 +2969,7 @@ private fun SessionDetailsScreen(
     storedStats: StoredHistoryStats?,
     autoTiming: Boolean,
     tokenFormat: TokenFormat = TokenFormat.DEFAULT,
+    serverLabel: String = "",
     onBack: () -> Unit,
 ) {
     var showRename by remember { mutableStateOf(false) }
@@ -3005,6 +3008,20 @@ private fun SessionDetailsScreen(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
+                if (serverLabel.isNotBlank()) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        serverLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                }
             }
             HorizontalDivider()
 

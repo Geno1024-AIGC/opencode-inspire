@@ -339,6 +339,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _servers = MutableStateFlow<List<ServerProfile>>(emptyList())
     val servers: StateFlow<List<ServerProfile>> = _servers.asStateFlow()
 
+    val activeServerLabel: StateFlow<String> = combine(_servers, _activeSid) { servers, sid ->
+        servers.firstOrNull { it.sid == sid }?.let { p -> p.name.ifBlank { serverLabel(p.url) } } ?: ""
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, "")
+
     private val _pendingQuestions = MutableStateFlow<List<QuestionRequest>>(emptyList())
     private val _exportMarkdown = MutableStateFlow<String?>(null)
     val exportMarkdown = _exportMarkdown.asStateFlow()
@@ -718,9 +722,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         deriveTokenView()
     }
 
-    fun renameServer(sid: String, name: String) {
-        val p = _servers.value.firstOrNull { it.sid == sid } ?: return
+    fun renameServerProfile(url: String, name: String) {
+        val p = _servers.value.firstOrNull { it.url == url } ?: return
         saveServerProfile(p.copy(name = name))
+    }
+
+    fun mergeServers(fromSid: String, intoSid: String) {
+        if (fromSid.isBlank() || intoSid.isBlank() || fromSid == intoSid) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { settings.mergeTokenStores(fromSid, intoSid) }
+            val updated = _servers.value.map { if (it.sid == fromSid) it.copy(sid = intoSid) else it }
+            withContext(Dispatchers.IO) { settings.saveServers(updated) }
+            if (_activeSid.value == fromSid) _activeSid.value = intoSid
+            if (_tokenServerFilter.value == fromSid) _tokenServerFilter.value = intoSid
+            refreshTokenServerOptions()
+        }
     }
 
     fun activeStore(): TokenStore = _tokenStores.value[_activeSid.value] ?: TokenStore()

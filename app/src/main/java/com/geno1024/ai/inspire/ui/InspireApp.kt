@@ -1031,6 +1031,10 @@ private fun ServersDialog(
     var password by rememberSaveable { mutableStateOf("") }
     var adding by rememberSaveable { mutableStateOf(false) }
     var typeId by rememberSaveable { mutableStateOf(AUTO_TYPE) }
+    var rowMenuFor by remember { mutableStateOf<String?>(null) }
+    var renameUrl by remember { mutableStateOf<String?>(null) }
+    var renameText by remember { mutableStateOf("") }
+    var mergeFrom by remember { mutableStateOf<ServerProfile?>(null) }
     val factories = remember { AgentClientRegistry.all() }
     val detectedFactory = if (typeId == AUTO_TYPE) {
         factories.firstOrNull { it.supports(url.trim()) }
@@ -1057,6 +1061,30 @@ private fun ServersDialog(
                         }
                         if (p.url == serverUrl) {
                             Text(stringResource(R.string.connect_connected), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Box {
+                            IconButton(onClick = { rowMenuFor = p.url }) {
+                                Icon(Icons.Filled.MoreVert, stringResource(R.string.servers_title))
+                            }
+                            DropdownMenu(expanded = rowMenuFor == p.url, onDismissRequest = { rowMenuFor = null }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.server_rename)) },
+                                    onClick = {
+                                        renameUrl = p.url
+                                        renameText = p.name
+                                        rowMenuFor = null
+                                    },
+                                )
+                                if (p.sid.isNotBlank() && servers.any { it.sid.isNotBlank() && it.sid != p.sid }) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.server_merge_into)) },
+                                        onClick = {
+                                            mergeFrom = p
+                                            rowMenuFor = null
+                                        },
+                                    )
+                                }
+                            }
                         }
                         IconButton(onClick = { viewModel.removeServerProfile(p.url) }) {
                             Icon(Icons.Filled.Close, stringResource(R.string.connect_remove))
@@ -1126,6 +1154,61 @@ private fun ServersDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
         },
     )
+
+    val renameTarget = renameUrl
+    if (renameTarget != null) {
+        AlertDialog(
+            onDismissRequest = { renameUrl = null },
+            title = { Text(stringResource(R.string.server_rename)) },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    label = { Text(stringResource(R.string.server_name_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.renameServerProfile(renameTarget, renameText.trim())
+                    renameUrl = null
+                }) { Text(stringResource(R.string.server_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameUrl = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+
+    val mergeSource = mergeFrom
+    if (mergeSource != null) {
+        val targets = servers.filter { it.sid.isNotBlank() && it.sid != mergeSource.sid }
+        AlertDialog(
+            onDismissRequest = { mergeFrom = null },
+            title = { Text(stringResource(R.string.server_merge_into)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        stringResource(R.string.server_merge_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    targets.forEach { t ->
+                        TextButton(
+                            onClick = {
+                                viewModel.mergeServers(mergeSource.sid, t.sid)
+                                mergeFrom = null
+                            },
+                        ) { Text(t.name.ifBlank { t.url }) }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { mergeFrom = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
 }
 
 @Composable
