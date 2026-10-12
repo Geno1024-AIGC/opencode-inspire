@@ -109,7 +109,7 @@
     <string name="server_add">Add server</string>
     <string name="server_rename">Rename</string>
     <string name="server_name_label">Display name</string>
-    <string name="server_merge_open">Merge servers…</string>
+    <string name="server_merge_action">Merge</string>
     <string name="server_group_bound">Same data source · %1$d</string>
     <string name="server_merge_selected">Merge selected (%1$d)</string>
     <string name="server_merge_hint">Select the servers to merge. Merged servers share one Token dataset (deduplicated, no double counting).</string>

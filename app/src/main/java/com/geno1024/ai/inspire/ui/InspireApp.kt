@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -108,6 +107,7 @@ sealed class Screen {
     data object About : Screen()
     data object Usage : Screen()
     data object Providers : Screen()
+    data object Servers : Screen()
 
     val key: String
         get() = when (this) {
@@ -119,6 +119,7 @@ sealed class Screen {
             About -> "about"
             Usage -> "usage"
             Providers -> "providers"
+            Servers -> "servers"
         }
 
     companion object {
@@ -130,6 +131,7 @@ sealed class Screen {
             "about" -> About
             "usage" -> Usage
             "providers" -> Providers
+            "servers" -> Servers
             else -> Connect
         }
     }
@@ -169,6 +171,13 @@ fun InspireApp(viewModel: MainViewModel) {
                 onOpenCalendar = { screenKey = Screen.Calendar.key },
                 onOpenAbout = { screenKey = Screen.About.key },
                 onOpenProviders = { screenKey = Screen.Providers.key },
+                onOpenServers = { screenKey = Screen.Servers.key },
+            )
+        }
+        is Screen.Servers -> saveableStateHolder.SaveableStateProvider(Screen.Servers.key) {
+            ServersScreen(
+                viewModel = viewModel,
+                onBack = { screenKey = Screen.Main.key },
             )
         }
         is Screen.Providers -> saveableStateHolder.SaveableStateProvider(Screen.Providers.key) {
@@ -228,11 +237,11 @@ private fun MainScreen(
     onOpenCalendar: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenProviders: () -> Unit,
+    onOpenServers: () -> Unit,
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
-    var showServers by remember { mutableStateOf(false) }
     var showAddProject by remember { mutableStateOf(false) }
     var showCapabilities by remember { mutableStateOf(false) }
     var showQuickCommand by remember { mutableStateOf(false) }
@@ -245,7 +254,10 @@ private fun MainScreen(
                 serverUrl = serverUrl,
                 onClose = { scope.launch { drawerState.close() } },
                 onSettings = onOpenSettings,
-                onServers = { showServers = true },
+                onServers = {
+                    scope.launch { drawerState.close() }
+                    onOpenServers()
+                },
                 onAddProject = { showAddProject = true },
                 onCapabilities = { showCapabilities = true },
                 onQuickCommand = { showQuickCommand = true },
@@ -280,12 +292,6 @@ private fun MainScreen(
         }
     }
 
-    if (showServers) {
-        ServersDialog(
-            viewModel = viewModel,
-            onDismiss = { showServers = false },
-        )
-    }
     if (showAddProject) {
         AddProjectDialog(
             viewModel = viewModel,
@@ -303,7 +309,7 @@ private fun MainScreen(
             viewModel = viewModel,
             onDismiss = { showQuickCommand = false },
             onAddProject = { showQuickCommand = false; showAddProject = true },
-            onServers = { showQuickCommand = false; showServers = true },
+            onServers = { showQuickCommand = false; onOpenServers() },
             onCapabilities = { showQuickCommand = false; showCapabilities = true },
             onSettings = { showQuickCommand = false; onOpenSettings() },
             onCalendar = { showQuickCommand = false; onOpenCalendar() },
@@ -1023,22 +1029,14 @@ fun formatEta(seconds: Long): String = when {
 }
 
 @Composable
-private fun ServersDialog(
-    viewModel: MainViewModel,
+fun AddServerDialog(
     onDismiss: () -> Unit,
+    onSave: (ServerProfile) -> Unit,
 ) {
-    val servers by viewModel.servers.collectAsStateWithLifecycle()
-    val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     var url by rememberSaveable { mutableStateOf("") }
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
-    var adding by rememberSaveable { mutableStateOf(false) }
     var typeId by rememberSaveable { mutableStateOf(AUTO_TYPE) }
-    var rowMenuFor by remember { mutableStateOf<String?>(null) }
-    var renameUrl by remember { mutableStateOf<String?>(null) }
-    var renameText by remember { mutableStateOf("") }
-    var selectMode by remember { mutableStateOf(false) }
-    var selected by remember { mutableStateOf(emptySet<String>()) }
     val factories = remember { AgentClientRegistry.all() }
     val detectedFactory = if (typeId == AUTO_TYPE) {
         factories.firstOrNull { it.supports(url.trim()) }
@@ -1046,232 +1044,64 @@ private fun ServersDialog(
         null
     }
     val factory = detectedFactory ?: factories.firstOrNull { it.id == typeId } ?: factories.first()
-    val linked = servers.filter { it.sid.isNotBlank() }
-    val groups: List<Pair<String, List<ServerProfile>>> =
-        linked.map { it.sid }.distinct().map { sid -> sid to linked.filter { it.sid == sid } }
-    val standalone = servers.filter { it.sid.isBlank() }
-    val mergeable = linked.size >= 2
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.servers_title)) },
+        title = { Text(stringResource(R.string.server_add)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (servers.isEmpty()) {
-                    Text(stringResource(R.string.servers_empty), style = MaterialTheme.typography.bodySmall)
-                }
-                if (selectMode) {
+                TypeSelector(
+                    label = stringResource(R.string.server_type_label),
+                    options = listOf(AUTO_TYPE to stringResource(R.string.server_type_auto)) + factories.map { it.id to it.label },
+                    selected = if (typeId == AUTO_TYPE) AUTO_TYPE else factory.id,
+                    onSelect = { typeId = it },
+                )
+                if (typeId == AUTO_TYPE) {
                     Text(
-                        stringResource(R.string.server_merge_hint),
+                        if (detectedFactory != null) {
+                            stringResource(R.string.server_type_detected, detectedFactory.label)
+                        } else {
+                            stringResource(R.string.server_type_detect_hint)
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    linked.forEach { p ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    selected = if (p.url in selected) selected - p.url else selected + p.url
-                                }
-                                .padding(vertical = 4.dp),
-                        ) {
-                            Checkbox(
-                                checked = p.url in selected,
-                                onCheckedChange = { checked ->
-                                    selected = if (checked) selected + p.url else selected - p.url
-                                },
-                            )
-                            Text(p.name.ifBlank { p.url }, modifier = Modifier.weight(1f))
-                        }
-                    }
-                } else {
-                    groups.forEach { (_, members) ->
-                        if (members.size > 1) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Column(
-                                    Modifier.padding(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                                ) {
-                                    Text(
-                                        stringResource(R.string.server_group_bound, members.size),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                    members.forEach { p -> ServerRowFor(rowMenuFor, p, serverUrl, viewModel, onRename = { renameUrl = p.url; renameText = p.name }, setMenu = { rowMenuFor = it }) }
-                                }
-                            }
-                        } else {
-                            val p = members.first()
-                            ServerRowFor(rowMenuFor, p, serverUrl, viewModel, onRename = { renameUrl = p.url; renameText = p.name }, setMenu = { rowMenuFor = it })
-                        }
-                    }
-                    standalone.forEach { p ->
-                        ServerRowFor(rowMenuFor, p, serverUrl, viewModel, onRename = { renameUrl = p.url; renameText = p.name }, setMenu = { rowMenuFor = it })
-                    }
                 }
-                if (adding) {
-                    HorizontalDivider()
-                    TypeSelector(
-                        label = stringResource(R.string.server_type_label),
-                        options = listOf(AUTO_TYPE to stringResource(R.string.server_type_auto)) + factories.map { it.id to it.label },
-                        selected = if (typeId == AUTO_TYPE) AUTO_TYPE else factory.id,
-                        onSelect = { typeId = it },
-                    )
-                    if (typeId == AUTO_TYPE) {
-                        Text(
-                            if (detectedFactory != null) {
-                                stringResource(R.string.server_type_detected, detectedFactory.label)
-                            } else {
-                                stringResource(R.string.server_type_detect_hint)
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    OutlinedTextField(
-                        value = url,
-                        onValueChange = { url = it },
-                        label = { Text(stringResource(R.string.server_new_url)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = username,
-                        onValueChange = { username = it },
-                        label = { Text(stringResource(R.string.server_username)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text(stringResource(R.string.server_password)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    TextButton(
-                        enabled = url.isNotBlank(),
-                        onClick = {
-                            viewModel.saveServerProfile(ServerProfile(url.trim(), factory.id, username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }))
-                            url = ""
-                            username = ""
-                            password = ""
-                            adding = false
-                        },
-                        modifier = Modifier.align(Alignment.End),
-                    ) { Text(stringResource(R.string.server_save)) }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (selectMode) {
-                            TextButton(onClick = { selectMode = false; selected = emptySet() }) {
-                                Text(stringResource(R.string.cancel))
-                            }
-                            Spacer(Modifier.weight(1f))
-                            TextButton(
-                                enabled = selected.size >= 2,
-                                onClick = {
-                                    val chosen = servers.filter { it.url in selected }
-                                    val targetSid = chosen.firstOrNull { it.url == serverUrl }?.sid
-                                        ?: chosen.firstOrNull()?.sid ?: return@TextButton
-                                    val sources = chosen.map { it.sid }.filter { it != targetSid }.distinct()
-                                    viewModel.mergeServers(sources, targetSid)
-                                    selectMode = false
-                                    selected = emptySet()
-                                },
-                            ) { Text(stringResource(R.string.server_merge_selected, selected.size)) }
-                        } else {
-                            if (mergeable) {
-                                TextButton(onClick = { selectMode = true; selected = emptySet() }) {
-                                    Text(stringResource(R.string.server_merge_open))
-                                }
-                            }
-                            Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { adding = true }) {
-                                Text("+  ${stringResource(R.string.server_add)}")
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
-        },
-    )
-
-    val renameTarget = renameUrl
-    if (renameTarget != null) {
-        AlertDialog(
-            onDismissRequest = { renameUrl = null },
-            title = { Text(stringResource(R.string.server_rename)) },
-            text = {
                 OutlinedTextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    label = { Text(stringResource(R.string.server_name_label)) },
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text(stringResource(R.string.server_new_url)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.renameServerProfile(renameTarget, renameText.trim())
-                    renameUrl = null
-                }) { Text(stringResource(R.string.server_save)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { renameUrl = null }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
-    }
-}
-
-@Composable
-private fun ServerRowFor(
-    rowMenuFor: String?,
-    p: ServerProfile,
-    serverUrl: String?,
-    viewModel: MainViewModel,
-    onRename: () -> Unit,
-    setMenu: (String?) -> Unit,
-) {
-    val connected = p.url == serverUrl
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(
-            Modifier.weight(1f).clickable {
-                viewModel.connect(p.url, p.type, p.username, p.password)
-            },
-        ) {
-            Text(p.name.ifBlank { p.url }, fontWeight = FontWeight.Medium)
-            Text(p.url, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (connected) {
-            Text(stringResource(R.string.connect_connected), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-        }
-        Box {
-            IconButton(onClick = { setMenu(p.url) }) {
-                Icon(Icons.Filled.MoreVert, stringResource(R.string.servers_title))
-            }
-            DropdownMenu(expanded = rowMenuFor == p.url, onDismissRequest = { setMenu(null) }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.server_rename)) },
-                    onClick = onRename,
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text(stringResource(R.string.server_username)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text(stringResource(R.string.server_password)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
-        }
-        IconButton(onClick = { viewModel.removeServerProfile(p.url) }) {
-            Icon(Icons.Filled.Close, stringResource(R.string.connect_remove))
-        }
-    }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = url.isNotBlank(),
+                onClick = {
+                    onSave(ServerProfile(url.trim(), factory.id, username.takeIf { it.isNotBlank() }, password.takeIf { it.isNotBlank() }))
+                },
+            ) { Text(stringResource(R.string.server_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 @Composable
