@@ -146,7 +146,11 @@ fun TokenCalendarScreen(
     val tokenFormat by viewModel.tokenFormat.collectAsStateWithLifecycle()
     val timeFormat by viewModel.tableTimeFormat.collectAsStateWithLifecycle()
     val dayStartOffset by viewModel.dayStartOffset.collectAsStateWithLifecycle()
+    val serverFilter by viewModel.tokenServerFilter.collectAsStateWithLifecycle()
+    val serverOptions by viewModel.tokenServerOptions.collectAsStateWithLifecycle()
+    val activeSid by viewModel.activeSid.collectAsStateWithLifecycle()
     var hiddenSyncAt by remember { mutableStateOf(false) }
+    var serverMenu by remember { mutableStateOf(false) }
     var categoryName by rememberSaveable { mutableStateOf(TokenCategory.TOKEN.name) }
     var tokenMetricName by rememberSaveable { mutableStateOf(TokenMetric.TOTAL.name) }
     var msgMetricName by rememberSaveable { mutableStateOf(MsgMetric.TOTAL.name) }
@@ -246,6 +250,57 @@ fun TokenCalendarScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState()),
             ) {
+                if (serverOptions.size > 1) {
+                    val serverValueLabel = when (serverFilter) {
+                        TOKEN_SERVER_ALL -> stringResource(R.string.calendar_server_all)
+                        TOKEN_SERVER_ACTIVE -> serverOptions.firstOrNull { it.sid == activeSid }?.label
+                            ?: stringResource(R.string.calendar_server_current)
+                        else -> serverOptions.firstOrNull { it.sid == serverFilter }?.label ?: serverFilter
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.calendar_server_label),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            Modifier
+                                .weight(1f, fill = false)
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { serverMenu = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        ) {
+                            Text(
+                                serverValueLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            DropdownMenu(expanded = serverMenu, onDismissRequest = { serverMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.calendar_server_all)) },
+                                    onClick = { viewModel.setTokenServerFilter(TOKEN_SERVER_ALL); serverMenu = false },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.calendar_server_current)) },
+                                    onClick = { viewModel.setTokenServerFilter(TOKEN_SERVER_ACTIVE); serverMenu = false },
+                                )
+                                serverOptions.forEach { opt ->
+                                    DropdownMenuItem(
+                                        text = { Text(opt.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                        onClick = { viewModel.setTokenServerFilter(opt.sid); serverMenu = false },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,

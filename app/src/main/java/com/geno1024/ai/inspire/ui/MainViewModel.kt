@@ -45,6 +45,8 @@ import com.geno1024.ai.inspire.data.SettingsRepository
 import com.geno1024.ai.inspire.data.StoredHistoryStats
 import com.geno1024.ai.inspire.data.TokenDay
 import com.geno1024.ai.inspire.data.TokenRawBucket
+import com.geno1024.ai.inspire.data.TokenStore
+import com.geno1024.ai.inspire.data.aggregateTokenStores
 import com.geno1024.ai.inspire.data.TokenFormat
 import com.geno1024.ai.inspire.data.TokenModelStats
 import com.geno1024.ai.inspire.data.Tokens
@@ -68,6 +70,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -154,6 +157,9 @@ sealed interface UiState {
     data class Loading(val message: String = "Loading...") : UiState    data class Error(val message: String) : UiState
 }
 
+const val TOKEN_SERVER_ACTIVE = "active"
+const val TOKEN_SERVER_ALL = "all"
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private companion object {
         const val RAW_BUCKET_MS = 900_000L
@@ -161,6 +167,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settings = SettingsRepository(application)
     private val sessionCache = SessionCache(application)
+    private var tokenStoreInitStarted = false
 
     private fun getAppString(resId: Int): String {
         val ctx = getApplication<Application>()
@@ -293,6 +300,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _tokenRawSync = MutableStateFlow(0L)
 
     private val _tokenSessionSync = MutableStateFlow<Map<String, Long>>(emptyMap())
+
+    private val _tokenStores = MutableStateFlow<Map<String, TokenStore>>(emptyMap())
+    private val _activeSid = MutableStateFlow("")
+    val activeSid: StateFlow<String> = _activeSid.asStateFlow()
+    private val _tokenServerFilter = MutableStateFlow(TOKEN_SERVER_ACTIVE)
+    val tokenServerFilter: StateFlow<String> = _tokenServerFilter.asStateFlow()
+    private val _tokenServerOptions = MutableStateFlow<List<TokenServerOption>>(emptyList())
+    val tokenServerOptions: StateFlow<List<TokenServerOption>> = _tokenServerOptions.asStateFlow()
 
     private val _dayStartOffset = MutableStateFlow<Int?>(null)
     val dayStartOffset: StateFlow<Int?> = _dayStartOffset.asStateFlow()
@@ -469,7 +484,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settings.authPassword.collect { _authPassword.value = it }
         }
         viewModelScope.launch {
-            settings.servers.collect { _servers.value = it }
+            settings.servers.collect {
+                _servers.value = it
+                refreshTokenServerOptions()
+                if (!tokenStoreInitStarted) {
+                    tokenStoreInitStarted = true
+                    ensureTokenStoreReady()
+                }
+            }
         }
         viewModelScope.launch {
             settings.tokenFormat.collect { _tokenFormat.value = it }
@@ -526,46 +548,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settings.ignoredQuestions.collect { _ignoredQuestions.value = it }
         }
         viewModelScope.launch {
-            settings.tokenHistory.collect { _tokenHistory.value = it }
-        }
-        viewModelScope.launch {
-            settings.tokenElapsed.collect { _tokenElapsed.value = it }
-        }
-        viewModelScope.launch {
-            settings.tokenMonth.collect { _hourByMonth.value = it }
-        }
-        viewModelScope.launch {
-            settings.tokenWeek.collect { _hourByWeek.value = it }
-        }
-        viewModelScope.launch {
-            settings.tokenDayHours.collect { _hourByDay.value = it }
-        }
-        viewModelScope.launch {
-            settings.tokenModelStats.collect { _tokenModelStats.value = it }
-        }
-        viewModelScope.launch {
-            settings.tokenProjectStats.collect { _tokenProjectStats.value = it }
-        }
-        viewModelScope.launch {
-            settings.sessionModelTokens.collect { _sessionModelTokens.value = it }
-        }
-        viewModelScope.launch {
-            settings.tokenSync.collect { _tokenSync.value = it }
-        }
-        viewModelScope.launch {
             settings.backgroundNotify.collect { _backgroundNotify.value = it }
         }
         viewModelScope.launch {
-            settings.tokenSyncedAt.collect { _tokenSyncedAt.value = it }
-        }
-        viewModelScope.launch {
-            settings.tokenRawBuckets.collect { _tokenRawBuckets.value = it }
-        }
-        viewModelScope.launch {
-            settings.tokenRawSync.collect { _tokenRawSync.value = it }
-        }
-        viewModelScope.launch {
-            settings.tokenSessionSync.collect { _tokenSessionSync.value = it }
+            settings.tokenStores.flowOn(Dispatchers.IO).collect {
+                _tokenStores.value = it
+                deriveTokenView()
+            }
         }
         viewModelScope.launch {
             settings.dayStartOffset.collect { _dayStartOffset.value = it }
@@ -721,103 +710,168 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setDayStartOffset(offsetMinutes: Int?) {
         _dayStartOffset.value = offsetMinutes
         viewModelScope.launch { settings.setDayStartOffset(offsetMinutes) }
-        if (_tokenRawBuckets.value.isEmpty()) loadTokenHistory() else rebuildTokenMapsFromRaw()
+        if (_tokenStores.value.values.none { it.rawBuckets.isNotEmpty() }) loadTokenHistory() else rebuildAllFromRaw()
     }
 
-    private fun rebuildTokenMapsFromRaw() {
-        if (_tokenRawBuckets.value.isEmpty()) return
+    fun setTokenServerFilter(filter: String) {
+        _tokenServerFilter.value = filter
+        deriveTokenView()
+    }
+
+    fun renameServer(sid: String, name: String) {
+        val p = _servers.value.firstOrNull { it.sid == sid } ?: return
+        saveServerProfile(p.copy(name = name))
+    }
+
+    fun activeStore(): TokenStore = _tokenStores.value[_activeSid.value] ?: TokenStore()
+
+    private fun deriveTokenView() {
+        val stores = _tokenStores.value
+        val filter = _tokenServerFilter.value
+        val selected: List<TokenStore> = when (filter) {
+            TOKEN_SERVER_ACTIVE -> listOfNotNull(stores[_activeSid.value])
+            TOKEN_SERVER_ALL -> stores.values.toList()
+            else -> listOfNotNull(stores[filter])
+        }
+        val merged = aggregateTokenStores(selected)
+        _tokenHistory.value = merged.history
+        _tokenElapsed.value = merged.elapsed
+        _hourByMonth.value = merged.month
+        _hourByWeek.value = merged.week
+        _hourByDay.value = merged.dayHours
+        _tokenModelStats.value = merged.modelStats
+        _tokenProjectStats.value = merged.projectStats
+        _sessionModelTokens.value = merged.sessionModelTokens
+        _tokenSyncedAt.value = merged.syncedAt
+        _tokenSync.value = merged.sync
+        _tokenRawBuckets.value = merged.rawBuckets
+        _tokenRawSync.value = merged.rawSync
+        _tokenSessionSync.value = merged.sessionSync
+    }
+
+    private fun refreshTokenServerOptions() {
+        val opts = mutableListOf<TokenServerOption>()
+        val seen = mutableSetOf<String>()
+        for (p in _servers.value) {
+            if (p.sid.isBlank() || p.sid in seen) continue
+            seen.add(p.sid)
+            opts.add(TokenServerOption(p.sid, p.name.ifBlank { serverLabel(p.url) }))
+        }
+        _tokenServerOptions.value = opts
+        if (_activeSid.value.isBlank()) {
+            _activeSid.value = _servers.value.firstOrNull { it.url == _serverUrl.value }?.sid
+                ?: _servers.value.firstOrNull { it.sid.isNotBlank() }?.sid
+                ?: ""
+        }
+        val f = _tokenServerFilter.value
+        if (f != TOKEN_SERVER_ACTIVE && f != TOKEN_SERVER_ALL && f !in seen) {
+            _tokenServerFilter.value = TOKEN_SERVER_ACTIVE
+        }
+        deriveTokenView()
+    }
+
+    private fun serverLabel(url: String): String =
+        runCatching {
+            val u = java.net.URI(url)
+            if (u.port > 0) "${u.host}:${u.port}" else (u.host ?: url)
+        }.getOrNull() ?: url
+
+    private fun rebuildAllFromRaw() {
+        val stores = _tokenStores.value
+        if (stores.values.none { it.rawBuckets.isNotEmpty() }) return
         val zone = effectiveZone()
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                if (_tokenRawBuckets.value.isEmpty()) return@withContext
-                val firstDow = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value
-                val now = java.time.LocalDate.now(zone)
-                val currentWeekStart = now.with(
-                    java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
-                )
-                val monthKeys = (0 until 12).map { java.time.YearMonth.now().minusMonths(it.toLong()).toString() }
-                val weekStartDatesStr = (0 until 16).map { currentWeekStart.minusWeeks(it.toLong()) }.map { it.toString() }
-                val weekStartSet = weekStartDatesStr.toSet()
-
-                val tokens = mutableMapOf<String, TokenDay>()
-                val elapsed = mutableMapOf<String, Long>()
-                val month = mutableMapOf<String, MutableMap<Int, TokenDay>>()
-                val week = mutableMapOf<String, MutableMap<Int, TokenDay>>()
-                val dayHours = mutableMapOf<String, MutableMap<Int, TokenDay>>()
-                val modelStats = mutableMapOf<String, MutableTokenModelStats>()
-
-                for (rh in _tokenRawBuckets.value) {
+                for ((sid, base) in stores) {
                     coroutineContext.ensureActive()
-                    val zdt = java.time.Instant.ofEpochMilli(rh.epochBucket * RAW_BUCKET_MS).atZone(zone)
-                    val day = zdt.toLocalDate()
-                    val dayKey = day.toString()
-                    val hour = zdt.hour
-                    val frag = TokenDay(
-                        total = rh.total,
-                        input = rh.input,
-                        output = rh.output,
-                        reasoning = rh.reasoning,
-                        cacheRead = rh.cacheRead,
-                        cacheWrite = rh.cacheWrite,
-                        msgs = rh.msgs,
-                        msgsSent = rh.msgsSent,
-                        msgsReceived = rh.msgsReceived,
-                        cost = rh.cost,
-                    )
-                    tokens[dayKey] = (tokens[dayKey] ?: TokenDay()) + frag
-                    if (rh.elapsedMs > 0L) elapsed[dayKey] = (elapsed[dayKey] ?: 0L) + rh.elapsedMs
-                    val dBuckets = dayHours.getOrPut(dayKey) { mutableMapOf() }
-                    dBuckets[hour] = (dBuckets[hour] ?: TokenDay()) + frag
-                    val mKey = dayKey.substring(0, 7)
-                    val mBuckets = month.getOrPut(mKey) { mutableMapOf() }
-                    mBuckets[hour] = (mBuckets[hour] ?: TokenDay()) + frag
-                    val ws = day.with(
-                        java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
-                    ).toString()
-                    if (ws in weekStartSet) {
-                        val wBuckets = week.getOrPut(ws) { mutableMapOf() }
-                        wBuckets[hour] = (wBuckets[hour] ?: TokenDay()) + frag
-                    }
-                    val mid = rh.model.ifBlank { "unknown" }
-                    val st = modelStats.getOrPut(mid) { MutableTokenModelStats() }
-                    st.history[dayKey] = (st.history[dayKey] ?: TokenDay()) + frag
-                    st.hourByDay.getOrPut(dayKey) { mutableMapOf() }[hour] =
-                        (st.hourByDay[dayKey]?.get(hour) ?: TokenDay()) + frag
-                    st.hourByMonth.getOrPut(mKey) { mutableMapOf() }[hour] =
-                        (st.hourByMonth[mKey]?.get(hour) ?: TokenDay()) + frag
-                    if (ws in weekStartSet) {
-                        st.hourByWeek.getOrPut(ws) { mutableMapOf() }[hour] =
-                            (st.hourByWeek[ws]?.get(hour) ?: TokenDay()) + frag
-                    }
-                    if (rh.elapsedMs > 0L) {
-                        st.elapsed[dayKey] = (st.elapsed[dayKey] ?: 0L) + rh.elapsedMs
-                    }
-                }
-
-                val monthOut = month.filterKeys { it in monthKeys }
-                val weekOut = week.filterKeys { it in weekStartDatesStr }
-                val modelOut = modelStats.mapValues { (_, b) ->
-                    TokenModelStats(
-                        history = b.history,
-                        elapsed = b.elapsed,
-                        hourByDay = b.hourByDay,
-                        hourByWeek = b.hourByWeek.filterKeys { it in weekStartDatesStr },
-                        hourByMonth = b.hourByMonth.filterKeys { it in monthKeys },
-                    )
-                }
-                _tokenHistory.value = tokens
-                _tokenElapsed.value = elapsed
-                _hourByMonth.value = monthOut
-                _hourByWeek.value = weekOut
-                _hourByDay.value = dayHours
-                _tokenModelStats.value = modelOut
-                if (coroutineContext.isActive) {
-                    settings.saveTokenHistory(tokens, elapsed)
-                    settings.saveTokenCalendar(monthOut, weekOut, dayHours, _tokenSync.value, _tokenSyncedAt.value)
-                    settings.saveTokenModelStats(modelOut)
+                    if (base.rawBuckets.isEmpty()) continue
+                    settings.saveTokenStore(sid, buildCachesFromRaw(base, zone))
                 }
             }
         }
+    }
+
+    private fun buildCachesFromRaw(base: TokenStore, zone: java.time.ZoneId): TokenStore {
+        val firstDow = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value
+        val now = java.time.LocalDate.now(zone)
+        val currentWeekStart = now.with(
+            java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
+        )
+        val monthKeys = (0 until 12).map { java.time.YearMonth.now().minusMonths(it.toLong()).toString() }
+        val weekStartDatesStr = (0 until 16).map { currentWeekStart.minusWeeks(it.toLong()) }.map { it.toString() }
+        val weekStartSet = weekStartDatesStr.toSet()
+
+        val tokens = mutableMapOf<String, TokenDay>()
+        val elapsed = mutableMapOf<String, Long>()
+        val month = mutableMapOf<String, MutableMap<Int, TokenDay>>()
+        val week = mutableMapOf<String, MutableMap<Int, TokenDay>>()
+        val dayHours = mutableMapOf<String, MutableMap<Int, TokenDay>>()
+        val modelStats = mutableMapOf<String, MutableTokenModelStats>()
+
+        for (rh in base.rawBuckets) {
+            val zdt = java.time.Instant.ofEpochMilli(rh.epochBucket * RAW_BUCKET_MS).atZone(zone)
+            val day = zdt.toLocalDate()
+            val dayKey = day.toString()
+            val hour = zdt.hour
+            val frag = TokenDay(
+                total = rh.total,
+                input = rh.input,
+                output = rh.output,
+                reasoning = rh.reasoning,
+                cacheRead = rh.cacheRead,
+                cacheWrite = rh.cacheWrite,
+                msgs = rh.msgs,
+                msgsSent = rh.msgsSent,
+                msgsReceived = rh.msgsReceived,
+                cost = rh.cost,
+            )
+            tokens[dayKey] = (tokens[dayKey] ?: TokenDay()) + frag
+            if (rh.elapsedMs > 0L) elapsed[dayKey] = (elapsed[dayKey] ?: 0L) + rh.elapsedMs
+            val dBuckets = dayHours.getOrPut(dayKey) { mutableMapOf() }
+            dBuckets[hour] = (dBuckets[hour] ?: TokenDay()) + frag
+            val mKey = dayKey.substring(0, 7)
+            val mBuckets = month.getOrPut(mKey) { mutableMapOf() }
+            mBuckets[hour] = (mBuckets[hour] ?: TokenDay()) + frag
+            val ws = day.with(
+                java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.of(firstDow))
+            ).toString()
+            if (ws in weekStartSet) {
+                val wBuckets = week.getOrPut(ws) { mutableMapOf() }
+                wBuckets[hour] = (wBuckets[hour] ?: TokenDay()) + frag
+            }
+            val mid = rh.model.ifBlank { "unknown" }
+            val st = modelStats.getOrPut(mid) { MutableTokenModelStats() }
+            st.history[dayKey] = (st.history[dayKey] ?: TokenDay()) + frag
+            st.hourByDay.getOrPut(dayKey) { mutableMapOf() }[hour] =
+                (st.hourByDay[dayKey]?.get(hour) ?: TokenDay()) + frag
+            st.hourByMonth.getOrPut(mKey) { mutableMapOf() }[hour] =
+                (st.hourByMonth[mKey]?.get(hour) ?: TokenDay()) + frag
+            if (ws in weekStartSet) {
+                st.hourByWeek.getOrPut(ws) { mutableMapOf() }[hour] =
+                    (st.hourByWeek[ws]?.get(hour) ?: TokenDay()) + frag
+            }
+            if (rh.elapsedMs > 0L) {
+                st.elapsed[dayKey] = (st.elapsed[dayKey] ?: 0L) + rh.elapsedMs
+            }
+        }
+
+        val modelOut = modelStats.mapValues { (_, b) ->
+            TokenModelStats(
+                history = b.history,
+                elapsed = b.elapsed,
+                hourByDay = b.hourByDay,
+                hourByWeek = b.hourByWeek.filterKeys { it in weekStartDatesStr },
+                hourByMonth = b.hourByMonth.filterKeys { it in monthKeys },
+            )
+        }
+        return base.copy(
+            history = tokens,
+            elapsed = elapsed,
+            month = month.filterKeys { it in monthKeys },
+            week = week.filterKeys { it in weekStartDatesStr },
+            dayHours = dayHours,
+            modelStats = modelOut,
+        )
     }
 
     suspend fun exportSettingsBackup(): Boolean = withContext(Dispatchers.IO) {
@@ -892,9 +946,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 withContext(Dispatchers.IO) {
                     val c = client ?: return@withContext
+                    val sid = _activeSid.value.ifBlank { "default" }
+                    val base = _tokenStores.value[sid] ?: TokenStore()
                     val zone = effectiveZone()
-                    val backfillRaw = incremental && _tokenSync.value > 0L && _tokenHistory.value.isNotEmpty() &&
-                        _tokenRawBuckets.value.isEmpty() && _tokenRawSync.value == 0L
+                    val backfillRaw = incremental && base.sync > 0L && base.history.isNotEmpty() &&
+                        base.rawBuckets.isEmpty() && base.rawSync == 0L
                     val incremental = incremental && !backfillRaw
                     val now = java.time.LocalDate.now(zone)
                     val firstDow = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek.value
@@ -906,20 +962,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val weekStartDatesStr = weekStartDates.map { it.toString() }
                     val weekStartSet = weekStartDatesStr.toSet()
 
-                    val baseSync = if (incremental) _tokenSync.value else 0L
+                    val baseSync = if (incremental) base.sync else 0L
 
-                    val sessionSyncMap = (if (incremental) _tokenSessionSync.value else emptyMap()).toMutableMap()
+                    val sessionSyncMap = (if (incremental) base.sessionSync else emptyMap()).toMutableMap()
                     val fallbackSince = if (incremental && baseSync > 0L) baseSync else null
 
-                    val tokens = (if (incremental) _tokenHistory.value else emptyMap()).toMutableMap()
-                    val elapsed = (if (incremental) _tokenElapsed.value else emptyMap()).toMutableMap()
-                    val month = (if (incremental) _hourByMonth.value else emptyMap())
+                    val tokens = (if (incremental) base.history else emptyMap()).toMutableMap()
+                    val elapsed = (if (incremental) base.elapsed else emptyMap()).toMutableMap()
+                    val month = (if (incremental) base.month else emptyMap())
                         .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
-                    val week = (if (incremental) _hourByWeek.value else emptyMap())
+                    val week = (if (incremental) base.week else emptyMap())
                         .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
-                    val dayHours = (if (incremental) _hourByDay.value else emptyMap())
+                    val dayHours = (if (incremental) base.dayHours else emptyMap())
                         .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
-                    val modelStats = (if (incremental) _tokenModelStats.value else emptyMap())
+                    val modelStats = (if (incremental) base.modelStats else emptyMap())
                         .mapValues { (_, st) ->
                             MutableTokenModelStats().apply {
                                 history.putAll(st.history)
@@ -929,7 +985,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 st.hourByMonth.forEach { (k, m) -> hourByMonth[k] = m.toMutableMap() }
                             }
                         }.toMutableMap()
-                    val projectStats = (if (incremental) _tokenProjectStats.value else emptyMap())
+                    val projectStats = (if (incremental) base.projectStats else emptyMap())
                         .mapValues { (_, st) ->
                             MutableTokenModelStats().apply {
                                 history.putAll(st.history)
@@ -939,22 +995,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 st.hourByMonth.forEach { (k, m) -> hourByMonth[k] = m.toMutableMap() }
                             }
                         }.toMutableMap()
-                    val sessionTokens = (if (incremental) _sessionModelTokens.value else emptyMap())
+                    val sessionTokens = (if (incremental) base.sessionModelTokens else emptyMap())
                         .mapValues { (_, m) -> m.toMutableMap() }.toMutableMap()
                     val dirByProj = mutableMapOf<String, String>()
 
                     var maxMsgMs = baseSync
 
-                    val rawWatermark = if (incremental) _tokenRawSync.value else 0L
+                    val rawWatermark = if (incremental) base.rawSync else 0L
                     val rawAccum: MutableMap<Triple<Long, String, String>, TokenRawBucket> = if (incremental) {
                         mutableMapOf<Triple<Long, String, String>, TokenRawBucket>().apply {
-                            _tokenRawBuckets.value.forEach {
+                            base.rawBuckets.forEach {
                                 val p = it.projectId
                                 put(Triple(it.epochBucket, it.model, if (p.isBlank()) "unknown" else p), it)
                             }
                         }
                     } else mutableMapOf()
-                    var maxRawMs = if (incremental) _tokenRawSync.value else 0L
+                    var maxRawMs = if (incremental) base.rawSync else 0L
                     var lastPeriodicCommitMs = System.currentTimeMillis()
 
                     suspend fun persistSnapshot(publish: Boolean) {
@@ -981,37 +1037,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         val rawOut = rawAccum.values.sortedWith(compareBy({ it.epochBucket }, { it.model }, { it.projectId }))
                         if (publish) {
-                            _tokenHistory.value = tokens
-                            _tokenElapsed.value = elapsed
-                            _hourByMonth.value = monthOut
-                            _hourByWeek.value = weekOut
-                            _hourByDay.value = dayOut
-                            _tokenModelStats.value = modelOut
-                            _tokenProjectStats.value = projOut
-                            _tokenProjectDirs.value = dirByProj
-                            _sessionModelTokens.value = sessionTokens
-                            _tokenSync.value = maxMsgMs
-                            _tokenRawBuckets.value = rawOut
-                            _tokenRawSync.value = maxRawMs
-                            _tokenSessionSync.value = sessionSyncMap.toMap()
+                            _tokenProjectDirs.value =
+                                if (incremental) _tokenProjectDirs.value + dirByProj else dirByProj
                         }
                         if (coroutineContext.isActive) {
                             val syncedAtMs = System.currentTimeMillis()
-                            settings.saveTokenHistory(tokens, elapsed)
-                            settings.saveTokenCalendar(
-                                monthOut, weekOut, dayOut,
-                                if (publish) maxMsgMs else _tokenSync.value,
-                                if (publish) syncedAtMs else _tokenSyncedAt.value,
+                            val store = TokenStore(
+                                history = tokens,
+                                elapsed = elapsed,
+                                month = monthOut,
+                                week = weekOut,
+                                dayHours = dayOut,
+                                modelStats = modelOut,
+                                projectStats = projOut,
+                                sessionModelTokens = sessionTokens,
+                                sync = if (publish) maxMsgMs else base.sync,
+                                syncedAt = if (publish) syncedAtMs else base.syncedAt,
+                                rawBuckets = if (publish) rawOut else base.rawBuckets,
+                                rawSync = if (publish) maxRawMs else base.rawSync,
+                                sessionSync = sessionSyncMap.toMap(),
                             )
-                            settings.saveTokenModelStats(modelOut)
-                            settings.saveTokenProjectStats(projOut)
-                            settings.saveSessionModelTokens(sessionTokens)
-                            settings.saveTokenSessionSync(sessionSyncMap)
-                            if (publish) {
-                                _tokenSyncedAt.value = syncedAtMs
-                                settings.saveTokenRawBuckets(rawOut)
-                                settings.saveTokenRawSync(maxRawMs)
-                            }
+                            settings.saveTokenStore(sid, store)
                         }
                     }
 
@@ -1239,6 +1285,11 @@ data class TokenLoadIndicator(
     val lastActiveDate: String = "",
 )
 
+data class TokenServerOption(
+    val sid: String,
+    val label: String,
+)
+
 private fun sessionTitle(sid: String): String {
     for (p in _projects.value) {
         for (s in p.sessions) {
@@ -1283,8 +1334,30 @@ private fun sessionTitle(sid: String): String {
                 _serverUrl.value = serverUrl
                 _authUsername.value = username
                 _authPassword.value = password
-                saveServerProfile(ServerProfile(serverUrl, type ?: "", username, password))
+                val fingerprint = withContext(Dispatchers.IO) { computeFingerprint(cli) }
+                val existing = _servers.value.firstOrNull { it.url == serverUrl }
+                var sid = existing?.sid?.takeIf { it.isNotBlank() }
+                    ?: java.util.UUID.randomUUID().toString()
+                if (fingerprint.isNotBlank()) {
+                    val match = _servers.value.firstOrNull {
+                        it.url != serverUrl && it.sid.isNotBlank() && it.fingerprint == fingerprint
+                    }
+                    if (match != null && match.sid != sid) {
+                        withContext(Dispatchers.IO) { settings.mergeTokenStores(sid, match.sid) }
+                        sid = match.sid
+                    }
+                }
+                if (sid != "default" && _tokenStores.value["default"]?.isEmpty == false) {
+                    withContext(Dispatchers.IO) { settings.mergeTokenStores("default", sid) }
+                }
+                saveServerProfile(
+                    ServerProfile(serverUrl, type ?: "", username, password, sid = sid, fingerprint = fingerprint),
+                )
+                withContext(Dispatchers.IO) { settings.migrateLegacyTokenData(sid) }
+                _activeSid.value = sid
+                _tokenServerFilter.value = TOKEN_SERVER_ACTIVE
                 _connectionState.value = UiState.Idle
+                deriveTokenView()
                 observeEvents()
                 loadWorkspace()
                 probeCapabilities(cli)
@@ -1302,6 +1375,28 @@ private fun sessionTitle(sid: String): String {
 
     fun removeServerProfile(url: String) {
         viewModelScope.launch { settings.removeServer(url) }
+    }
+
+    private suspend fun computeFingerprint(cli: AgentClient): String = try {
+        val projects = cli.projects()
+        val global = projects.firstOrNull { it.id == "global" } ?: projects.firstOrNull()
+        val created = global?.time?.created ?: 0L
+        if (created > 0L) "oc:$created" else ""
+    } catch (e: Exception) {
+        ""
+    }
+
+    private fun ensureTokenStoreReady() {
+        viewModelScope.launch {
+            val persistedUrl = withContext(Dispatchers.IO) { runCatching { settings.serverUrl.first() }.getOrNull() }
+            val profile = _servers.value.firstOrNull { it.url == persistedUrl }
+                ?: _servers.value.firstOrNull { it.sid.isNotBlank() }
+            if (_activeSid.value.isBlank()) _activeSid.value = profile?.sid.orEmpty()
+            if (profile != null && profile.sid.isNotBlank()) {
+                withContext(Dispatchers.IO) { settings.migrateLegacyTokenData(profile.sid) }
+            }
+            deriveTokenView()
+        }
     }
 
     private fun probeCapabilities(cli: AgentClient) {

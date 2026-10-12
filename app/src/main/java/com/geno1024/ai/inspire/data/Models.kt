@@ -17,6 +17,7 @@ data class Project(
     val worktree: String = "",
     val vcsDir: String? = null,
     val vcs: String? = null,
+    val time: SessionTime? = null,
 )
 
 @Serializable
@@ -376,7 +377,176 @@ data class ServerProfile(
     val username: String? = null,
     val password: String? = null,
     val name: String = "",
+    val sid: String = "",
+    val fingerprint: String = "",
 )
+
+@Serializable
+data class TokenStore(
+    val history: Map<String, TokenDay> = emptyMap(),
+    val elapsed: Map<String, Long> = emptyMap(),
+    val month: Map<String, Map<Int, TokenDay>> = emptyMap(),
+    val week: Map<String, Map<Int, TokenDay>> = emptyMap(),
+    val dayHours: Map<String, Map<Int, TokenDay>> = emptyMap(),
+    val modelStats: Map<String, TokenModelStats> = emptyMap(),
+    val projectStats: Map<String, TokenModelStats> = emptyMap(),
+    val sessionModelTokens: Map<String, Map<String, TokenDay>> = emptyMap(),
+    val sync: Long = 0L,
+    val syncedAt: Long = 0L,
+    val rawBuckets: List<TokenRawBucket> = emptyList(),
+    val rawSync: Long = 0L,
+    val sessionSync: Map<String, Long> = emptyMap(),
+) {
+    val isEmpty: Boolean
+        get() = history.isEmpty() && rawBuckets.isEmpty() && modelStats.isEmpty() &&
+            projectStats.isEmpty() && sessionModelTokens.isEmpty()
+}
+
+private fun <K> unionTokenDayMapsPreserving(a: Map<K, TokenDay>, b: Map<K, TokenDay>): Map<K, TokenDay> {
+    if (a.isEmpty()) return b
+    if (b.isEmpty()) return a
+    val out = HashMap<K, TokenDay>(a.size + b.size)
+    out.putAll(a)
+    for ((k, v) in b) out.putIfAbsent(k, v)
+    return out
+}
+
+private fun unionHourMapsPreserving(
+    a: Map<String, Map<Int, TokenDay>>,
+    b: Map<String, Map<Int, TokenDay>>,
+): Map<String, Map<Int, TokenDay>> {
+    if (a.isEmpty()) return b
+    if (b.isEmpty()) return a
+    val out = HashMap<String, Map<Int, TokenDay>>(a.size + b.size)
+    out.putAll(a)
+    for ((k, v) in b) {
+        out[k] = if (out.containsKey(k)) unionTokenDayMapsPreserving(out.getValue(k), v) else v
+    }
+    return out
+}
+
+private fun unionLongMapsPreserving(a: Map<String, Long>, b: Map<String, Long>): Map<String, Long> {
+    if (a.isEmpty()) return b
+    if (b.isEmpty()) return a
+    val out = HashMap<String, Long>(a.size + b.size)
+    out.putAll(a)
+    for ((k, v) in b) out.merge(k, v, ::maxOf)
+    return out
+}
+
+private fun aggregateTokenModelStats(maps: Collection<Map<String, TokenModelStats>>): Map<String, TokenModelStats> {
+    val out = HashMap<String, TokenModelStats>()
+    for (m in maps) for ((k, v) in m) out[k] = out[k]?.plus(v) ?: v
+    return out
+}
+
+fun aggregateTokenStores(stores: Collection<TokenStore>): TokenStore {
+    if (stores.isEmpty()) return TokenStore()
+    if (stores.size == 1) return stores.first()
+    val history = HashMap<String, TokenDay>()
+    val elapsed = HashMap<String, Long>()
+    val month = HashMap<String, Map<Int, TokenDay>>()
+    val week = HashMap<String, Map<Int, TokenDay>>()
+    val dayHours = HashMap<String, Map<Int, TokenDay>>()
+    val modelStats = HashMap<String, TokenModelStats>()
+    val projectStats = HashMap<String, TokenModelStats>()
+    val sessionModelTokens = HashMap<String, Map<String, TokenDay>>()
+    val rawByKey = HashMap<Triple<Long, String, String>, TokenRawBucket>()
+    val sessionSync = HashMap<String, Long>()
+    var sync = 0L
+    var syncedAt = 0L
+    var rawSync = 0L
+    for (s in stores) {
+        for ((k, v) in s.history) history.merge(k, v) { x, y -> x + y }
+        for ((k, v) in s.elapsed) elapsed.merge(k, v) { x, y -> x + y }
+        for ((k, v) in s.month) month[k] = mergeTokenDayMap(month[k] ?: emptyMap(), v)
+        for ((k, v) in s.week) week[k] = mergeTokenDayMap(week[k] ?: emptyMap(), v)
+        for ((k, v) in s.dayHours) dayHours[k] = mergeTokenDayMap(dayHours[k] ?: emptyMap(), v)
+        for ((k, v) in s.modelStats) modelStats[k] = modelStats[k]?.plus(v) ?: v
+        for ((k, v) in s.projectStats) projectStats[k] = projectStats[k]?.plus(v) ?: v
+        for ((k, v) in s.sessionModelTokens) sessionModelTokens[k] = mergeTokenDayMap(sessionModelTokens[k] ?: emptyMap(), v)
+        for (b in s.rawBuckets) {
+            val key = Triple(b.epochBucket, b.model, b.projectId)
+            rawByKey.merge(key, b) { x, y -> x + y }
+        }
+        for ((k, v) in s.sessionSync) sessionSync.merge(k, v, ::maxOf)
+        if (s.sync > sync) sync = s.sync
+        if (s.syncedAt > syncedAt) syncedAt = s.syncedAt
+        if (s.rawSync > rawSync) rawSync = s.rawSync
+    }
+    return TokenStore(
+        history = history,
+        elapsed = elapsed,
+        month = month,
+        week = week,
+        dayHours = dayHours,
+        modelStats = modelStats,
+        projectStats = projectStats,
+        sessionModelTokens = sessionModelTokens,
+        sync = sync,
+        syncedAt = syncedAt,
+        rawBuckets = rawByKey.values.sortedWith(compareBy({ it.epochBucket }, { it.model }, { it.projectId })),
+        rawSync = rawSync,
+        sessionSync = sessionSync,
+    )
+}
+
+fun mergeTokenStoreDedup(a: TokenStore, b: TokenStore): TokenStore {
+    if (a.isEmpty) return b
+    if (b.isEmpty) return a
+    val rawByKey = HashMap<Triple<Long, String, String>, TokenRawBucket>()
+    for (x in a.rawBuckets) rawByKey[Triple(x.epochBucket, x.model, x.projectId)] = x
+    for (x in b.rawBuckets) {
+        val key = Triple(x.epochBucket, x.model, x.projectId)
+        val existing = rawByKey[key]
+        rawByKey[key] = when {
+            existing == null -> x
+            x.total > existing.total -> x
+            else -> existing
+        }
+    }
+    return TokenStore(
+        history = unionTokenDayMapsPreserving(a.history, b.history),
+        elapsed = unionLongMapsPreserving(a.elapsed, b.elapsed),
+        month = unionHourMapsPreserving(a.month, b.month),
+        week = unionHourMapsPreserving(a.week, b.week),
+        dayHours = unionHourMapsPreserving(a.dayHours, b.dayHours),
+        modelStats = unionTokenModelStatsPreserving(a.modelStats, b.modelStats),
+        projectStats = unionTokenModelStatsPreserving(a.projectStats, b.projectStats),
+        sessionModelTokens = unionSessionMapsPreserving(a.sessionModelTokens, b.sessionModelTokens),
+        sync = maxOf(a.sync, b.sync),
+        syncedAt = maxOf(a.syncedAt, b.syncedAt),
+        rawBuckets = rawByKey.values.sortedWith(compareBy({ it.epochBucket }, { it.model }, { it.projectId })),
+        rawSync = maxOf(a.rawSync, b.rawSync),
+        sessionSync = unionLongMapsPreserving(a.sessionSync, b.sessionSync),
+    )
+}
+
+private fun unionTokenModelStatsPreserving(
+    a: Map<String, TokenModelStats>,
+    b: Map<String, TokenModelStats>,
+): Map<String, TokenModelStats> {
+    if (a.isEmpty()) return b
+    if (b.isEmpty()) return a
+    val out = HashMap<String, TokenModelStats>(a.size + b.size)
+    out.putAll(a)
+    for ((k, v) in b) out.putIfAbsent(k, v)
+    return out
+}
+
+private fun unionSessionMapsPreserving(
+    a: Map<String, Map<String, TokenDay>>,
+    b: Map<String, Map<String, TokenDay>>,
+): Map<String, Map<String, TokenDay>> {
+    if (a.isEmpty()) return b
+    if (b.isEmpty()) return a
+    val out = HashMap<String, Map<String, TokenDay>>(a.size + b.size)
+    out.putAll(a)
+    for ((k, v) in b) {
+        out[k] = if (out.containsKey(k)) unionTokenDayMapsPreserving(out.getValue(k), v) else v
+    }
+    return out
+}
 
 @Serializable
 data class QuestionOption(

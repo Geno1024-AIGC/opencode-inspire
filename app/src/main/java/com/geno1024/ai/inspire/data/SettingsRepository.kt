@@ -99,6 +99,10 @@ class SettingsRepository(private val context: Context) {
         val DOWNLOADED_APK = stringPreferencesKey("downloaded_apk")
         val INSTALLED_VERSION = stringPreferencesKey("installed_version")
         val DRAFTS = stringPreferencesKey("drafts")
+        val TOKEN_SIDS = stringPreferencesKey("token_sids")
+        val TOKEN_STORE_VERSION = intPreferencesKey("token_store_version")
+        const val TOKEN_STORE_PREFIX = "token_store:"
+        const val TOKEN_STORE_VERSION_VALUE = 2
     }
 
     private val json = Json {
@@ -243,6 +247,24 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.SESSION_MODEL_TOKENS]?.let { raw ->
             runCatching { json.decodeFromString<Map<String, Map<String, TokenDay>>>(raw) }.getOrNull()
         } ?: emptyMap()
+    }
+
+    private fun storeKey(sid: String) = stringPreferencesKey(Keys.TOKEN_STORE_PREFIX + sid)
+
+    private fun decodeSids(raw: String?): List<String> =
+        raw?.let { runCatching { json.decodeFromString<List<String>>(it) }.getOrNull() } ?: emptyList()
+
+    val tokenSids: Flow<List<String>> = context.dataStore.data.map { prefs ->
+        decodeSids(prefs[Keys.TOKEN_SIDS])
+    }
+
+    val tokenStores: Flow<Map<String, TokenStore>> = context.dataStore.data.map { prefs ->
+        val sids = decodeSids(prefs[Keys.TOKEN_SIDS])
+        sids.associateWith { sid ->
+            prefs[storeKey(sid)]?.let { raw ->
+                runCatching { json.decodeFromString<TokenStore>(raw) }.getOrNull()
+            } ?: TokenStore()
+        }
     }
 
     suspend fun setTokenFormat(format: TokenFormat) {
@@ -395,6 +417,108 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.TOKEN_SESSION_SYNC] = json.encodeToString(sync) }
     }
 
+    suspend fun saveTokenStore(sid: String, store: TokenStore) {
+        if (sid.isBlank()) return
+        context.dataStore.edit { prefs ->
+            prefs[storeKey(sid)] = json.encodeToString(TokenStore.serializer(), store)
+            val sids = decodeSids(prefs[Keys.TOKEN_SIDS])
+            if (sid !in sids) prefs[Keys.TOKEN_SIDS] = json.encodeToString(sids + sid)
+        }
+    }
+
+    suspend fun removeTokenStore(sid: String) {
+        if (sid.isBlank()) return
+        context.dataStore.edit { prefs ->
+            prefs.remove(storeKey(sid))
+            prefs[Keys.TOKEN_SIDS] = json.encodeToString(decodeSids(prefs[Keys.TOKEN_SIDS]) - sid)
+        }
+    }
+
+    suspend fun mergeTokenStores(fromSid: String, intoSid: String) {
+        if (fromSid.isBlank() || intoSid.isBlank() || fromSid == intoSid) return
+        context.dataStore.edit { prefs ->
+            val from = prefs[storeKey(fromSid)]?.let { raw ->
+                runCatching { json.decodeFromString<TokenStore>(raw) }.getOrNull()
+            }
+            val into = prefs[storeKey(intoSid)]?.let { raw ->
+                runCatching { json.decodeFromString<TokenStore>(raw) }.getOrNull()
+            }
+            if (from != null) {
+                val merged = if (into == null) from else mergeTokenStoreDedup(into, from)
+                prefs[storeKey(intoSid)] = json.encodeToString(TokenStore.serializer(), merged)
+            }
+            prefs.remove(storeKey(fromSid))
+            prefs[Keys.TOKEN_SIDS] = json.encodeToString(
+                (decodeSids(prefs[Keys.TOKEN_SIDS]) - fromSid + intoSid).distinct(),
+            )
+        }
+    }
+
+    suspend fun migrateLegacyTokenData(legacySid: String) {
+        if (legacySid.isBlank()) return
+        context.dataStore.edit { prefs ->
+            if ((prefs[Keys.TOKEN_STORE_VERSION] ?: 0) >= Keys.TOKEN_STORE_VERSION_VALUE) return@edit
+
+            fun <T> decodeLegacy(key: androidx.datastore.preferences.core.Preferences.Key<String>, block: (String) -> T?): T? =
+                prefs[key]?.let { raw -> runCatching { block(raw) }.getOrNull() }
+
+            val history = decodeLegacy(Keys.TOKEN_HISTORY) { json.decodeFromString<Map<String, TokenDay>>(it) }
+            val elapsed = decodeLegacy(Keys.TOKEN_ELAPSED) { json.decodeFromString<Map<String, Long>>(it) }
+            val month = decodeLegacy(Keys.TOKEN_MONTH) { json.decodeFromString<Map<String, Map<Int, TokenDay>>>(it) }
+            val week = decodeLegacy(Keys.TOKEN_WEEK) { json.decodeFromString<Map<String, Map<Int, TokenDay>>>(it) }
+            val dayHours = decodeLegacy(Keys.TOKEN_DAY_HOURS) { json.decodeFromString<Map<String, Map<Int, TokenDay>>>(it) }
+            val modelStats = decodeLegacy(Keys.TOKEN_MODEL_STATS) { json.decodeFromString<Map<String, TokenModelStats>>(it) }
+            val projectStats = decodeLegacy(Keys.TOKEN_PROJECT_STATS) { json.decodeFromString<Map<String, TokenModelStats>>(it) }
+            val sessionModelTokens = decodeLegacy(Keys.SESSION_MODEL_TOKENS) { json.decodeFromString<Map<String, Map<String, TokenDay>>>(it) }
+            val rawBuckets = decodeLegacy(Keys.TOKEN_RAW_BUCKETS) { json.decodeFromString<List<TokenRawBucket>>(it) }
+            val sessionSync = decodeLegacy(Keys.TOKEN_SESSION_SYNC) { json.decodeFromString<Map<String, Long>>(it) }
+            val sync = prefs[Keys.TOKEN_SYNC]
+            val syncedAt = prefs[Keys.TOKEN_SYNC_AT]
+            val rawSync = prefs[Keys.TOKEN_RAW_SYNC]
+
+            val hasLegacy = history != null || elapsed != null || month != null || week != null ||
+                dayHours != null || modelStats != null || projectStats != null || sessionModelTokens != null ||
+                rawBuckets != null || sessionSync != null || sync != null || syncedAt != null || rawSync != null
+            if (hasLegacy) {
+                val legacy = TokenStore(
+                    history = history ?: emptyMap(),
+                    elapsed = elapsed ?: emptyMap(),
+                    month = month ?: emptyMap(),
+                    week = week ?: emptyMap(),
+                    dayHours = dayHours ?: emptyMap(),
+                    modelStats = modelStats ?: emptyMap(),
+                    projectStats = projectStats ?: emptyMap(),
+                    sessionModelTokens = sessionModelTokens ?: emptyMap(),
+                    sync = sync ?: 0L,
+                    syncedAt = syncedAt ?: 0L,
+                    rawBuckets = rawBuckets ?: emptyList(),
+                    rawSync = rawSync ?: 0L,
+                    sessionSync = sessionSync ?: emptyMap(),
+                )
+                val existing = prefs[storeKey(legacySid)]?.let { raw ->
+                    runCatching { json.decodeFromString<TokenStore>(raw) }.getOrNull()
+                }
+                val merged = if (existing == null) legacy else mergeTokenStoreDedup(existing, legacy)
+                prefs[storeKey(legacySid)] = json.encodeToString(TokenStore.serializer(), merged)
+                prefs[Keys.TOKEN_SIDS] = json.encodeToString((decodeSids(prefs[Keys.TOKEN_SIDS]) + legacySid).distinct())
+                prefs.remove(Keys.TOKEN_HISTORY)
+                prefs.remove(Keys.TOKEN_ELAPSED)
+                prefs.remove(Keys.TOKEN_MONTH)
+                prefs.remove(Keys.TOKEN_WEEK)
+                prefs.remove(Keys.TOKEN_DAY_HOURS)
+                prefs.remove(Keys.TOKEN_MODEL_STATS)
+                prefs.remove(Keys.TOKEN_PROJECT_STATS)
+                prefs.remove(Keys.SESSION_MODEL_TOKENS)
+                prefs.remove(Keys.TOKEN_RAW_BUCKETS)
+                prefs.remove(Keys.TOKEN_SESSION_SYNC)
+                prefs.remove(Keys.TOKEN_SYNC)
+                prefs.remove(Keys.TOKEN_SYNC_AT)
+                prefs.remove(Keys.TOKEN_RAW_SYNC)
+            }
+            prefs[Keys.TOKEN_STORE_VERSION] = Keys.TOKEN_STORE_VERSION_VALUE
+        }
+    }
+
     suspend fun setDayStartOffset(offsetMinutes: Int?) {
         context.dataStore.edit { p ->
             if (offsetMinutes == null) p.remove(Keys.DAY_START_OFFSET_MIN)
@@ -450,6 +574,12 @@ class SettingsRepository(private val context: Context) {
             } ?: emptyList()
             val updated = current.filterNot { it.url == profile.url } + profile
             prefs[Keys.SERVERS] = json.encodeToString(ListSerializer(ServerProfile.serializer()), updated)
+        }
+    }
+
+    suspend fun saveServers(profiles: List<ServerProfile>) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.SERVERS] = json.encodeToString(ListSerializer(ServerProfile.serializer()), profiles)
         }
     }
 
