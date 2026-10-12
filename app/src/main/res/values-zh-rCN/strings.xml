@@ -110,6 +110,12 @@
     <string name="server_rename">重命名</string>
     <string name="server_name_label">显示名称</string>
     <string name="server_merge_into">合并到…</string>
+    <string name="server_merge_open">合并服务器…</string>
+    <string name="server_merge_title">合并服务器</string>
+    <string name="server_merge_from">来源</string>
+    <string name="server_merge_to">目标</string>
+    <string name="server_merge_pick">请选择…</string>
+    <string name="server_merge_confirm">合并</string>
     <string name="server_merge_hint">将此服务器的 Token 数据合并到另一个。适用于多个链接指向同一份 opencode 数据的情况。</string>
     <string name="done">完成</string>
 

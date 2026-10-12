@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,6 +64,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
@@ -1034,7 +1036,8 @@ private fun ServersDialog(
     var rowMenuFor by remember { mutableStateOf<String?>(null) }
     var renameUrl by remember { mutableStateOf<String?>(null) }
     var renameText by remember { mutableStateOf("") }
-    var mergeFrom by remember { mutableStateOf<ServerProfile?>(null) }
+    var showMerge by remember { mutableStateOf(false) }
+    var mergeFromUrl by remember { mutableStateOf<String?>(null) }
     val factories = remember { AgentClientRegistry.all() }
     val detectedFactory = if (typeId == AUTO_TYPE) {
         factories.firstOrNull { it.supports(url.trim()) }
@@ -1079,7 +1082,8 @@ private fun ServersDialog(
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.server_merge_into)) },
                                         onClick = {
-                                            mergeFrom = p
+                                            mergeFromUrl = p.url
+                                            showMerge = true
                                             rowMenuFor = null
                                         },
                                     )
@@ -1143,10 +1147,23 @@ private fun ServersDialog(
                         modifier = Modifier.align(Alignment.End),
                     ) { Text(stringResource(R.string.server_save)) }
                 } else {
-                    TextButton(
-                        onClick = { adding = true },
-                        modifier = Modifier.align(Alignment.End),
-                    ) { Text("+  ${stringResource(R.string.server_add)}") }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (servers.count { it.sid.isNotBlank() } >= 2) {
+                            TextButton(
+                                onClick = {
+                                    mergeFromUrl = null
+                                    showMerge = true
+                                },
+                            ) { Text(stringResource(R.string.server_merge_open)) }
+                        }
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = { adding = true }) {
+                            Text("+  ${stringResource(R.string.server_add)}")
+                        }
+                    }
                 }
             }
         },
@@ -1181,33 +1198,116 @@ private fun ServersDialog(
         )
     }
 
-    val mergeSource = mergeFrom
-    if (mergeSource != null) {
-        val targets = servers.filter { it.sid.isNotBlank() && it.sid != mergeSource.sid }
-        AlertDialog(
-            onDismissRequest = { mergeFrom = null },
-            title = { Text(stringResource(R.string.server_merge_into)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        stringResource(R.string.server_merge_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    targets.forEach { t ->
-                        TextButton(
-                            onClick = {
-                                viewModel.mergeServers(mergeSource.sid, t.sid)
-                                mergeFrom = null
-                            },
-                        ) { Text(t.name.ifBlank { t.url }) }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { mergeFrom = null }) { Text(stringResource(R.string.cancel)) }
+    if (showMerge) {
+        MergeServersDialog(
+            servers = servers,
+            initialFromUrl = mergeFromUrl,
+            onDismiss = { showMerge = false },
+            onConfirm = { fromSid, toSid ->
+                viewModel.mergeServers(fromSid, toSid)
+                showMerge = false
             },
         )
+    }
+}
+
+@Composable
+private fun MergeServersDialog(
+    servers: List<ServerProfile>,
+    initialFromUrl: String?,
+    onDismiss: () -> Unit,
+    onConfirm: (fromSid: String, toSid: String) -> Unit,
+) {
+    val linked = servers.filter { it.sid.isNotBlank() }
+    fun label(p: ServerProfile) = p.name.ifBlank { p.url }
+    var fromUrl by remember { mutableStateOf(initialFromUrl ?: linked.firstOrNull()?.url ?: "") }
+    var toUrl by remember { mutableStateOf(linked.firstOrNull { it.url != fromUrl }?.url ?: "") }
+    var fromMenu by remember { mutableStateOf(false) }
+    var toMenu by remember { mutableStateOf(false) }
+    val from = linked.firstOrNull { it.url == fromUrl }
+    val to = linked.firstOrNull { it.url == toUrl }
+    val valid = from != null && to != null && from.sid != to.sid
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.server_merge_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.server_merge_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                MergeServerPicker(
+                    label = stringResource(R.string.server_merge_from),
+                    value = from?.let { label(it) } ?: stringResource(R.string.server_merge_pick),
+                    options = linked,
+                    expanded = fromMenu,
+                    onExpandedChange = { fromMenu = it },
+                    optionLabel = ::label,
+                    onSelect = { fromUrl = it.url; fromMenu = false },
+                )
+                MergeServerPicker(
+                    label = stringResource(R.string.server_merge_to),
+                    value = to?.let { label(it) } ?: stringResource(R.string.server_merge_pick),
+                    options = linked.filter { it.sid != from?.sid },
+                    expanded = toMenu,
+                    onExpandedChange = { toMenu = it },
+                    optionLabel = ::label,
+                    onSelect = { toUrl = it.url; toMenu = false },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = valid,
+                onClick = { if (from != null && to != null) onConfirm(from.sid, to.sid) },
+            ) { Text(stringResource(R.string.server_merge_confirm)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun MergeServerPicker(
+    label: String,
+    value: String,
+    options: List<ServerProfile>,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    optionLabel: (ServerProfile) -> String,
+    onSelect: (ServerProfile) -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(64.dp),
+        )
+        Box {
+            Text(
+                value,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { onExpandedChange(true) }
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+            )
+            DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
+                options.forEach { p ->
+                    DropdownMenuItem(
+                        text = { Text(optionLabel(p), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        onClick = { onSelect(p) },
+                    )
+                }
+            }
+        }
     }
 }
 
