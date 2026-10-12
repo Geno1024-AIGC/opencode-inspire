@@ -5,14 +5,46 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- prompt caret > (filled miter) -->
     <path
-        android:pathData="M50,47 L58,47 L54,24 Z M50,61 L58,61 L54,84 Z M47,50 L47,58 L24,54 Z M61,50 L61,58 L84,54 Z M48,54 L54,48 L60,54 L54,60 Z">
+        android:pathData="M42.2,30.8 L60.4,49 L42.2,67.2 L35.8,60.8 L47.6,49 L35.8,37.2 Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:startColor="#00E5FF"
                 android:endColor="#3D5AFE"
-                android:angle="135"
-                android:type="linear" />
+                android:type="linear"
+                android:startX="36"
+                android:startY="30"
+                android:endX="60"
+                android:endY="70" />
+        </aapt:attr>
+    </path>
+    <!-- cursor bar _ -->
+    <path
+        android:pathData="M49,68.5 L67,68.5 L67,77.5 L49,77.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startColor="#00E5FF"
+                android:endColor="#3D5AFE"
+                android:type="linear"
+                android:startX="36"
+                android:startY="30"
+                android:endX="60"
+                android:endY="70" />
+        </aapt:attr>
+    </path>
+    <!-- spark -->
+    <path
+        android:pathData="M66,25 L68.5,29.5 L73,32 L68.5,34.5 L66,39 L63.5,34.5 L59,32 L63.5,29.5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startColor="#9BF6FF"
+                android:endColor="#00E5FF"
+                android:type="linear"
+                android:startX="59"
+                android:startY="25"
+                android:endX="73"
+                android:endY="39" />
         </aapt:attr>
     </path>
 </vector>
