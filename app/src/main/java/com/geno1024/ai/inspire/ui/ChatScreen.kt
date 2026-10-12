@@ -124,6 +124,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.Lifecycle
@@ -807,22 +808,32 @@ fun ChatScreen(
                         .align(Alignment.BottomEnd)
                         .padding(16.dp),
                     containerColor = if (stickToBottom) {
-                        MaterialTheme.colorScheme.primaryContainer
+                        MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.surfaceVariant
                     },
                     contentColor = if (stickToBottom) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
+                        MaterialTheme.colorScheme.onPrimary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                 ) {
-                    Icon(
-                        Icons.Filled.KeyboardArrowDown,
-                        stringResource(
-                            if (stickToBottom) R.string.scroll_to_bottom else R.string.pin_to_bottom_off
-                        ),
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Filled.KeyboardArrowDown,
+                            stringResource(
+                                if (stickToBottom) R.string.stick_bottom_on else R.string.stick_bottom_off
+                            ),
+                        )
+                        if (!stickToBottom) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 30.dp, height = 2.dp)
+                                    .rotate(-45f)
+                                    .background(MaterialTheme.colorScheme.onSurfaceVariant)
+                            )
+                        }
+                    }
                 }
             }
 
