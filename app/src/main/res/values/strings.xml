@@ -109,14 +109,10 @@
     <string name="server_add">Add server</string>
     <string name="server_rename">Rename</string>
     <string name="server_name_label">Display name</string>
-    <string name="server_merge_into">Merge into…</string>
     <string name="server_merge_open">Merge servers…</string>
-    <string name="server_merge_title">Merge servers</string>
-    <string name="server_merge_from">From</string>
-    <string name="server_merge_to">Into</string>
-    <string name="server_merge_pick">Select…</string>
-    <string name="server_merge_confirm">Merge</string>
-    <string name="server_merge_hint">Merge this server\'s token data into another. Use when several links point to the same opencode data.</string>
+    <string name="server_group_bound">Same data source · %1$d</string>
+    <string name="server_merge_selected">Merge selected (%1$d)</string>
+    <string name="server_merge_hint">Select the servers to merge. Merged servers share one Token dataset (deduplicated, no double counting).</string>
     <string name="done">Done</string>
 
     <!-- Add project dialog -->

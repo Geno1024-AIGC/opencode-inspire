@@ -727,14 +727,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         saveServerProfile(p.copy(name = name))
     }
 
-    fun mergeServers(fromSid: String, intoSid: String) {
-        if (fromSid.isBlank() || intoSid.isBlank() || fromSid == intoSid) return
+    fun mergeServers(sourceSids: Collection<String>, intoSid: String) {
+        if (intoSid.isBlank()) return
+        val sources = sourceSids.filter { it.isNotBlank() && it != intoSid }.distinct()
+        if (sources.isEmpty()) return
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { settings.mergeTokenStores(fromSid, intoSid) }
-            val updated = _servers.value.map { if (it.sid == fromSid) it.copy(sid = intoSid) else it }
+            withContext(Dispatchers.IO) { sources.forEach { settings.mergeTokenStores(it, intoSid) } }
+            val updated = _servers.value.map { if (it.sid in sources) it.copy(sid = intoSid) else it }
             withContext(Dispatchers.IO) { settings.saveServers(updated) }
-            if (_activeSid.value == fromSid) _activeSid.value = intoSid
-            if (_tokenServerFilter.value == fromSid) _tokenServerFilter.value = intoSid
+            if (_activeSid.value in sources) _activeSid.value = intoSid
+            if (_tokenServerFilter.value in sources) _tokenServerFilter.value = intoSid
             refreshTokenServerOptions()
         }
     }
