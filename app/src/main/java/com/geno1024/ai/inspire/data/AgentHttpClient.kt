@@ -51,6 +51,19 @@ class AgentHttpClient(
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            val request = chain.request()
+            try {
+                chain.proceed(request)
+            } catch (e: IOException) {
+                val msg = e.message.orEmpty()
+                val staleRace = e is java.io.EOFException || msg.contains("unexpected end of stream")
+                val safeMethod = request.method == "GET" || request.method == "HEAD"
+                if (!staleRace || !safeMethod) throw e
+                // Stale keep-alive connection reused by the server: retry once on a fresh one.
+                chain.proceed(request)
+            }
+        }
         .build()
 
     private val jsonMedia = "application/json; charset=utf-8".toMediaType()
