@@ -69,6 +69,7 @@ fun ProvidersScreen(viewModel: MainViewModel, onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         refreshing = true
+        viewModel.loadProviders()
         viewModel.refreshIntegrations()
         refreshing = false
     }

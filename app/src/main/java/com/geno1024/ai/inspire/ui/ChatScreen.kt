@@ -188,6 +188,7 @@ fun ChatScreen(
     val todos by viewModel.todos.collectAsStateWithLifecycle()
     var todosHidden by rememberSaveable { mutableStateOf(false) }
     var lastTodosKey by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(Unit) { viewModel.loadProviders() }
     LaunchedEffect(todos) {
         val key = todos.joinToString("\u0001") { it.content }
         if (key.isNotEmpty() && key != lastTodosKey) {

@@ -1421,13 +1421,31 @@ private fun sessionTitle(sid: String): String {
         viewModelScope.launch {
             _capabilitiesDetecting.value = true
             try {
-                val report = withContext(Dispatchers.IO) { cli.probeCapabilities() }
+                val url = _serverUrl.value.orEmpty()
+                val cached = withContext(Dispatchers.IO) {
+                    runCatching { settings.getDocPaths(url) }.getOrNull()
+                }.orEmpty()
+                val report = withContext(Dispatchers.IO) { cli.probeCapabilities(cachedApiPaths = cached) }
                 cli.applyCapabilities(report)
                 _capabilities.value = report
+                if (url.isNotBlank() && report.apiPaths.isNotEmpty() && report.apiPaths != cached) {
+                    withContext(Dispatchers.IO) { runCatching { settings.saveDocPaths(url, report.apiPaths) } }
+                }
             } catch (e: Exception) {
                 _capabilities.value = null
             } finally {
                 _capabilitiesDetecting.value = false
+            }
+        }
+    }
+
+    fun loadProviders() {
+        val c = client ?: return
+        viewModelScope.launch {
+            runCatching {
+                _providers.value = withContext(Dispatchers.IO) {
+                    c.providers(_activeSession.value?.directory)
+                }
             }
         }
     }
@@ -1712,11 +1730,6 @@ private fun sessionTitle(sid: String): String {
         runCatching {
             _models.value = withContext(Dispatchers.IO) {
                 c.models()
-            }
-        }
-        runCatching {
-            _providers.value = withContext(Dispatchers.IO) {
-                c.providers(_activeSession.value?.directory)
             }
         }
         runCatching {

@@ -101,7 +101,7 @@ interface AgentClient {
 
     suspend fun searchFiles(query: String, limit: Int = 50): List<String>
 
-    suspend fun probeCapabilities(): CapabilityReport
+    suspend fun probeCapabilities(cachedApiPaths: List<String> = emptyList()): CapabilityReport
 
     fun applyCapabilities(report: CapabilityReport)
 }

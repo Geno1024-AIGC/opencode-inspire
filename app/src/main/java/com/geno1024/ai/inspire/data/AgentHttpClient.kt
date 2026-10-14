@@ -694,14 +694,19 @@ class AgentHttpClient(
         })
     }
 
-    override suspend fun probeCapabilities(): CapabilityReport {
+    override suspend fun probeCapabilities(cachedApiPaths: List<String>): CapabilityReport {
         var version: String? = null
         try {
             version = health().version
         } catch (_: Exception) {
         }
         return coroutineScope {
-            val docPaths = async { withTimeoutOrNull(8_000) { probeDocPaths() } }
+            val docPaths =
+                if (cachedApiPaths.isNotEmpty()) {
+                    async { cachedApiPaths }
+                } else {
+                    async { withTimeoutOrNull(8_000) { probeDocPaths() } }
+                }
             val fsListV2 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/api/fs/list") }) }
             val fileListV1 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/file") }) }
             val fileContentV1 = async { probeOk(withTimeoutOrNull(8_000) { probeStatus("/file/content") }) }

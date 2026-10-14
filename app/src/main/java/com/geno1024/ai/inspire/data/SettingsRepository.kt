@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.Serializable
 
@@ -100,6 +102,7 @@ class SettingsRepository(private val context: Context) {
         val INSTALLED_VERSION = stringPreferencesKey("installed_version")
         val DRAFTS = stringPreferencesKey("drafts")
         val TOKEN_SIDS = stringPreferencesKey("token_sids")
+        val DOC_PATHS = stringPreferencesKey("doc_paths")
         val TOKEN_STORE_VERSION = intPreferencesKey("token_store_version")
         const val TOKEN_STORE_PREFIX = "token_store:"
         const val TOKEN_STORE_VERSION_VALUE = 2
@@ -581,6 +584,24 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[Keys.SERVERS] = json.encodeToString(ListSerializer(ServerProfile.serializer()), profiles)
         }
+    }
+
+    suspend fun saveDocPaths(url: String, paths: List<String>) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.DOC_PATHS]?.let { raw ->
+                runCatching { json.decodeFromString<Map<String, List<String>>>(raw) }.getOrNull()
+            } ?: emptyMap()
+            prefs[Keys.DOC_PATHS] = json.encodeToString(
+                MapSerializer(String.serializer(), ListSerializer(String.serializer())),
+                current + (url to paths),
+            )
+        }
+    }
+
+    suspend fun getDocPaths(url: String): List<String>? {
+        val raw = context.dataStore.data.first()[Keys.DOC_PATHS] ?: return null
+        val map = runCatching { json.decodeFromString<Map<String, List<String>>>(raw) }.getOrNull() ?: return null
+        return map[url]
     }
 
     suspend fun removeServer(url: String) {
