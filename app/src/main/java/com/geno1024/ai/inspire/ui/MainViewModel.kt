@@ -1654,6 +1654,7 @@ private fun sessionTitle(sid: String): String {
                     client = cli
                     probeCapabilities(cli)
                 }
+                loadProviders()
                 val health = runCatching { pingHealth(client) }.getOrNull()
                 if (health != null) {
                     _serverAlive.value = true
