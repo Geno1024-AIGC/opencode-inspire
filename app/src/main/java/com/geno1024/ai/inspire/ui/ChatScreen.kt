@@ -299,14 +299,22 @@ fun ChatScreen(
         }
     }
 
+    val revertPointId = activeSession?.revert?.messageId
+    val baseMessages = if (revertPointId != null) {
+        val idx = messages.indexOfFirst { it.id == revertPointId }
+        if (idx >= 0) messages.take(idx) else messages
+    } else {
+        messages
+    }
+
     val filteredMessages = if (searchActive && searchQuery.isNotBlank()) {
-        messages.filter { msg ->
+        baseMessages.filter { msg ->
             msg.text.contains(searchQuery, ignoreCase = true) ||
             msg.reasoning?.contains(searchQuery, ignoreCase = true) == true ||
             msg.parts.any { it.toolOutput?.contains(searchQuery, ignoreCase = true) == true }
         }
     } else {
-        messages
+        baseMessages
     }
 
     val listDensity = with(LocalDensity.current) { 22.dp.roundToPx() }
@@ -690,6 +698,33 @@ fun ChatScreen(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    if (revertPointId != null) {
+                        item(key = "revert-banner") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                        RoundedCornerShape(8.dp),
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    stringResource(R.string.revert_banner),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                                TextButton(onClick = { viewModel.unrevert() }) {
+                                    Text(
+                                        stringResource(R.string.revert_restore),
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                }
+                            }
+                        }
+                    }
                     if (!searchActive && !selectMode && hasOlderHistory && searchQuery.isBlank()) {
                     item(key = "load-older") {
                         Row(
@@ -754,6 +789,7 @@ fun ChatScreen(
                             onRegenerate = { (precedingUserText ?: msg.text).let { viewModel.send(it) } },
                             onCopyText = { clipboard.setText(AnnotatedString(stripMarkdown(msg.text))) },
                             onCopyMarkdown = { clipboard.setText(AnnotatedString(msg.text)) },
+                            onRevert = { viewModel.revertTo(msg) },
                             onOpenLink = { previewUrl = it },
                             selectMode = selectMode,
                             selected = msg.id in selectedIds,
@@ -1819,6 +1855,7 @@ private fun MessageBubble(
     onRegenerate: () -> Unit = {},
     onCopyText: () -> Unit = {},
     onCopyMarkdown: () -> Unit = {},
+    onRevert: () -> Unit = {},
     onOpenLink: (String) -> Unit = {},
     selectMode: Boolean = false,
     selected: Boolean = false,
@@ -1986,9 +2023,11 @@ private fun MessageBubble(
             if (!selectMode) {
                 BubbleActions(
                     isAssistant = !isUser && msg.role != "error",
+                    isRevertible = msg.role == "user" || msg.role == "assistant",
                     onCopyText = onCopyText,
                     onCopyMarkdown = onCopyMarkdown,
                     onRegenerate = onRegenerate,
+                    onRevert = onRevert,
                 )
             }
         }
@@ -2094,9 +2133,11 @@ private fun AgentBanner(
 @Composable
 private fun BubbleActions(
     isAssistant: Boolean,
+    isRevertible: Boolean,
     onCopyText: () -> Unit,
     onCopyMarkdown: () -> Unit,
     onRegenerate: () -> Unit,
+    onRevert: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
@@ -2135,6 +2176,15 @@ private fun BubbleActions(
                     onClick = {
                         open = false
                         onRegenerate()
+                    },
+                )
+            }
+            if (isRevertible) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.message_revert)) },
+                    onClick = {
+                        open = false
+                        onRevert()
                     },
                 )
             }

@@ -39,12 +39,19 @@ data class Session(
     val tokens: Tokens? = null,
     val model: ModelV2Ref? = null,
     val agent: String? = null,
+    val revert: SessionRevert? = null,
 )
 
 @Serializable
 data class SessionTime(
     val created: Long = 0L,
     val updated: Long = 0L,
+)
+
+@Serializable
+data class SessionRevert(
+    @SerialName("messageID") val messageId: String,
+    val partID: String? = null,
 )
 
 @Serializable

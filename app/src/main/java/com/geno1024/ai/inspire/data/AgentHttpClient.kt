@@ -617,6 +617,20 @@ class AgentHttpClient(
         ) {}
     }
 
+    override suspend fun revertMessage(sessionId: String, messageID: String): Session =
+        execute(
+            "POST",
+            "/session/$sessionId/revert",
+            body = buildJsonObject {
+                put("messageID", JsonPrimitive(messageID))
+            }.toString(),
+        ) { json.decodeFromString(Session.serializer(), it) }
+
+    override suspend fun unrevertMessage(sessionId: String): Session =
+        execute("POST", "/session/$sessionId/unrevert", body = "{}") {
+            json.decodeFromString(Session.serializer(), it)
+        }
+
     override fun eventStream(): Flow<String> = flow {
         val req = Request.Builder().url("$base/global/event")
         authHeader?.let { req.header("Authorization", it) }

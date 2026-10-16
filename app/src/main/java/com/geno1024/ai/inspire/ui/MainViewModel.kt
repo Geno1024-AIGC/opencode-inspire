@@ -2381,6 +2381,52 @@ private fun sessionTitle(sid: String): String {
         send(lastUserMessage.text)
     }
 
+    fun revertTo(message: ChatMessage) {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        if (_sending.value) return
+        viewModelScope.launch {
+            try {
+                val realId = withContext(Dispatchers.IO) { resolveRevertId(c, sid, message) }
+                if (realId == null) {
+                    _messages.value = _messages.value + ChatMessage(
+                        id = "err-revert-${System.currentTimeMillis()}",
+                        role = "error",
+                        text = getAppString(R.string.revert_failed),
+                    )
+                    return@launch
+                }
+                val updated = withContext(Dispatchers.IO) { c.revertMessage(sid, realId) }
+                _activeSession.value = updated
+                loadMessages()
+            } catch (e: Exception) {
+                _messages.value = _messages.value + ChatMessage(
+                    id = "err-revert-${System.currentTimeMillis()}",
+                    role = "error",
+                    text = e.message ?: getAppString(R.string.revert_failed),
+                )
+            }
+        }
+    }
+
+    fun unrevert() {
+        val c = client ?: return
+        val sid = _activeSession.value?.id ?: return
+        viewModelScope.launch {
+            runCatching { withContext(Dispatchers.IO) { c.unrevertMessage(sid) } }
+                .onSuccess { _activeSession.value = it }
+        }
+    }
+
+    private suspend fun resolveRevertId(c: AgentClient, sid: String, message: ChatMessage): String? {
+        if (message.id.startsWith("msg")) return message.id
+        val (pairs, _) = withContext(Dispatchers.IO) { c.sessionMessagesPage(sid, 100, null) }
+        val sameRole = pairs.filter { (it.first.role ?: "") == message.role }
+        if (sameRole.isEmpty()) return null
+        val textMatch = sameRole.lastOrNull { buildText(it.second) == message.text }
+        return (textMatch?.first ?: sameRole.last().first).id
+    }
+
     fun compactSession() {
         val c = client ?: return
         val s = _activeSession.value ?: return

@@ -97,6 +97,10 @@ interface AgentClient {
 
     suspend fun summarizeSession(sessionId: String, providerId: String, modelId: String)
 
+    suspend fun revertMessage(sessionId: String, messageID: String): Session
+
+    suspend fun unrevertMessage(sessionId: String): Session
+
     fun eventStream(): Flow<String>
 
     suspend fun searchFiles(query: String, limit: Int = 50): List<String>
