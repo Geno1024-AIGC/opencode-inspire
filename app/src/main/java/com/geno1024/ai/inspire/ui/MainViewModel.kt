@@ -1424,12 +1424,21 @@ private fun sessionTitle(sid: String): String {
                 val url = _serverUrl.value.orEmpty()
                 val cached = withContext(Dispatchers.IO) {
                     runCatching { settings.getDocPaths(url) }.getOrNull()
-                }.orEmpty()
-                val report = withContext(Dispatchers.IO) { cli.probeCapabilities(cachedApiPaths = cached) }
+                }
+                val report = withContext(Dispatchers.IO) {
+                    cli.probeCapabilities(
+                        cachedPaths = cached?.paths.orEmpty(),
+                        cachedVersion = cached?.version,
+                    )
+                }
                 cli.applyCapabilities(report)
                 _capabilities.value = report
-                if (url.isNotBlank() && report.apiPaths.isNotEmpty() && report.apiPaths != cached) {
-                    withContext(Dispatchers.IO) { runCatching { settings.saveDocPaths(url, report.apiPaths) } }
+                if (url.isNotBlank() && report.apiPaths.isNotEmpty() &&
+                    (report.apiPaths != cached?.paths || report.version != cached?.version)
+                ) {
+                    withContext(Dispatchers.IO) {
+                        runCatching { settings.saveDocPaths(url, report.version, report.apiPaths) }
+                    }
                 }
             } catch (e: Exception) {
                 _capabilities.value = null

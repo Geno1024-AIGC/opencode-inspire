@@ -56,6 +56,12 @@ data class SettingsBackup(
     val dayStartOffsetMin: Int? = null,
 )
 
+@Serializable
+data class DocPathsCache(
+    val version: String? = null,
+    val paths: List<String> = emptyList(),
+)
+
 class SettingsRepository(private val context: Context) {
     private object Keys {
         val SERVER_URL = stringPreferencesKey("server_url")
@@ -586,21 +592,21 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    suspend fun saveDocPaths(url: String, paths: List<String>) {
+    suspend fun saveDocPaths(url: String, version: String?, paths: List<String>) {
         context.dataStore.edit { prefs ->
             val current = prefs[Keys.DOC_PATHS]?.let { raw ->
-                runCatching { json.decodeFromString<Map<String, List<String>>>(raw) }.getOrNull()
+                runCatching { json.decodeFromString<Map<String, DocPathsCache>>(raw) }.getOrNull()
             } ?: emptyMap()
             prefs[Keys.DOC_PATHS] = json.encodeToString(
-                MapSerializer(String.serializer(), ListSerializer(String.serializer())),
-                current + (url to paths),
+                MapSerializer(String.serializer(), DocPathsCache.serializer()),
+                current + (url to DocPathsCache(version = version, paths = paths)),
             )
         }
     }
 
-    suspend fun getDocPaths(url: String): List<String>? {
+    suspend fun getDocPaths(url: String): DocPathsCache? {
         val raw = context.dataStore.data.first()[Keys.DOC_PATHS] ?: return null
-        val map = runCatching { json.decodeFromString<Map<String, List<String>>>(raw) }.getOrNull() ?: return null
+        val map = runCatching { json.decodeFromString<Map<String, DocPathsCache>>(raw) }.getOrNull() ?: return null
         return map[url]
     }
 

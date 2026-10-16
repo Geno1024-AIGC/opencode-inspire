@@ -221,6 +221,12 @@ object CapabilityCatalog {
     ): CapabilityState {
         if (spec.builtin) return CapabilityState.BUILTIN
         report?.let { r ->
+            // /doc is self-referential: it never lists itself, but a non-empty apiPaths
+            // list is only obtainable by successfully fetching /doc.
+            if (spec.id == "doc") {
+                return if (r.apiPaths.isNotEmpty()) CapabilityState.VERIFIED_SUPPORTED
+                else CapabilityState.VERIFIED_UNSUPPORTED
+            }
             val verified = when {
                 spec.slashName != null ->
                     if (commandNames == null) null else spec.slashName in commandNames

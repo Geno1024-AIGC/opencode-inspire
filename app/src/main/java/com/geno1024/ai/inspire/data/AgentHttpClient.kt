@@ -721,16 +721,20 @@ class AgentHttpClient(
         })
     }
 
-    override suspend fun probeCapabilities(cachedApiPaths: List<String>): CapabilityReport {
+    override suspend fun probeCapabilities(
+        cachedPaths: List<String>,
+        cachedVersion: String?,
+    ): CapabilityReport {
         var version: String? = null
         try {
             version = health().version
         } catch (_: Exception) {
         }
+        val cacheValid = cachedPaths.isNotEmpty() && cachedVersion != null && cachedVersion == version
         return coroutineScope {
             val docPaths =
-                if (cachedApiPaths.isNotEmpty()) {
-                    async { cachedApiPaths }
+                if (cacheValid) {
+                    async { cachedPaths }
                 } else {
                     async { withTimeoutOrNull(8_000) { probeDocPaths() } }
                 }
