@@ -593,4 +593,12 @@
     <string name="capability_sessions_v2">Sessions (v2) — /api/session</string>
     <string name="capability_sessions_v1">Sessions (legacy) — /session</string>
     <string name="capability_permissions">Permission approval — /permission</string>
+    <string name="capability_compact">Context compaction (v2) — /api/session/:id/compact</string>
+    <string name="capability_revert_stage">Revert staging — /api/session/:id/revert/stage</string>
+    <string name="capability_skill">Agent skills — /api/skill</string>
+    <string name="capability_vcs">VCS diff/apply — /vcs</string>
+    <string name="capability_pty">Terminal (PTY) — /api/pty</string>
+    <string name="capability_lsp">LSP servers — /lsp</string>
+    <string name="capability_mcp">MCP servers — /mcp</string>
+    <string name="capability_integration">Integrations — /api/integration</string>
 </resources>

@@ -184,6 +184,54 @@ object CapabilityCatalog {
             minVersion = Version(0, 0, 0),
             routeKey = "find/file",
         ),
+        feature(
+            "compact",
+            R.string.capability_compact,
+            FeatureGroup.API,
+            routeKey = "compact",
+        ),
+        feature(
+            "revertStage",
+            R.string.capability_revert_stage,
+            FeatureGroup.API,
+            routeKey = "revert/stage",
+        ),
+        feature(
+            "skill",
+            R.string.capability_skill,
+            FeatureGroup.API,
+            routeKey = "skill",
+        ),
+        feature(
+            "vcs",
+            R.string.capability_vcs,
+            FeatureGroup.API,
+            routeKey = "vcs",
+        ),
+        feature(
+            "pty",
+            R.string.capability_pty,
+            FeatureGroup.API,
+            routeKey = "pty",
+        ),
+        feature(
+            "lsp",
+            R.string.capability_lsp,
+            FeatureGroup.API,
+            routeKey = "lsp",
+        ),
+        feature(
+            "mcp",
+            R.string.capability_mcp,
+            FeatureGroup.API,
+            routeKey = "mcp",
+        ),
+        feature(
+            "integration",
+            R.string.capability_integration,
+            FeatureGroup.API,
+            routeKey = "integration",
+        ),
         // Slash commands
         feature(
             "cmdInit",
