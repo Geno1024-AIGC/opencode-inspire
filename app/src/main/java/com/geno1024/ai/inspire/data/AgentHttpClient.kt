@@ -29,6 +29,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.ConnectionPool
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -48,21 +49,33 @@ class AgentHttpClient(
         coerceInputValues = true
     }
     private var fsListV2 = true
+    private val connectionPool = ConnectionPool(5, 30, TimeUnit.SECONDS)
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
+        .connectionPool(connectionPool)
         .addInterceptor { chain ->
             val request = chain.request()
-            try {
-                chain.proceed(request)
-            } catch (e: IOException) {
-                val msg = e.message.orEmpty()
-                val staleRace = e is java.io.EOFException || msg.contains("unexpected end of stream")
-                val safeMethod = request.method == "GET" || request.method == "HEAD"
-                if (!staleRace || !safeMethod) throw e
-                // Stale keep-alive connection reused by the server: retry once on a fresh one.
-                chain.proceed(request)
+            val safeMethod = request.method == "GET" || request.method == "HEAD"
+            val maxAttempts = if (safeMethod) 3 else 1
+            var last: IOException? = null
+            for (attempt in 0 until maxAttempts) {
+                try {
+                    return@addInterceptor chain.proceed(request)
+                } catch (e: IOException) {
+                    val msg = e.message.orEmpty()
+                    val transient = e is java.io.EOFException ||
+                        msg.contains("unexpected end of stream") ||
+                        msg.contains("Connection reset") ||
+                        msg.contains("broken pipe")
+                    if (!transient || attempt == maxAttempts - 1) throw e
+                    last = e
+                    // Stale keep-alive connection reused by the server: drop idle
+                    // connections so the retry is forced onto a fresh one.
+                    connectionPool.evictAll()
+                }
             }
+            throw last ?: IOException("request failed")
         }
         .build()
 
