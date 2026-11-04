@@ -4,6 +4,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 @Serializable
 data class HealthResponse(
@@ -666,5 +669,19 @@ data class CapabilityReport(
         "sessionsListV1" -> sessionsListV1
         "permissions" -> permissions
         else -> null
+    }
+}
+
+/** 一次 shell 命令的执行结果（`status` 为 `completed` / `error`）。 */
+data class ShellResult(val status: String, val output: String)
+
+@Serializable
+data class SessionConfig(
+    val model: String? = null,
+    val agent: String? = null,
+) {
+    fun asJson(): JsonObject = buildJsonObject {
+        model?.let { put("model", JsonPrimitive(it)) }
+        agent?.let { put("agent", JsonPrimitive(it)) }
     }
 }

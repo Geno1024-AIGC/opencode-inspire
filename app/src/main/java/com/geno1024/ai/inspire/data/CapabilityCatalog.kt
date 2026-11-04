@@ -61,6 +61,8 @@ data class FeatureSpec(
     val group: FeatureGroup,
     val minVersion: Version? = null,
     val routeKey: String? = null,
+    /** 同一能力在各协议版本中的其他路由；用于 v1 / v2 共用一套能力清单。 */
+    val altRouteKeys: List<String> = emptyList(),
     val reportKey: String? = null,
     val slashName: String? = null,
     val builtin: Boolean = false,
@@ -81,6 +83,7 @@ object CapabilityCatalog {
         group: FeatureGroup,
         minVersion: Version? = null,
         routeKey: String? = null,
+        altRouteKeys: List<String> = emptyList(),
         reportKey: String? = null,
         slashName: String? = null,
         builtin: Boolean = false,
@@ -90,6 +93,7 @@ object CapabilityCatalog {
         group = group,
         minVersion = minVersion,
         routeKey = routeKey,
+        altRouteKeys = altRouteKeys,
         reportKey = reportKey,
         slashName = slashName,
         builtin = builtin,
@@ -97,7 +101,14 @@ object CapabilityCatalog {
 
     val features: List<FeatureSpec> = listOf(
         // API
-        feature("doc", R.string.capability_doc, FeatureGroup.API, minVersion = V015, routeKey = "/doc"),
+        feature(
+            "doc",
+            R.string.capability_doc,
+            FeatureGroup.API,
+            minVersion = V015,
+            routeKey = "/doc",
+            altRouteKeys = listOf("/openapi.json"),
+        ),
         feature(
             "fsListV2",
             R.string.capability_fs_list_v2,
@@ -128,6 +139,7 @@ object CapabilityCatalog {
             FeatureGroup.API,
             minVersion = V015,
             routeKey = "summarize",
+            altRouteKeys = listOf("compact"),
         ),
         feature(
             "commands",
@@ -143,6 +155,7 @@ object CapabilityCatalog {
             FeatureGroup.API,
             minVersion = Version(0, 0, 0),
             routeKey = "global/event",
+            altRouteKeys = listOf("/api/event"),
             reportKey = "eventStream",
         ),
         feature(
@@ -166,7 +179,7 @@ object CapabilityCatalog {
             R.string.capability_sessions_v1,
             FeatureGroup.API,
             minVersion = Version(0, 0, 0),
-            routeKey = "/session",
+            routeKey = "session/status",
             reportKey = "sessionsListV1",
         ),
         feature(
@@ -174,7 +187,7 @@ object CapabilityCatalog {
             R.string.capability_permissions,
             FeatureGroup.API,
             minVersion = V015,
-            routeKey = "permissions",
+            routeKey = "permission",
             reportKey = "permissions",
         ),
         feature(
@@ -182,7 +195,7 @@ object CapabilityCatalog {
             R.string.capability_find,
             FeatureGroup.API,
             minVersion = Version(0, 0, 0),
-            routeKey = "find/file",
+            routeKey = "find",
         ),
         feature(
             "compact",
@@ -279,8 +292,10 @@ object CapabilityCatalog {
                 spec.slashName != null ->
                     if (commandNames == null) null else spec.slashName in commandNames
                 spec.reportKey != null && r.apiPaths.isEmpty() && r.probedV1 -> r.probeValue(spec.reportKey)
-                spec.routeKey != null && r.apiPaths.isNotEmpty() ->
-                    r.apiPaths.any { it.contains(spec.routeKey) }
+                (spec.routeKey != null || spec.altRouteKeys.isNotEmpty()) && r.apiPaths.isNotEmpty() -> {
+                    val keys = listOfNotNull(spec.routeKey) + spec.altRouteKeys
+                    r.apiPaths.any { path -> keys.any { path.contains(it) } }
+                }
                 else -> null
             }
             if (verified != null) {

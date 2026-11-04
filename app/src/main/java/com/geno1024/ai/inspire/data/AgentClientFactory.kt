@@ -89,7 +89,7 @@ class OpenCodeClientFactory : AgentClientFactory {
     }
 
     override fun create(config: ConnectionConfig): AgentClient =
-        AgentHttpClient(config.serverUrl, config.username, config.password)
+        OpenCodeClient(config.serverUrl, config.username, config.password)
 
     override fun supports(url: String): Boolean =
         url.startsWith("http://") || url.startsWith("https://")
