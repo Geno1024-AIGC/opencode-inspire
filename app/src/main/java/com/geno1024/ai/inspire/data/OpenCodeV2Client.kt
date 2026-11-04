@@ -282,16 +282,19 @@ class OpenCodeV2Client(transport: HttpTransport) : OpenCodeClientBase(transport)
         }
 
     override suspend fun sessionMessages(sessionId: String, limit: Int): List<Pair<Message, List<Part>>> {
-        val text = transport.execute("GET", "/api/session/$sessionId/message?limit=$limit") { it }
+        val text = transport.execute("GET", "/api/session/$sessionId/message?limit=${messageLimit(limit)}") { it }
         return parseV2Messages(sessionId, text, json).reversed()
     }
+
+    /** v2 的 `/message` 路由把 limit 硬限制在 200 以内，超出会返回 400 InvalidRequestError。 */
+    private fun messageLimit(limit: Int): Int = limit.coerceIn(1, 200)
 
     override suspend fun sessionMessagesPage(
         sessionId: String,
         limit: Int,
         before: String?,
     ): Pair<List<Pair<Message, List<Part>>>, String?> {
-        val path = "/api/session/$sessionId/message?limit=$limit" +
+        val path = "/api/session/$sessionId/message?limit=${messageLimit(limit)}" +
             (before?.let { "&cursor=${java.net.URLEncoder.encode(it, "UTF-8")}" } ?: "")
         val text = transport.execute("GET", path) { it }
         val envelope = runCatching {
