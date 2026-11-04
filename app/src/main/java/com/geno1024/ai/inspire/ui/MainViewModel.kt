@@ -43,6 +43,7 @@ import com.geno1024.ai.inspire.data.SessionInfo
 import com.geno1024.ai.inspire.data.SessionV2Info
 import com.geno1024.ai.inspire.data.SettingsRepository
 import com.geno1024.ai.inspire.data.StoredHistoryStats
+import com.geno1024.ai.inspire.data.TokenCache
 import com.geno1024.ai.inspire.data.TokenDay
 import com.geno1024.ai.inspire.data.TokenRawBucket
 import com.geno1024.ai.inspire.data.TokenStore
@@ -107,6 +108,7 @@ data class PartUi(
     val toolState: String? = null,
     val toolInput: String? = null,
     val toolOutput: String? = null,
+    val callID: String? = null,
 )
 
 data class SearchHit(
@@ -2103,6 +2105,7 @@ private fun sessionTitle(sid: String): String {
                         if (it is kotlinx.serialization.json.JsonPrimitive) it.contentOrNull else it.toString()
                     },
                     toolOutput = p.state?.output,
+                    callID = p.callID,
                 )
             },
             model = msg.modelID ?: msg.model?.id,
@@ -2151,7 +2154,8 @@ private fun sessionTitle(sid: String): String {
                     _olderCursor.value = null
                     return@launch
                 }
-                _messages.value = pairs.reversed().map { toChatMessage(it.first, it.second) } + _messages.value
+                // sessionMessagesPage 返回的是页内升序，直接拼到更早的位置即可。
+                _messages.value = pairs.map { toChatMessage(it.first, it.second) } + _messages.value
                 _olderCursor.value = next
                 recomputeCumulativeTokens()
             } catch (_: Exception) {
@@ -2180,7 +2184,7 @@ private fun sessionTitle(sid: String): String {
                         _olderCursor.value = null
                         false
                     } else {
-                        _messages.value = pairs.reversed().map { toChatMessage(it.first, it.second) } + _messages.value
+                        _messages.value = pairs.map { toChatMessage(it.first, it.second) } + _messages.value
                         _olderCursor.value = next
                         recomputeCumulativeTokens()
                         true
@@ -3300,7 +3304,12 @@ text = e.message ?: getAppString(R.string.send_failed),
         val dataStr = raw.substringAfter("data:").trim()
         if (dataStr.isEmpty()) return
         val obj = runCatching { json.parseToJsonElement(dataStr).jsonObject }.getOrNull() ?: return
-        val payload = obj["payload"]?.jsonObject ?: return
+        val payload = obj["payload"]?.jsonObject
+        if (payload == null) {
+            // v2 事件是扁平的 `{id, created, type, data}`；v1 才包在 `payload` 里。
+            if (obj["type"] != null) handleEventV2(obj)
+            return
+        }
         val type = payload["type"]?.jsonPrimitive?.contentOrNull ?: return
         val props = payload["properties"]?.jsonObject
         val active = _activeSession.value?.id
@@ -3506,6 +3515,354 @@ text = e.message ?: getAppString(R.string.send_failed),
                 _messages.value = updated
             }
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // OpenCode v2 事件（GET /api/event，扁平 `{id, created, type, data}`）
+    // ---------------------------------------------------------------------
+
+    private fun handleEventV2(evt: JsonObject) {
+        val type = evt["type"]?.jsonPrimitive?.contentOrNull ?: return
+        val data = evt["data"]?.jsonObject ?: JsonObject(emptyMap())
+        val created = evt["created"]?.jsonPrimitive?.contentOrNull?.toLongOrNull()
+            ?.let { serverTimeToMillis(it) } ?: System.currentTimeMillis()
+        val active = _activeSession.value?.id
+        val sid = data["sessionID"]?.jsonPrimitive?.contentOrNull
+
+        when (type) {
+            "session.inbox.enqueued" -> {
+                if (sid == null || sid != active) return
+                val item = data["item"]?.jsonObject ?: return
+                if (item["type"]?.jsonPrimitive?.contentOrNull != "user") return
+                val text = item["payload"]?.jsonObject?.get("text")?.jsonPrimitive?.contentOrNull ?: return
+                val inboxId = data["inboxID"]?.jsonPrimitive?.contentOrNull ?: return
+                // send() 先插入了一条 id=user-* 的乐观消息；用服务端返回的真实 id 替换它。
+                val optimistic = _messages.value.lastOrNull {
+                    it.role == "user" && it.id.startsWith("user-") && it.text == text
+                }
+                _messages.value = when {
+                    optimistic != null -> _messages.value.map {
+                        if (it.id == optimistic.id) it.copy(id = inboxId, time = created) else it
+                    }
+                    _messages.value.none { it.id == inboxId } -> _messages.value + ChatMessage(
+                        id = inboxId,
+                        role = "user",
+                        text = text,
+                        time = created,
+                    )
+                    else -> _messages.value
+                }
+            }
+            "session.execution.started" -> {
+                if (sid == null) return
+                sessionBusy[sid] = true
+                if (sid == active) setSending(true)
+            }
+            "session.execution.succeeded", "session.execution.failed", "session.execution.interrupted" -> {
+                if (sid == null) return
+                val wasBusy = sessionBusy.remove(sid) == true
+                if (type == "session.execution.failed") {
+                    val errText = describeErrorElement(data["error"])
+                    if (!errText.isNullOrBlank() && sid == active) {
+                        _messages.value = _messages.value + ChatMessage(
+                            id = "session-error-${System.currentTimeMillis()}",
+                            role = "error",
+                            text = errText,
+                        )
+                    }
+                }
+                if (sid == active) {
+                    setSending(false)
+                    val wait = currentQuestionWaitMs()
+                    val elapsed = lastUserSendTime?.let { System.currentTimeMillis() - it - wait }
+                    if (elapsed != null && elapsed > 0) _sessionElapsed.value = elapsed
+                    recomputeSessionTotalElapsed()
+                    autoUpdateTimingForSession(sid)
+                    refreshAutoSessionTitleIfNeeded(sid)
+                }
+                if (wasBusy && type == "session.execution.succeeded") {
+                    notifySessionDone(sid, _sessionTokens.value?.total ?: 0L)
+                }
+            }
+            "session.step.started" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                if (_messages.value.any { it.id == mid }) return
+                val model = data["model"]?.jsonObject?.get("id")?.jsonPrimitive?.contentOrNull
+                val started = data["started"]?.jsonPrimitive?.contentOrNull?.toLongOrNull()
+                    ?.let { serverTimeToMillis(it) } ?: created
+                _messages.value = _messages.value + ChatMessage(
+                    id = mid,
+                    role = "assistant",
+                    text = "",
+                    model = model,
+                    time = started,
+                    cumulativeTokens = _cumulativeTokens.value,
+                )
+            }
+            "session.step.ended" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull
+                val tokens = v2Tokens(data["tokens"]) ?: return
+                _promptTokens.value = tokens.promptTokens
+                if (mid != null) {
+                    _messages.value = _messages.value.map {
+                        if (it.id == mid) it.copy(tokens = tokens) else it
+                    }
+                    recomputeCumulativeTokens()
+                }
+            }
+            "session.text.delta" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val delta = data["delta"]?.jsonPrimitive?.contentOrNull ?: return
+                applyV2Stream(mid, created, delta = delta, reasoning = false)
+            }
+            "session.text.ended" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val ordinal = data["ordinal"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
+                val text = data["text"]?.jsonPrimitive?.contentOrNull ?: return
+                // 多个文本块时，ended 只携带当前 ordinal 的内容，不能覆盖前面的块。
+                if (ordinal == 0) applyV2Stream(mid, created, full = text, reasoning = false)
+            }
+            "session.reasoning.delta" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val delta = data["delta"]?.jsonPrimitive?.contentOrNull ?: return
+                applyV2Stream(mid, created, delta = delta, reasoning = true)
+            }
+            "session.reasoning.ended" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val ordinal = data["ordinal"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
+                val text = data["text"]?.jsonPrimitive?.contentOrNull ?: return
+                if (ordinal == 0) applyV2Stream(mid, created, full = text, reasoning = true)
+            }
+            "session.tool.input.started" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                updateV2ToolPart(
+                    mid = mid,
+                    callID = data["id"]?.jsonPrimitive?.contentOrNull,
+                    tool = data["name"]?.jsonPrimitive?.contentOrNull,
+                    status = "pending",
+                )
+            }
+            "session.tool.input.delta" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val callID = data["id"]?.jsonPrimitive?.contentOrNull
+                val delta = data["delta"]?.jsonPrimitive?.contentOrNull
+                if (callID != null && !delta.isNullOrEmpty()) {
+                    updateV2ToolPart(
+                        mid = mid,
+                        callID = callID,
+                        tool = null,
+                        status = null,
+                        appendInput = delta,
+                    )
+                }
+            }
+            "session.tool.input.ended" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val callID = data["id"]?.jsonPrimitive?.contentOrNull
+                val raw = data["text"]?.jsonPrimitive?.contentOrNull
+                val pretty = raw?.let {
+                    runCatching {
+                        val el = json.parseToJsonElement(it)
+                        if (el is JsonPrimitive) el.contentOrNull else el.toString()
+                    }.getOrNull()
+                }
+                updateV2ToolPart(mid, callID, null, "pending", input = pretty)
+            }
+            "session.tool.called" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val callID = data["id"]?.jsonPrimitive?.contentOrNull
+                val input = data["input"]?.let {
+                    if (it is JsonPrimitive) it.contentOrNull else it.toString()
+                }
+                updateV2ToolPart(
+                    mid = mid,
+                    callID = callID,
+                    tool = null,
+                    status = "running",
+                    input = input,
+                )
+            }
+            "session.tool.progress" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                updateV2ToolPart(
+                    mid = mid,
+                    callID = data["id"]?.jsonPrimitive?.contentOrNull,
+                    tool = null,
+                    status = "running",
+                )
+            }
+            "session.tool.success", "session.tool.failed" -> {
+                if (sid == null || sid != active) return
+                val mid = data["assistantMessageID"]?.jsonPrimitive?.contentOrNull ?: return
+                val state = data["metadata"]?.jsonObject
+                val status = state?.get("status")?.jsonPrimitive?.contentOrNull
+                    ?: if (type == "session.tool.failed") "error" else "completed"
+                updateV2ToolPart(
+                    mid = mid,
+                    callID = data["id"]?.jsonPrimitive?.contentOrNull,
+                    tool = null,
+                    status = status,
+                    output = v2ToolOutput(data["content"]),
+                )
+            }
+            "session.usage.updated" -> {
+                if (sid == null || sid != active) return
+                v2Tokens(data["tokens"])?.let { _sessionTokens.value = it }
+                data["cost"]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()?.let {
+                    _sessionCost.value = it
+                }
+            }
+            "session.renamed" -> {
+                if (sid == null || sid != active) return
+                val title = data["title"]?.jsonPrimitive?.contentOrNull ?: return
+                _activeSession.value = _activeSession.value?.copy(title = title)
+                _projects.value = _projects.value.map { p ->
+                    p.copy(sessions = p.sessions.map { if (it.id == sid) it.copy(title = title) else it })
+                }
+            }
+            "session.compaction.ended" -> {
+                if (sid == null || sid != active) return
+                _messages.value = _messages.value + ChatMessage(
+                    id = "system-compact-${System.currentTimeMillis()}",
+                    role = "system",
+                    text = getAppString(R.string.compact_notice),
+                )
+            }
+            "session.error" -> {
+                if (sid != null && sid != active) return
+                val errText = describeErrorElement(data["error"]) ?: return
+                _messages.value = _messages.value + ChatMessage(
+                    id = "session-error-${System.currentTimeMillis()}",
+                    role = "error",
+                    text = errText,
+                )
+                setSending(false)
+            }
+        }
+    }
+
+    private fun applyV2Stream(
+        mid: String,
+        created: Long,
+        delta: String? = null,
+        full: String? = null,
+        reasoning: Boolean,
+    ) {
+        val existing = _messages.value.firstOrNull { it.id == mid }
+        if (existing == null) {
+            _messages.value = _messages.value + ChatMessage(
+                id = mid,
+                role = "assistant",
+                text = if (!reasoning) (delta ?: full).orEmpty() else "",
+                reasoning = if (reasoning) (delta ?: full) else null,
+                time = created,
+                cumulativeTokens = _cumulativeTokens.value,
+            )
+            return
+        }
+        _messages.value = _messages.value.map {
+            if (it.id != mid) it
+            else if (reasoning) {
+                val next = if (delta != null) (it.reasoning ?: "") + delta else full ?: it.reasoning
+                it.copy(reasoning = next)
+            } else {
+                val next = if (delta != null) it.text + delta else full ?: it.text
+                it.copy(text = next)
+            }
+        }
+    }
+
+    private fun updateV2ToolPart(
+        mid: String,
+        callID: String?,
+        tool: String?,
+        status: String?,
+        input: String? = null,
+        appendInput: String? = null,
+        output: String? = null,
+    ) {
+        if (_messages.value.none { it.id == mid }) {
+            _messages.value = _messages.value + ChatMessage(
+                id = mid,
+                role = "assistant",
+                text = "",
+                time = System.currentTimeMillis(),
+                cumulativeTokens = _cumulativeTokens.value,
+            )
+        }
+        _messages.value = _messages.value.map { msg ->
+            if (msg.id != mid) msg
+            else {
+                val index = msg.parts.indexOfFirst { p ->
+                    if (callID != null) p.callID == callID
+                    else tool != null && p.tool == tool && p.callID == null
+                }
+                val part = if (index >= 0) msg.parts[index]
+                else PartUi(type = "tool", tool = tool, toolTitle = tool, callID = callID)
+                val updated = part.copy(
+                    tool = part.tool ?: tool,
+                    toolTitle = part.toolTitle ?: tool,
+                    toolState = status ?: part.toolState,
+                    toolInput = when {
+                        appendInput != null -> (part.toolInput ?: "") + appendInput
+                        input != null -> input
+                        else -> part.toolInput
+                    },
+                    toolOutput = output ?: part.toolOutput,
+                    callID = part.callID ?: callID,
+                )
+                val parts = if (index >= 0) {
+                    msg.parts.toMutableList().also { it[index] = updated }
+                } else {
+                    msg.parts + updated
+                }
+                msg.copy(parts = parts)
+            }
+        }
+    }
+
+    private fun v2Tokens(el: JsonElement?): Tokens? {
+        val obj = el as? JsonObject ?: return null
+        fun num(key: String): Long =
+            obj[key]?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()?.toLong() ?: 0L
+        val cache = obj["cache"]?.jsonObject
+        val cacheRead = cache?.get("read")?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()?.toLong() ?: 0L
+        val cacheWrite = cache?.get("write")?.jsonPrimitive?.contentOrNull?.toDoubleOrNull()?.toLong() ?: 0L
+        val input = num("input")
+        val output = num("output")
+        val reasoning = num("reasoning")
+        return Tokens(
+            total = input + output + reasoning + cacheRead + cacheWrite,
+            input = input,
+            output = output,
+            reasoning = reasoning,
+            cache = TokenCache(read = cacheRead, write = cacheWrite),
+        )
+    }
+
+    private fun v2ToolOutput(el: JsonElement?): String? {
+        val content = el as? kotlinx.serialization.json.JsonArray ?: return null
+        val text = content.mapNotNull { item ->
+            val obj = item as? JsonObject ?: return@mapNotNull null
+            when (obj["type"]?.jsonPrimitive?.contentOrNull) {
+                "text" -> obj["text"]?.jsonPrimitive?.contentOrNull
+                "file" -> obj["name"]?.jsonPrimitive?.contentOrNull
+                    ?: obj["uri"]?.jsonPrimitive?.contentOrNull
+                else -> null
+            }
+        }.joinToString("")
+        return text.ifBlank { null }
     }
 
     fun abort() {
