@@ -468,10 +468,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val apk = settings.downloadedApk.first()
             val recorded = settings.installedVersion.first()
-            if (apk != null && recorded != BuildConfig.VERSION_NAME) {
+            val installed = Updater.installedVersion(getApplication<Application>())
+            if (apk != null && recorded != installed) {
                 deleteDownloadedApk(apk)
                 settings.setDownloadedApk(null)
-                settings.setInstalledVersion(BuildConfig.VERSION_NAME)
+                settings.setInstalledVersion(installed)
             }
         }
         viewModelScope.launch {
@@ -1612,11 +1613,11 @@ private fun sessionTitle(sid: String): String {
             _checkingUpdate.value = true
             try {
                 val releases = Updater.fetchReleases()
-                val rel = Updater.releaseFor(releases, _channel.value)
-                val current = BuildConfig.VERSION_NAME
-                if (rel != null && Updater.isNewer(rel.tagName, current)) {
-                    val baseUrl = rel.apkUrl ?: rel.htmlUrl
-                    _updateInfo.value = UpdateInfo(version = rel.tagName, url = Updater.mirrorApkUrl(baseUrl, Mirror.entries.find { it.id == _mirror.value } ?: Mirror.NONE))
+                val current = Updater.installedVersion(getApplication())
+                val rel = Updater.newer(current, releases, _channel.value)
+                if (rel != null && rel.apkUrl != null) {
+                    val url = Updater.mirrorApkUrl(rel.apkUrl!!, Mirror.entries.find { it.id == _mirror.value } ?: Mirror.NONE)
+                    _updateInfo.value = UpdateInfo(version = rel.name, url = url)
                 } else {
                     _updateInfo.value = null
                     if (notifyLatest) _updateMessage.value = getAppString(R.string.update_latest)
@@ -2657,7 +2658,7 @@ text = e.message ?: getAppString(R.string.send_failed),
     fun noteDownloadedApk(fileName: String) {
         viewModelScope.launch {
             settings.setDownloadedApk(fileName)
-            settings.setInstalledVersion(BuildConfig.VERSION_NAME)
+            settings.setInstalledVersion(Updater.installedVersion(getApplication<Application>()))
         }
     }
 

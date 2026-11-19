@@ -34,6 +34,8 @@ import com.geno1024.ai.inspire.ui.MonoFontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.geno1024.ai.inspire.data.ApkInstaller
+import com.geno1024.ai.inspire.data.Updater
 import com.geno1024.ai.inspire.ui.MainViewModel
 import com.geno1024.ai.inspire.ui.InspireApp
 import com.geno1024.ai.inspire.ui.formatBytes
@@ -152,76 +154,25 @@ class MainActivity : ComponentActivity() {
                                         downloadJob = scope.launch {
                                             val startTime = System.currentTimeMillis()
                                             val fileName = "inspire-${info.version}.apk"
-                                            val uri = runCatching {
+                                            val target = File(Updater.downloadDir(ctx), fileName)
+                                            val done = runCatching {
                                                 withContext(Dispatchers.IO) {
-                                                    val conn = (java.net.URL(info.url).openConnection() as java.net.HttpURLConnection).apply {
-                                                        instanceFollowRedirects = true
-                                                        connectTimeout = 15000
-                                                        readTimeout = 15000
-                                                        addRequestProperty("User-Agent", "opencode-inspire")
+                                                    Updater.download(info.url, target) { downloaded, total ->
+                                                        coroutineContext.ensureActive()
+                                                        val elapsed = System.currentTimeMillis() - startTime
+                                                        val speed = if (elapsed > 0L) downloaded * 1000L / elapsed else 0L
+                                                        viewModel.showDownloadProgress(downloaded, total, speed)
                                                     }
-                                                    val total = conn.contentLength.toLong().coerceAtLeast(0L)
-                                                    var downloaded = 0L
-                                                    val buf = ByteArray(8192)
-                                                    val target = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                                        val values = android.content.ContentValues().apply {
-                                                            put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName)
-                                                            put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/vnd.android.package-archive")
-                                                            put(android.provider.MediaStore.Downloads.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS + "/")
-                                                        }
-                                                        val collection = android.provider.MediaStore.Downloads.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                                                        val dst = ctx.contentResolver.insert(collection, values) ?: error("cannot create download entry")
-                                                        try {
-                                                            conn.inputStream.use { input ->
-                                                                ctx.contentResolver.openOutputStream(dst)!!.use { output ->
-                                                                    var n: Int
-                                                                    while (input.read(buf).also { n = it } != -1) {
-                                                                        coroutineContext.ensureActive()
-                                                                        output.write(buf, 0, n)
-                                                                        downloaded += n
-                                                                        val elapsed = System.currentTimeMillis() - startTime
-                                                                        val speed = if (elapsed > 0L) downloaded * 1000L / elapsed else 0L
-                                                                        viewModel.showDownloadProgress(downloaded, total, speed)
-                                                                    }
-                                                                }
-                                                            }
-                                                            dst
-                                                        } catch (t: Throwable) {
-                                                            ctx.contentResolver.delete(dst, null, null)
-                                                            throw t
-                                                        }
-                                                    } else {
-                                                        val file = File(ctx.cacheDir, fileName)
-                                                        conn.inputStream.use { input ->
-                                                            file.outputStream().use { output ->
-                                                                var n: Int
-                                                                while (input.read(buf).also { n = it } != -1) {
-                                                                    coroutineContext.ensureActive()
-                                                                    output.write(buf, 0, n)
-                                                                    downloaded += n
-                                                                    val elapsed = System.currentTimeMillis() - startTime
-                                                                    val speed = if (elapsed > 0L) downloaded * 1000L / elapsed else 0L
-                                                                    viewModel.showDownloadProgress(downloaded, total, speed)
-                                                                }
-                                                            }
-                                                        }
-                                                        androidx.core.content.FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", file)
-                                                    }
-                                                    conn.disconnect()
-                                                    target
                                                 }
-                                            }.getOrNull()
+                                            }.isSuccess
                                             if (!coroutineContext.isActive) return@launch
                                             viewModel.dismissUpdate()
                                             viewModel.dismissDownload()
-                                            if (uri != null) {
+                                            if (done) {
                                                 viewModel.noteDownloadedApk(fileName)
-                                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                                    setDataAndType(uri, "application/vnd.android.package-archive")
-                                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                runCatching {
+                                                    ApkInstaller.install(ctx, ApkInstaller.uriFor(ctx, target))
                                                 }
-                                                runCatching { ctx.startActivity(intent) }
                                             } else {
                                                 viewModel.showUpdateMessage(updateDownloadFailedRes)
                                             }
