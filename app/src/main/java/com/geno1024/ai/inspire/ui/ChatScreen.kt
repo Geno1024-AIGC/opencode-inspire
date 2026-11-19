@@ -1583,13 +1583,17 @@ private fun PendingQuestionsSheet(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // A single form request may hold several fields, each shown as a question.
+            // Count the questions, not the requests, or the header reads "1" for a
+            // multi-question prompt.
+            val questionCount = requests.sumOf { it.questions.size }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    pluralStringResource(R.plurals.chat_questions_title, requests.size, requests.size),
+                    pluralStringResource(R.plurals.chat_questions_title, questionCount, questionCount),
                     style = MaterialTheme.typography.titleMedium,
                 )
                 TextButton(onClick = onDismissAll) { Text(stringResource(R.string.chat_reject_all)) }

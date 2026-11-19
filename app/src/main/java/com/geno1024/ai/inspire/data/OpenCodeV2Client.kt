@@ -213,28 +213,6 @@ class OpenCodeV2Client(transport: HttpTransport) : OpenCodeClientBase(transport)
             else json.decodeFromString(V2FormsEnvelope.serializer(), text).data
         }.also { forms -> forms.forEach { formCache[it.id] = it } }
 
-    private fun V2FormInfo.toQuestionRequest(): QuestionRequest {
-        val fields = mappableFields()
-        val questions = fields.map { f ->
-            QuestionInfo(
-                question = f.description?.takeIf { it.isNotBlank() }
-                    ?: f.title?.takeIf { it.isNotBlank() }
-                    ?: f.key,
-                header = f.title?.takeIf { it.isNotBlank() } ?: title,
-                options = f.options.map { QuestionOption(label = it.label, description = it.description) },
-                multiple = (f.maxItems ?: 1) > 1,
-                custom = f.custom || f.type == "string" || f.type == "number" || f.type == "integer",
-            )
-        }
-        val effective = if (questions.isNotEmpty()) questions else listOf(
-            QuestionInfo(question = title, header = title, multiple = false, custom = true)
-        )
-        return QuestionRequest(id = id, sessionId = sessionId, questions = effective)
-    }
-
-    private fun V2FormInfo.mappableFields(): List<V2FormField> =
-        fields.filter { !it.hidden && it.type in setOf("multiselect", "string", "number", "integer", "boolean") }
-
     override suspend fun replyQuestion(requestId: String, answers: List<List<String>>, directory: String?) {
         val form = formCache[requestId] ?: fetchForms(directory).firstOrNull { it.id == requestId } ?: return
         val fields = form.mappableFields()
@@ -541,4 +519,34 @@ class OpenCodeV2Client(transport: HttpTransport) : OpenCodeClientBase(transport)
     override fun applyCapabilities(report: CapabilityReport) {
         // v2 的路径固定，无需按探测结果切换。
     }
+}
+
+/** Fields the question sheet can render. `external` has no answer widget here. */
+internal fun V2FormInfo.mappableFields(): List<V2FormField> =
+    fields.filter { !it.hidden && it.type in setOf("multiselect", "string", "number", "integer", "boolean") }
+
+/**
+ * One form can carry several fields, each becoming a question in the same sheet.
+ *
+ * `multiple` comes from the field type: only `multiselect` accepts several
+ * answers. `maxItems` is an optional bound on that field (usually absent), so
+ * deriving `multiple` from it alone turns every real multi-select into a
+ * single-select.
+ */
+internal fun V2FormInfo.toQuestionRequest(): QuestionRequest {
+    val questions = mappableFields().map { f ->
+        QuestionInfo(
+            question = f.description?.takeIf { it.isNotBlank() }
+                ?: f.title?.takeIf { it.isNotBlank() }
+                ?: f.key,
+            header = f.title?.takeIf { it.isNotBlank() } ?: title,
+            options = f.options.map { QuestionOption(label = it.label, description = it.description) },
+            multiple = f.type == "multiselect",
+            custom = f.custom || f.type == "string" || f.type == "number" || f.type == "integer",
+        )
+    }
+    val effective = if (questions.isNotEmpty()) questions else listOf(
+        QuestionInfo(question = title, header = title, multiple = false, custom = true)
+    )
+    return QuestionRequest(id = id, sessionId = sessionId, questions = effective)
 }
