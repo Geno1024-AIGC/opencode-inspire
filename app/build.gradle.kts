@@ -4,33 +4,21 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+import com.geno1024.ai.inspire.gradle.Versioning
 import java.io.File
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-// ---- Dynamic version: 0.1.$pack.$build.$commit ----
-val commitSha: String = providers.exec {
-    commandLine("git", "rev-parse", "--short=8", "HEAD")
-}.standardOutput.asText.get().trim().ifBlank { "00000000" }
+// ---- Version: <base>.<env>.<pack>.<sha8>, from Git and app/count.pack ----
+// Count this packaging build before reading the stamp, so the APK carries its own
+// number. Failures count too: the number is decided at configuration time.
+Versioning.bumpOnPackaging(project, projectDir)
+val stamp = Versioning.stamp(rootDir, projectDir)
+val commitSha: String = stamp.sha1
 
 val commitDate: String = providers.exec {
     commandLine("git", "show", "-s", "--format=%cI", "HEAD")
 }.standardOutput.asText.get().trim().ifBlank { "unknown" }
-
-val commitCount: Int = providers.exec {
-    commandLine("git", "rev-list", "--count", "HEAD")
-}.standardOutput.asText.get().trim().toIntOrNull() ?: 0
-
-// pack: use GitHub Actions run number when building on CI; otherwise commit count as baseline
-val packFromCi: String = providers.environmentVariable("GITHUB_RUN_NUMBER").orNull ?: ""
-val pack = packFromCi.ifBlank { commitCount.toString() }
-
-// build: tracked counter file (increments each build, committed manually)
-val buildCounterFile = File(rootProject.projectDir, "build_count.txt")
-val counterNow = runCatching { buildCounterFile.readText().trim().toInt() }
-    .getOrDefault(commitCount)
-val build = counterNow
-buildCounterFile.writeText((counterNow + 1).toString())
 
 // tokens: tracked counter file (updated by the AI, committed manually)
 val tokensFile = File(rootProject.projectDir, "tokens.txt")
@@ -45,7 +33,7 @@ val tokensMsgs = tokenAt(5)
 val tokensTotal = tokensInput + tokensOutput + tokensReasoning + tokensCacheRead + tokensCacheWrite
 val tokensModels = tokenLines.drop(6).joinToString("\n") { it.trim() }.trim('\n')
 
-val appVersionName = "0.1.$pack.$build.$commitSha"
+val appVersionName = stamp.versionName
 
 // ---- Release signing: password from local.properties (git-ignored) or CI env vars ----
 val keystoreProps = Properties().apply {
@@ -67,12 +55,14 @@ android {
         applicationId = "com.geno1024.ai.inspire"
         minSdk = 26
         targetSdk = 36
-        versionCode = build
+        // Legacy floor: installed builds used build_count.txt (up to 700) while env
+        // is the commit count (531). Without the floor this would be a downgrade.
+        versionCode = maxOf(stamp.versionCode, Versioning.LEGACY_VERSION_CODE_FLOOR)
         versionName = appVersionName
         buildConfigField("String", "GIT_COMMIT", "\"$commitSha\"")
         buildConfigField("String", "BUILD_TIME", "\"$commitDate\"")
-        buildConfigField("int", "PACK", "$pack")
-        buildConfigField("int", "BUILD", "$build")
+        buildConfigField("int", "PACK", stamp.pack)
+        buildConfigField("int", "BUILD", stamp.env)
         buildConfigField("long", "TOKENS_TOTAL", "${tokensTotal}L")
         buildConfigField("long", "TOKENS_INPUT", "${tokensInput}L")
         buildConfigField("long", "TOKENS_OUTPUT", "${tokensOutput}L")
