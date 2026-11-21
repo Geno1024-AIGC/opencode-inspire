@@ -10,6 +10,10 @@ enum class TokenFormat(val id: String, val example: String) {
     COMPACT_1("compact_1", "1.2M"),
     COMPACT_2("compact_2", "1.23M"),
     COMPACT_3("compact_3", "1.234M"),
+    CN_0("cn_0", "1 万"),
+    CN_1("cn_1", "1.2 万"),
+    CN_2("cn_2", "1.23 万"),
+    CN_3("cn_3", "1.234 万"),
     GROUP_3("group_3", "1,234,567"),
     GROUP_4("group_4", "123,4567");
 
@@ -28,6 +32,13 @@ enum class TokenFormat(val id: String, val example: String) {
             "M" to 1_000_000L,
             "k" to 1_000L,
         )
+
+        /** Chinese myriad units, used up to 万亿 so token totals never overflow the labels. */
+        val CN: List<Pair<String, Long>> = listOf(
+            "万亿" to 1_000_000_000_000L,
+            "亿" to 100_000_000L,
+            "万" to 10_000L,
+        )
     }
 
     fun format(count: Long): String = when (this) {
@@ -36,6 +47,10 @@ enum class TokenFormat(val id: String, val example: String) {
         COMPACT_1 -> compact(count, 1)
         COMPACT_2 -> compact(count, 2)
         COMPACT_3 -> compact(count, 3)
+        CN_0 -> chinese(count, 0)
+        CN_1 -> chinese(count, 1)
+        CN_2 -> chinese(count, 2)
+        CN_3 -> chinese(count, 3)
         GROUP_3 -> grouped(count, 3)
         GROUP_4 -> grouped(count, 4)
     }
@@ -46,6 +61,16 @@ private fun compact(count: Long, digits: Int): String {
     for ((suffix, divisor) in TokenFormat.SI) {
         if (count >= divisor) {
             return "%.${digits}f%s".format(Locale.ROOT, count.toDouble() / divisor, suffix)
+        }
+    }
+    return count.toString()
+}
+
+private fun chinese(count: Long, digits: Int): String {
+    if (count < 10_000L) return count.toString()
+    for ((suffix, divisor) in TokenFormat.CN) {
+        if (count >= divisor) {
+            return "%.${digits}f $suffix".format(Locale.ROOT, count.toDouble() / divisor, suffix)
         }
     }
     return count.toString()
