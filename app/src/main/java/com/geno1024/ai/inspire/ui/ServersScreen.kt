@@ -58,10 +58,15 @@ fun ServersScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     var mergeMode by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf(emptySet<String>()) }
 
-    val linked = servers.filter { it.sid.isNotBlank() }
+    // Reconnecting re-saves the profile, so the active server drifts to the end of
+    // the stored list. Show its section first instead of leaking storage order.
+    val ordered = servers.sortedBy { it.url != serverUrl }
+    val linked = ordered.filter { it.sid.isNotBlank() }
     val groups: List<Pair<String, List<ServerProfile>>> =
         linked.map { it.sid }.distinct().map { sid -> sid to linked.filter { it.sid == sid } }
-    val standalone = servers.filter { it.sid.isBlank() }
+    val standalone = ordered.filter { it.sid.isBlank() }
+    val sections = (groups.map { it.second } + standalone.map { listOf(it) })
+        .sortedBy { members -> members.none { it.url == serverUrl } }
     val mergeable = linked.size >= 2
 
     BackHandler {
@@ -163,7 +168,7 @@ fun ServersScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                         }
                     }
                 } else {
-                    groups.forEach { (_, members) ->
+                    sections.forEach { members ->
                         if (members.size > 1) {
                             Surface(
                                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -199,12 +204,6 @@ fun ServersScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                                 renameUrl = p.url
                                 renameText = p.name
                             }
-                        }
-                    }
-                    standalone.forEach { p ->
-                        ServerListRow(p, serverUrl, viewModel) {
-                            renameUrl = p.url
-                            renameText = p.name
                         }
                     }
                 }
