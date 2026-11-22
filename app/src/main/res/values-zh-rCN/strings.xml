@@ -484,6 +484,10 @@
     <string name="message_actions">消息操作</string>
     <string name="message_copy_text">复制文本</string>
     <string name="message_copy_markdown">复制 Markdown</string>
+    <string name="message_revert">撤回到此消息</string>
+    <string name="revert_failed">撤回失败</string>
+    <string name="revert_banner">已撤回至较早的消息</string>
+    <string name="revert_restore">恢复</string>
     <string name="open_in_browser">在浏览器打开</string>
     <string name="attach_file">附加文件</string>
     <string name="rename_title">重命名会话</string>
