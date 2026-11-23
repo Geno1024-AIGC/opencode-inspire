@@ -3,7 +3,7 @@ package com.geno1024.ai.inspire.data
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -101,42 +101,46 @@ class HttpTransport(
         body: String? = null,
         headers: Map<String, String> = emptyMap(),
         readTimeoutSeconds: Long = 30L,
-    ): Pair<String, Map<String, String>> = suspendCancellableCoroutine { cont ->
-        val reqBuilder = Request.Builder().url("$base$path")
-        authHeader?.let { reqBuilder.header("Authorization", it) }
-        headers.forEach { (k, v) -> reqBuilder.header(k, v) }
-        val bodyProvider: () -> okhttp3.RequestBody =
-            { (body ?: "").toRequestBody(jsonMedia) }
-        when (method) {
-            "GET" -> reqBuilder.get()
-            "POST", "PUT", "PATCH", "DELETE" -> reqBuilder.method(method, bodyProvider())
-            else -> throw IllegalArgumentException("Unsupported method: $method")
-        }
-        val request = reqBuilder.build()
-        val call = newCall(request, readTimeoutSeconds)
-        cont.invokeOnCancellation { call.cancel() }
-        call.enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                if (cont.isCancelled) return
-                cont.resumeWithException(e)
+    ): Pair<String, Map<String, String>> {
+        // Errors must not be resumed into a cancelled continuation from an OkHttp
+        // callback: that dispatches them on OkHttp's thread and can crash the app.
+        // Carry them as a value and throw inside the coroutine instead.
+        val result = suspendCancellableCoroutine<Result<Pair<String, Map<String, String>>>> { cont ->
+            val reqBuilder = Request.Builder().url("$base$path")
+            authHeader?.let { reqBuilder.header("Authorization", it) }
+            headers.forEach { (k, v) -> reqBuilder.header(k, v) }
+            val bodyProvider: () -> okhttp3.RequestBody =
+                { (body ?: "").toRequestBody(jsonMedia) }
+            when (method) {
+                "GET" -> reqBuilder.get()
+                "POST", "PUT", "PATCH", "DELETE" -> reqBuilder.method(method, bodyProvider())
+                else -> throw IllegalArgumentException("Unsupported method: $method")
             }
-
-            override fun onResponse(call: Call, response: Response) {
-                if (cont.isCancelled) return
-                response.use {
-                    val text = it.body.string().orEmpty()
-                    if (!it.isSuccessful) {
-                        cont.resumeWithException(IOException("HTTP ${it.code}: $text"))
-                        return
-                    }
-                    val respHeaders = HashMap<String, String>()
-                    for (name in it.headers.names()) {
-                        it.header(name)?.let { v -> respHeaders[name] = v }
-                    }
-                    cont.resume(text to respHeaders)
+            val request = reqBuilder.build()
+            val call = newCall(request, readTimeoutSeconds)
+            cont.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    cont.resumeIfActive(Result.failure(e))
                 }
-            }
-        })
+
+                override fun onResponse(call: Call, response: Response) {
+                    val value = runCatching {
+                        response.use {
+                            val text = it.body.string().orEmpty()
+                            if (!it.isSuccessful) throw IOException("HTTP ${it.code}: $text")
+                            val respHeaders = HashMap<String, String>()
+                            for (name in it.headers.names()) {
+                                it.header(name)?.let { v -> respHeaders[name] = v }
+                            }
+                            text to respHeaders
+                        }
+                    }
+                    cont.resumeIfActive(value)
+                }
+            })
+        }
+        return result.getOrThrow()
     }
 
     suspend fun executeBytes(
@@ -144,8 +148,8 @@ class HttpTransport(
         headers: Map<String, String> = emptyMap(),
         onRead: (Long, Long) -> Unit = { _, _ -> },
         readTimeoutSeconds: Long = 30L,
-    ): ByteArray? =
-        suspendCancellableCoroutine { cont ->
+    ): ByteArray? {
+        val result = suspendCancellableCoroutine<Result<ByteArray?>> { cont ->
             val reqBuilder = Request.Builder().url("$base$path")
             authHeader?.let { reqBuilder.header("Authorization", it) }
             headers.forEach { (k, v) -> reqBuilder.header(k, v) }
@@ -153,41 +157,38 @@ class HttpTransport(
             cont.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    if (cont.isCancelled) return
-                    cont.resumeWithException(e)
+                    cont.resumeIfActive(Result.failure(e))
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    if (cont.isCancelled) return
-                    response.use {
-                        if (!it.isSuccessful) {
-                            val text = it.body.string().orEmpty()
-                            cont.resumeWithException(IOException("HTTP ${it.code}: $text"))
-                            return
-                        }
-                        val body = it.body
-                        val total = body.contentLength()
-                        val buf = java.io.ByteArrayOutputStream()
-                        val sink = body.source()
-                        val chunk = ByteArray(1024 * 1024)
-                        var read = 0L
-                        while (true) {
-                            val n = try {
-                                sink.read(chunk, 0, chunk.size)
-                            } catch (e: Exception) {
-                                cont.resumeWithException(e)
-                                return
+                    val value: Result<ByteArray?> = runCatching {
+                        response.use {
+                            if (!it.isSuccessful) {
+                                val text = it.body.string().orEmpty()
+                                throw IOException("HTTP ${it.code}: $text")
                             }
-                            if (n < 0) break
-                            buf.write(chunk, 0, n)
-                            read += n
-                            onRead(read, total)
+                            val body = it.body
+                            val total = body.contentLength()
+                            val buf = java.io.ByteArrayOutputStream()
+                            val sink = body.source()
+                            val chunk = ByteArray(1024 * 1024)
+                            var read = 0L
+                            while (true) {
+                                val n = sink.read(chunk, 0, chunk.size)
+                                if (n < 0) break
+                                buf.write(chunk, 0, n)
+                                read += n
+                                onRead(read, total)
+                            }
+                            buf.toByteArray()
                         }
-                        cont.resume(buf.toByteArray())
                     }
+                    cont.resumeIfActive(value)
                 }
             })
         }
+        return result.getOrThrow()
+    }
 
     fun stream(path: String, headers: Map<String, String> = emptyMap()): Flow<String> = flow {
         val req = Request.Builder().url("$base$path")
@@ -219,24 +220,28 @@ class HttpTransport(
     }.flowOn(Dispatchers.IO)
 
     /** 用短超时探测一个路径，返回 HTTP 状态与内容类型；HTML（SPA 兜底）视为不存在。 */
-    suspend fun probe(path: String): Probe? = suspendCancellableCoroutine { cont ->
-        val reqBuilder = Request.Builder().url("$base$path")
-        authHeader?.let { reqBuilder.header("Authorization", it) }
-        val call = newCall(reqBuilder.get().build(), 8L)
-        cont.invokeOnCancellation { call.cancel() }
-        call.enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                if (cont.isCancelled) return
-                cont.resume(null)
-            }
+    suspend fun probe(path: String): Probe? {
+        val result = suspendCancellableCoroutine<Result<Probe?>> { cont ->
+            val reqBuilder = Request.Builder().url("$base$path")
+            authHeader?.let { reqBuilder.header("Authorization", it) }
+            val call = newCall(reqBuilder.get().build(), 8L)
+            cont.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    cont.resumeIfActive(Result.success(null))
+                }
 
-            override fun onResponse(call: Call, response: Response) {
-                if (cont.isCancelled) return
-                val probe = Probe(response.code, response.header("Content-Type"))
-                response.close()
-                cont.resume(probe)
-            }
-        })
+                override fun onResponse(call: Call, response: Response) {
+                    val value = runCatching {
+                        val probe = Probe(response.code, response.header("Content-Type"))
+                        response.close()
+                        probe
+                    }
+                    cont.resumeIfActive(value)
+                }
+            })
+        }
+        return result.getOrThrow()
     }
 
     fun probeOk(probe: Probe?): Boolean {
@@ -269,6 +274,16 @@ class HttpTransport(
     private fun newCall(request: Request, readTimeoutSeconds: Long): Call =
         if (readTimeoutSeconds == 30L) client.newCall(request)
         else client.newBuilder().readTimeout(readTimeoutSeconds, TimeUnit.SECONDS).build().newCall(request)
+}
+
+/**
+ * Resuming a cancelled continuation is a no-op, but resuming it *with an
+ * exception* hands that exception to the coroutine's handler on whichever
+ * thread calls resume — here OkHttp's pool, where it is uncaught and fatal.
+ * Callbacks therefore always carry a [Result] and use this helper instead.
+ */
+internal fun <T> CancellableContinuation<T>.resumeIfActive(value: T) {
+    if (isActive) resume(value)
 }
 
 data class Probe(val code: Int, val contentType: String?)
