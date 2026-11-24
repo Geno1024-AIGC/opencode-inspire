@@ -43,15 +43,16 @@ jobs:
       - name: Build debug APK
         env:
           BUILD_COUNT_TOKEN: ${{ secrets.BUILD_COUNT_TOKEN }}
+          BUILD_COUNT_URL: ${{ vars.BUILD_COUNT_URL || secrets.BUILD_COUNT_URL }}
         run: |
           set -euo pipefail
-          if [ -n "${BUILD_COUNT_TOKEN:-}" ]; then
+          if [ -n "${BUILD_COUNT_TOKEN:-}" ] && [ -n "${BUILD_COUNT_URL:-}" ]; then
             ./gradlew :app:assembleDebug --no-daemon
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "::warning::BUILD_COUNT_TOKEN unavailable for this pull request; building without bumping pack."
+            echo "::warning::BUILD_COUNT_TOKEN/URL unavailable for this pull request; building without bumping pack."
             ./gradlew :app:assembleDebug -Ppack.bump=false -Ppack.value=0 --no-daemon
           else
-            echo "::error::BUILD_COUNT_TOKEN is not available; packaging builds must be counted."
+            echo "::error::BUILD_COUNT_TOKEN and BUILD_COUNT_URL must be available; packaging builds must be counted."
             exit 1
           fi
 
