@@ -43,7 +43,7 @@ jobs:
       - name: Build debug APK
         env:
           BUILD_COUNT_TOKEN: ${{ secrets.BUILD_COUNT_TOKEN }}
-          BUILD_COUNT_URL: ${{ vars.BUILD_COUNT_URL || secrets.BUILD_COUNT_URL }}
+          BUILD_COUNT_URL: ${{ secrets.BUILD_COUNT_URL }}
         run: |
           set -euo pipefail
           if [ -n "${BUILD_COUNT_TOKEN:-}" ] && [ -n "${BUILD_COUNT_URL:-}" ]; then

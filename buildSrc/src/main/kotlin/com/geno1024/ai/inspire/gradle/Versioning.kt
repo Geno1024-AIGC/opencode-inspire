@@ -244,6 +244,10 @@ object Versioning {
             ?: error("build-count service returned no total: $json")
     }
 
+    /**
+     * The deployment lives in the environment or `local.properties`, never in
+     * the repository: publishing the address invites counts from strangers.
+     */
     private fun url(root: File, project: Project): String {
         val base = setting(root, "BUILD_COUNT_URL")
             ?: error(
