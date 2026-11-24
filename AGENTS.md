@@ -32,7 +32,7 @@
 ## 构建与验证
 - 构建命令（Ubuntu，显式指定 JDK）：
   `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew -Dorg.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64 assembleDebug`
-- `app/build.gradle.kts` 每次构建会自动递增 `build_count.txt`；其变更随代码一起提交。
+- 版本号遵循 `RULES/VERSION.md`：`<base>.<env>.<pack>.<sha8>`，`env`=提交数，`pack` 由 build-count 服务分配（`BUILD_COUNT_URL`、`BUILD_COUNT_TOKEN` 从环境变量或 `local.properties` 读取；`local.properties` 已 gitignore，不得提交）。打包构建会 POST 计数，CI 与本地共用同一序列。
 - 推送前必须构建成功（exit 0）。若失败，先修复错误再继续。
 - 若项目内提供 lint/类型检查，可运行。
 

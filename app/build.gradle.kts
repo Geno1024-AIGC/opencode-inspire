@@ -9,11 +9,11 @@ import java.io.File
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-// ---- Version: <base>.<env>.<pack>.<sha8>, from Git and app/count.pack ----
-// Count this packaging build before reading the stamp, so the APK carries its own
-// number. Failures count too: the number is decided at configuration time.
-Versioning.bumpOnPackaging(project, projectDir)
-val stamp = Versioning.stamp(rootDir, projectDir)
+// ---- Version: <base>.<env>.<pack>.<sha8>, from Git and build-count server ----
+// The stamp POSTs to the build-count server for packaging builds, so the APK
+// carries its own number. Failures count too: the number is decided at
+// configuration time. See RULES/VERSION.md.
+val stamp = Versioning.stamp(rootDir, project)
 val commitSha: String = stamp.sha1
 
 val commitDate: String = providers.exec {

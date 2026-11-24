@@ -41,7 +41,19 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon
+        env:
+          BUILD_COUNT_TOKEN: ${{ secrets.BUILD_COUNT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BUILD_COUNT_TOKEN:-}" ]; then
+            ./gradlew :app:assembleDebug --no-daemon
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "::warning::BUILD_COUNT_TOKEN unavailable for this pull request; building without bumping pack."
+            ./gradlew :app:assembleDebug -Ppack.bump=false -Ppack.value=0 --no-daemon
+          else
+            echo "::error::BUILD_COUNT_TOKEN is not available; packaging builds must be counted."
+            exit 1
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
