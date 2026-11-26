@@ -53,4 +53,23 @@ class HttpTransportTest {
         assertTrue(job.isCancelled)
         assertTrue("unexpected exceptions: $dispatched", dispatched.isEmpty())
     }
+
+    @Test
+    fun `corrupted gzip response is surfaced as IOException`() = runBlocking {
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/") { exchange ->
+            val body = byteArrayOf(0x1f, 0x8b.toByte(), 0x08, 0x00, 0, 0, 0, 0, 0, 0, 0x01, 0x02, 0x03)
+            exchange.responseHeaders.add("Content-Encoding", "gzip")
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.use { it.write(body) }
+        }
+        server.start()
+        try {
+            val transport = HttpTransport("http://127.0.0.1:${server.address.port}")
+            val error = runCatching { transport.executeRaw("GET", "/") }.exceptionOrNull()
+            assertTrue("expected IOException, got $error", error is IOException)
+        } finally {
+            server.stop(0)
+        }
+    }
 }

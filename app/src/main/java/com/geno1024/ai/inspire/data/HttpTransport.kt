@@ -121,22 +121,30 @@ class HttpTransport(
             cont.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    cont.resumeIfActive(Result.failure(e))
+                    try {
+                        cont.resumeIfActive(Result.failure(e))
+                    } catch (_: Throwable) {}
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    val value = runCatching {
-                        response.use {
-                            val text = it.body.string().orEmpty()
-                            if (!it.isSuccessful) throw IOException("HTTP ${it.code}: $text")
-                            val respHeaders = HashMap<String, String>()
-                            for (name in it.headers.names()) {
-                                it.header(name)?.let { v -> respHeaders[name] = v }
+                    try {
+                        val value = runCatching {
+                            response.use {
+                                val text = it.body.string().orEmpty()
+                                if (!it.isSuccessful) throw IOException("HTTP ${it.code}: $text")
+                                val respHeaders = HashMap<String, String>()
+                                for (name in it.headers.names()) {
+                                    it.header(name)?.let { v -> respHeaders[name] = v }
+                                }
+                                text to respHeaders
                             }
-                            text to respHeaders
                         }
+                        cont.resumeIfActive(value)
+                    } catch (t: Throwable) {
+                        try {
+                            cont.resumeIfActive(Result.failure(t as? IOException ?: IOException(t.message, t)))
+                        } catch (_: Throwable) {}
                     }
-                    cont.resumeIfActive(value)
                 }
             })
         }
@@ -157,33 +165,41 @@ class HttpTransport(
             cont.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    cont.resumeIfActive(Result.failure(e))
+                    try {
+                        cont.resumeIfActive(Result.failure(e))
+                    } catch (_: Throwable) {}
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    val value: Result<ByteArray?> = runCatching {
-                        response.use {
-                            if (!it.isSuccessful) {
-                                val text = it.body.string().orEmpty()
-                                throw IOException("HTTP ${it.code}: $text")
+                    try {
+                        val value: Result<ByteArray?> = runCatching {
+                            response.use {
+                                if (!it.isSuccessful) {
+                                    val text = it.body.string().orEmpty()
+                                    throw IOException("HTTP ${it.code}: $text")
+                                }
+                                val body = it.body
+                                val total = body.contentLength()
+                                val buf = java.io.ByteArrayOutputStream()
+                                val sink = body.source()
+                                val chunk = ByteArray(1024 * 1024)
+                                var read = 0L
+                                while (true) {
+                                    val n = sink.read(chunk, 0, chunk.size)
+                                    if (n < 0) break
+                                    buf.write(chunk, 0, n)
+                                    read += n
+                                    onRead(read, total)
+                                }
+                                buf.toByteArray()
                             }
-                            val body = it.body
-                            val total = body.contentLength()
-                            val buf = java.io.ByteArrayOutputStream()
-                            val sink = body.source()
-                            val chunk = ByteArray(1024 * 1024)
-                            var read = 0L
-                            while (true) {
-                                val n = sink.read(chunk, 0, chunk.size)
-                                if (n < 0) break
-                                buf.write(chunk, 0, n)
-                                read += n
-                                onRead(read, total)
-                            }
-                            buf.toByteArray()
                         }
+                        cont.resumeIfActive(value)
+                    } catch (t: Throwable) {
+                        try {
+                            cont.resumeIfActive(Result.failure(t as? IOException ?: IOException(t.message, t)))
+                        } catch (_: Throwable) {}
                     }
-                    cont.resumeIfActive(value)
                 }
             })
         }
@@ -228,16 +244,24 @@ class HttpTransport(
             cont.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    cont.resumeIfActive(Result.success(null))
+                    try {
+                        cont.resumeIfActive(Result.success(null))
+                    } catch (_: Throwable) {}
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    val value = runCatching {
-                        val probe = Probe(response.code, response.header("Content-Type"))
-                        response.close()
-                        probe
+                    try {
+                        val value = runCatching {
+                            val probe = Probe(response.code, response.header("Content-Type"))
+                            response.close()
+                            probe
+                        }
+                        cont.resumeIfActive(value)
+                    } catch (t: Throwable) {
+                        try {
+                            cont.resumeIfActive(Result.failure(t as? IOException ?: IOException(t.message, t)))
+                        } catch (_: Throwable) {}
                     }
-                    cont.resumeIfActive(value)
                 }
             })
         }
